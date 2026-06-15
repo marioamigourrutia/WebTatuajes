@@ -58,7 +58,7 @@ Checklist mínimo por colección privada:
 | Control        | Requisito                                                            |
 | -------------- | -------------------------------------------------------------------- |
 | Bucket privado | `quote-images` no debe ser público.                                  |
-| Validación     | Limitar tamaño, tipo MIME y cantidad de archivos por solicitud.      |
+| Validación     | Limitar tamaño, tipo MIME permitido y metadata esperada por ruta.    |
 | Acceso         | Generar URLs firmadas desde servidor después de validar permisos.    |
 | Limpieza       | Borrar archivos huérfanos cuando se elimina una cotización.          |
 | Logs           | No registrar URLs firmadas completas ni rutas privadas innecesarias. |
@@ -66,8 +66,11 @@ Checklist mínimo por colección privada:
 Rutas esperadas:
 
 - `quote-images/{customerId}/{quoteId}/{fileId}`: privado; dueño, admin o artista asignado.
-- `portfolio/{artistId}/{itemId}/{fileId}`: público solo si el item asociado está publicado.
-- `artist-profiles/{artistId}/{fileId}` y `products/{productId}/{fileId}`: públicos solo para recursos publicados/activos.
+- `portfolio/{artistId}/{itemId}/{fileId}`: público solo si el item asociado está publicado; escritura solo admin o artista dueño validado contra `portfolio_items`.
+- `artist-profiles/{artistId}/{fileId}`: público solo si el perfil está publicado; escritura solo admin o artista dueño validado contra `artists`.
+- `products/{productId}/{fileId}`: público solo para productos activos; escritura admin.
+
+Las subidas a `quote-images` deben incluir metadata de Storage con `customer_id` y `quote_id` que coincidan con la ruta y con la cotización en Firestore. Las reglas aceptan solo `image/jpeg`, `image/png`, `image/webp` o `image/gif`, con tamaño máximo de 10 MB.
 
 ## Firebase Admin SDK
 
@@ -115,13 +118,19 @@ Supabase fue reemplazado intencionalmente por Firebase como dirección backend. 
 
 ## Pruebas de seguridad requeridas
 
-- [ ] Cliente A no puede leer cotizaciones de Cliente B.
-- [ ] Cliente A no puede obtener imágenes privadas de Cliente B.
-- [ ] Usuario anónimo no puede acceder a rutas cliente/admin.
-- [ ] Cliente no puede modificar su rol.
-- [ ] Cliente no puede asignarse como artista o administrador.
-- [ ] Cliente no puede escribir notas administrativas.
-- [ ] Admin puede gestionar cotizaciones con sesión válida.
+- [x] Cliente A no puede leer cotizaciones de Cliente B.
+- [x] Cliente A no puede obtener imágenes privadas de Cliente B.
+- [x] Usuario anónimo no puede acceder a datos privados.
+- [x] Cliente no puede modificar su rol.
+- [x] Cliente no puede asignarse como artista o administrador.
+- [x] Cliente no puede crear ni publicar perfiles de artista o items de portafolio.
+- [x] Cliente no puede escribir notas administrativas.
+- [x] Admin puede gestionar cotizaciones con sesión válida.
+- [x] Payloads malformados de cotizaciones, imágenes y contact leads son rechazados.
+- [x] Las colecciones privadas y admin-only rechazan list/query desde usuarios no autorizados.
+- [x] Storage rechaza MIME no permitido, archivos de más de 10 MB y metadata de quote inconsistente.
+- [x] Storage rechaza subidas de clientes a rutas de perfiles de artista y portafolio.
+- [x] Artista/admin pueden crear contenido público y subir assets por rutas legítimas.
 - [ ] Dos citas solapadas no pueden crearse simultáneamente.
 
 ## Riesgos abiertos
