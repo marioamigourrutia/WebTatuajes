@@ -1,0 +1,198 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profilePath(uid) {
+      return /databases/$(database)/documents/profiles/$(uid);
+    }
+
+    function currentProfile() {
+      return get(profilePath(request.auth.uid));
+    }
+
+    function hasRole(role) {
+      return signedIn()
+        && exists(profilePath(request.auth.uid))
+        && currentProfile().data.role == role;
+    }
+
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    function isArtist() {
+      return hasRole('artist');
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function quotePath(quoteId) {
+      return /databases/$(database)/documents/quotes/$(quoteId);
+    }
+
+    function quoteData(quoteId) {
+      return get(quotePath(quoteId)).data;
+    }
+
+    function isQuoteCustomer(quoteId) {
+      return signedIn()
+        && exists(quotePath(quoteId))
+        && quoteData(quoteId).customer_id == request.auth.uid;
+    }
+
+    function isAssignedToQuote(quoteId) {
+      return signedIn()
+        && exists(quotePath(quoteId))
+        && quoteData(quoteId).artist_id == request.auth.uid;
+    }
+
+    function hasOnlyAllowedKeys(keys) {
+      return request.resource.data.keys().hasOnly(keys);
+    }
+
+    function changedOnlyAllowedKeys(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    match /profiles/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if false;
+      allow create: if isOwner(uid)
+        && hasOnlyAllowedKeys(['full_name', 'phone', 'created_at', 'updated_at']);
+      allow update: if isOwner(uid)
+        && changedOnlyAllowedKeys(['full_name', 'phone', 'updated_at']);
+      allow delete: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /quotes/{quoteId} {
+      allow get: if (signedIn() && resource.data.customer_id == request.auth.uid)
+        || isAdmin()
+        || (isArtist() && resource.data.artist_id == request.auth.uid);
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.customer_id == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && !('admin_notes' in request.resource.data)
+        && !('artist_id' in request.resource.data);
+      allow update: if isAdmin()
+        || (signedIn()
+          && resource.data.customer_id == request.auth.uid
+          && request.resource.data.customer_id == resource.data.customer_id
+          && changedOnlyAllowedKeys([
+            'body_area',
+            'size_description',
+            'style',
+            'description',
+            'budget_clp',
+            'updated_at'
+          ]))
+        || (isArtist()
+          && resource.data.artist_id == request.auth.uid
+          && changedOnlyAllowedKeys(['status', 'updated_at']));
+      allow delete: if isAdmin();
+
+      match /events/{eventId} {
+        allow get: if isAdmin()
+          || (isArtist() && isAssignedToQuote(quoteId))
+          || (isQuoteCustomer(quoteId) && resource.data.customer_visible == true);
+        allow list: if false;
+        allow write: if isAdmin() || (isArtist() && isAssignedToQuote(quoteId));
+      }
+    }
+
+    match /quote_images/{imageId} {
+      allow get: if (signedIn() && resource.data.customer_id == request.auth.uid)
+        || isAdmin()
+        || (isArtist() && isAssignedToQuote(resource.data.quote_id));
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.customer_id == request.auth.uid
+        && isQuoteCustomer(request.resource.data.quote_id)
+        && request.resource.data.storage_path.matches('quote-images/' + request.auth.uid + '/' + request.resource.data.quote_id + '/[^/]+');
+      allow update, delete: if isAdmin()
+        || (signedIn()
+          && resource.data.customer_id == request.auth.uid
+          && request.resource.data.customer_id == resource.data.customer_id
+          && request.resource.data.quote_id == resource.data.quote_id
+          && changedOnlyAllowedKeys(['mime_type', 'size_bytes', 'updated_at']));
+    }
+
+    match /appointments/{appointmentId} {
+      allow get: if (signedIn() && resource.data.customer_id == request.auth.uid)
+        || isAdmin()
+        || (isArtist() && resource.data.artist_id == request.auth.uid);
+      allow list: if false;
+      allow create: if isAdmin()
+        || (isArtist()
+          && request.resource.data.artist_id == request.auth.uid
+          && !('admin_notes' in request.resource.data));
+      allow update: if isAdmin()
+        || (isArtist()
+          && resource.data.artist_id == request.auth.uid
+          && request.resource.data.customer_id == resource.data.customer_id
+          && request.resource.data.quote_id == resource.data.quote_id
+          && request.resource.data.artist_id == resource.data.artist_id
+          && !('admin_notes' in request.resource.data));
+      allow delete: if isAdmin() || (isArtist() && resource.data.artist_id == request.auth.uid);
+    }
+
+    match /artists/{artistId} {
+      allow get: if resource.data.published == true || isAdmin() || isOwner(resource.data.profile_id);
+      allow list: if false;
+      allow create: if isAdmin() || isOwner(request.resource.data.profile_id);
+      allow update: if isAdmin()
+        || (isOwner(resource.data.profile_id)
+          && request.resource.data.profile_id == resource.data.profile_id);
+      allow delete: if isAdmin() || isOwner(resource.data.profile_id);
+    }
+
+    match /portfolio_items/{itemId} {
+      allow get: if resource.data.published == true || isAdmin() || isOwner(resource.data.artist_id);
+      allow list: if false;
+      allow create: if isAdmin() || isOwner(request.resource.data.artist_id);
+      allow update: if isAdmin()
+        || (isOwner(resource.data.artist_id)
+          && request.resource.data.artist_id == resource.data.artist_id);
+      allow delete: if isAdmin() || isOwner(resource.data.artist_id);
+    }
+
+    match /products/{productId} {
+      allow get: if resource.data.active == true || isAdmin();
+      allow list: if false;
+      allow write: if isAdmin();
+    }
+
+    match /sponsors/{sponsorId} {
+      allow get: if resource.data.active == true || isAdmin();
+      allow list: if false;
+      allow write: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow get: if resource.data.approved == true || isAdmin();
+      allow list: if false;
+      allow write: if isAdmin();
+    }
+
+    match /community_posts/{postId} {
+      allow get: if resource.data.published == true || isAdmin();
+      allow list: if false;
+      allow write: if isAdmin();
+    }
+
+    match /contact_leads/{leadId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
