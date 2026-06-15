@@ -53,14 +53,14 @@ Firestore no impone constraints relacionales. Para evitar citas duplicadas se de
 
 ## Modelo Firebase Storage
 
-| Ruta                                           | Acceso                                            | Reglas clave                                                                  |
-| ---------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `quote-images/{customerId}/{quoteId}/{fileId}` | Privado                                           | Lee/escribe dueño si la quote le pertenece; admin/artist asignado puede leer. |
-| `portfolio/{artistId}/{itemId}/{fileId}`       | Público solo si metadata Firestore está publicada | Escritura admin/artista dueño; validar MIME/tamaño.                           |
-| `artist-profiles/{artistId}/{fileId}`          | Público si perfil publicado                       | Avatar/banner del artista.                                                    |
-| `products/{productId}/{fileId}`                | Público si producto activo                        | Escritura admin.                                                              |
+| Ruta                                           | Acceso                                            | Reglas clave                                                                                                                                         |
+| ---------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `quote-images/{customerId}/{quoteId}/{fileId}` | Privado                                           | Escribe dueño si la quote le pertenece, con MIME/tamaño permitido y metadata `customer_id`/`quote_id` consistente; admin/artist asignado puede leer. |
+| `portfolio/{artistId}/{itemId}/{fileId}`       | Público solo si metadata Firestore está publicada | Escritura admin/artista dueño; validar MIME/tamaño.                                                                                                  |
+| `artist-profiles/{artistId}/{fileId}`          | Público si perfil publicado                       | Avatar/banner del artista.                                                                                                                           |
+| `products/{productId}/{fileId}`                | Público si producto activo                        | Escritura admin.                                                                                                                                     |
 
-Las rutas privadas no deben renderizarse como URLs públicas permanentes. Para descargas sensibles, generar URLs de corta duración desde servidor después de validar sesión y permisos.
+Las rutas privadas no deben renderizarse como URLs públicas permanentes. Para descargas sensibles, generar URLs de corta duración desde servidor después de validar sesión y permisos. Las subidas privadas de cotización deben enviar metadata de Storage que coincida con la ruta y con el documento `quotes/{quoteId}` para no depender solo del path.
 
 ## Estrategia de Security Rules
 
@@ -71,6 +71,7 @@ Principios:
 - Comparar ownership con campos inmutables como `customer_id` y `created_by`.
 - Impedir que clientes escriban `role`, `admin_notes`, `artist_id` asignado o cambios de estado no permitidos.
 - Validar tipos, campos permitidos, tamaños máximos y transiciones de estado.
+- Rechazar `list/query` en colecciones privadas o admin-only salvo que exista un caso público explícito.
 - Probar reglas con Firebase Emulator Suite antes de conectar datos reales.
 
 Las operaciones con privilegios —asignar roles, responder cotizaciones, crear URLs firmadas, limpiar archivos huérfanos o resolver conflictos de agenda— deben pasar por servidor con Firebase Admin SDK. El Admin SDK ignora Security Rules: por eso cada handler/server action debe validar sesión, rol, ownership e input antes de ejecutar.
@@ -92,4 +93,4 @@ La referencia a Supabase fue retirada intencionalmente. La dirección aprobada e
 
 ## Próximo paso
 
-Antes de implementar pantallas de negocio, crear reglas iniciales de Firestore/Storage y pruebas con emuladores para `profiles`, `quotes`, `quote_images`, `appointments` y contenido público.
+Antes de implementar pantallas de negocio, mantener las reglas y pruebas de emulador actualizadas para `profiles`, `quotes`, `quote_images`, `appointments`, `contact_leads`, contenido público y Storage privado.

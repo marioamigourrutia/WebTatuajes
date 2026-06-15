@@ -48,25 +48,57 @@ service firebase.storage {
 
     function isImageSafe() {
       return request.resource != null
-        && request.resource.size < 10 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.size > 0
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    }
+
+    function portfolioItemPath(itemId) {
+      return /databases/(default)/documents/portfolio_items/$(itemId);
+    }
+
+    function artistPath(artistId) {
+      return /databases/(default)/documents/artists/$(artistId);
+    }
+
+    function ownsPortfolioItem(artistId, itemId) {
+      return signedIn()
+        && isArtist()
+        && request.auth.uid == artistId
+        && firestore.exists(portfolioItemPath(itemId))
+        && firestore.get(portfolioItemPath(itemId)).data.artist_id == artistId;
+    }
+
+    function ownsArtistProfile(artistId) {
+      return signedIn()
+        && isArtist()
+        && request.auth.uid == artistId
+        && firestore.exists(artistPath(artistId))
+        && firestore.get(artistPath(artistId)).data.profile_id == artistId;
+    }
+
+    function hasQuoteImageMetadata(customerId, quoteId) {
+      return request.resource.metadata.customer_id == customerId
+        && request.resource.metadata.quote_id == quoteId;
     }
 
     match /quote-images/{customerId}/{quoteId}/{fileId} {
       allow read: if isQuoteOwner(customerId, quoteId) || isAdmin() || isAssignedArtist(quoteId);
-      allow write: if isQuoteOwner(customerId, quoteId) && isImageSafe();
+      allow write: if isQuoteOwner(customerId, quoteId)
+        && isImageSafe()
+        && hasQuoteImageMetadata(customerId, quoteId);
     }
 
     match /portfolio/{artistId}/{itemId}/{fileId} {
-      allow read: if firestore.exists(/databases/(default)/documents/portfolio_items/$(itemId))
-        && firestore.get(/databases/(default)/documents/portfolio_items/$(itemId)).data.published == true;
-      allow write: if isAdmin() || (signedIn() && request.auth.uid == artistId && isImageSafe());
+      allow read: if firestore.exists(portfolioItemPath(itemId))
+        && firestore.get(portfolioItemPath(itemId)).data.published == true;
+      allow write: if isImageSafe() && (isAdmin() || ownsPortfolioItem(artistId, itemId));
     }
 
     match /artist-profiles/{artistId}/{fileId} {
-      allow read: if firestore.exists(/databases/(default)/documents/artists/$(artistId))
-        && firestore.get(/databases/(default)/documents/artists/$(artistId)).data.published == true;
-      allow write: if isAdmin() || (signedIn() && request.auth.uid == artistId && isImageSafe());
+      allow read: if firestore.exists(artistPath(artistId))
+        && firestore.get(artistPath(artistId)).data.published == true;
+      allow write: if isImageSafe() && (isAdmin() || ownsArtistProfile(artistId));
     }
 
     match /products/{productId}/{fileId} {
