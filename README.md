@@ -14,6 +14,7 @@ Plataforma web profesional para un estudio de tatuajes en Chile. La aplicación 
 
 - Node.js 20.11 o superior.
 - npm 10 o superior.
+- Java Runtime Environment para Firebase Emulator Suite.
 
 ## Configuración local
 
@@ -34,6 +35,7 @@ npm run start      # servir build de producción
 npm run lint       # ESLint
 npm run typecheck  # TypeScript estricto
 npm run test       # Vitest
+npm run test:rules # pruebas locales de Firebase Security Rules con emuladores
 ```
 
 ## Variables de entorno
@@ -55,7 +57,16 @@ npm run test       # Vitest
 
 ## Firebase y Vercel
 
-La app solo incluye placeholders de configuración Firebase. No crea clientes Firebase ni usa credenciales reales todavía. Esto mantiene la base local, compilable y lista para conectar Firebase cuando se diseñen autenticación, Firestore/Storage y reglas de seguridad.
+La app incluye placeholders de configuración Firebase y una primera base local de Firestore/Storage Security Rules con pruebas de emulador. No usa credenciales reales ni conecta un proyecto Firebase de producción.
+
+Para probar reglas localmente:
+
+```bash
+npm install
+npm run test:rules
+```
+
+El comando levanta Firestore y Storage mediante Firebase Emulator Suite con el proyecto demo `demo-webtatuajes`. Requiere Java disponible en el sistema.
 
 El hosting objetivo futuro es Vercel. No hay configuración de despliegue real en esta fase.
 

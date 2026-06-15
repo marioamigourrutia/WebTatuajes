@@ -1,0 +1,82 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profilePath(uid) {
+      return /databases/(default)/documents/profiles/$(uid);
+    }
+
+    function hasRole(role) {
+      return signedIn()
+        && firestore.exists(profilePath(request.auth.uid))
+        && firestore.get(profilePath(request.auth.uid)).data.role == role;
+    }
+
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    function isArtist() {
+      return hasRole('artist');
+    }
+
+    function quotePath(quoteId) {
+      return /databases/(default)/documents/quotes/$(quoteId);
+    }
+
+    function quoteData(quoteId) {
+      return firestore.get(quotePath(quoteId)).data;
+    }
+
+    function isQuoteOwner(customerId, quoteId) {
+      return signedIn()
+        && request.auth.uid == customerId
+        && firestore.exists(quotePath(quoteId))
+        && quoteData(quoteId).customer_id == request.auth.uid;
+    }
+
+    function isAssignedArtist(quoteId) {
+      return signedIn()
+        && isArtist()
+        && firestore.exists(quotePath(quoteId))
+        && quoteData(quoteId).artist_id == request.auth.uid;
+    }
+
+    function isImageSafe() {
+      return request.resource != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /quote-images/{customerId}/{quoteId}/{fileId} {
+      allow read: if isQuoteOwner(customerId, quoteId) || isAdmin() || isAssignedArtist(quoteId);
+      allow write: if isQuoteOwner(customerId, quoteId) && isImageSafe();
+    }
+
+    match /portfolio/{artistId}/{itemId}/{fileId} {
+      allow read: if firestore.exists(/databases/(default)/documents/portfolio_items/$(itemId))
+        && firestore.get(/databases/(default)/documents/portfolio_items/$(itemId)).data.published == true;
+      allow write: if isAdmin() || (signedIn() && request.auth.uid == artistId && isImageSafe());
+    }
+
+    match /artist-profiles/{artistId}/{fileId} {
+      allow read: if firestore.exists(/databases/(default)/documents/artists/$(artistId))
+        && firestore.get(/databases/(default)/documents/artists/$(artistId)).data.published == true;
+      allow write: if isAdmin() || (signedIn() && request.auth.uid == artistId && isImageSafe());
+    }
+
+    match /products/{productId}/{fileId} {
+      allow read: if firestore.exists(/databases/(default)/documents/products/$(productId))
+        && firestore.get(/databases/(default)/documents/products/$(productId)).data.active == true;
+      allow write: if isAdmin() && isImageSafe();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
