@@ -77,6 +77,7 @@ Integraciones externas
 - Las imágenes no deben guardarse como blobs en documentos; se almacenarán en Firebase Storage y se referenciarán por metadata.
 - Firebase Security Rules deben diseñarse antes de exponer datos privados para evitar deuda de seguridad.
 - La agenda necesita una estrategia transaccional/idempotente para prevenir conflictos bajo concurrencia.
+- El diseño detallado de Auth, Firestore, Storage, reglas, entorno local/Vercel y migración desde Supabase vive en `docs/FIREBASE_ARCHITECTURE.md`.
 
 ## Seguridad de rutas
 

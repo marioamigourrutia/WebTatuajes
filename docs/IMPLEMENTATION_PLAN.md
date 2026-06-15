@@ -46,8 +46,10 @@ Objetivo: crear la base de aplicación sin funcionalidades complejas.
 
 Objetivo: preparar Firebase Auth, Firestore/Storage y reglas de seguridad.
 
+- [x] Documentar arquitectura Firebase antes de implementar SDKs o funcionalidades de negocio.
 - [ ] Crear proyecto Firebase fuera del repositorio o conectar uno existente.
 - [ ] Definir colecciones iniciales para `profiles`, `quotes`, `quote_images`, `appointments` y contenido público.
+- [ ] Definir colecciones de `artists`, `portfolio_items`, `availability` y `contact_leads` según `docs/FIREBASE_ARCHITECTURE.md`.
 - [ ] Crear reglas para colecciones privadas.
 - [ ] Crear reglas para cliente, administrador y acceso público controlado.
 - [ ] Preparar Storage privado para `quote-images`.
@@ -150,4 +152,4 @@ Objetivo: validar seguridad, estabilidad y operación.
 
 ## Próximo paso recomendado
 
-Revisar y aprobar el pivote Firebase/Vercel. Después, diseñar el modelo Firebase y reglas de seguridad antes de crear funcionalidades de negocio.
+Revisar y aprobar `docs/FIREBASE_ARCHITECTURE.md`. Después, crear reglas Firestore/Storage y pruebas con emuladores antes de construir funcionalidades de negocio.

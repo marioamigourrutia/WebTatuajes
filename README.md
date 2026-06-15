@@ -58,3 +58,10 @@ npm run test       # Vitest
 La app solo incluye placeholders de configuración Firebase. No crea clientes Firebase ni usa credenciales reales todavía. Esto mantiene la base local, compilable y lista para conectar Firebase cuando se diseñen autenticación, Firestore/Storage y reglas de seguridad.
 
 El hosting objetivo futuro es Vercel. No hay configuración de despliegue real en esta fase.
+
+## Documentación de arquitectura
+
+- `docs/FIREBASE_ARCHITECTURE.md`: Auth, roles, Firestore, Storage, Security Rules, entorno local/Vercel y nota de migración desde Supabase.
+- `docs/ARCHITECTURE.md`: arquitectura general de Next.js + Firebase futuro.
+- `docs/DATABASE.md`: modelo de datos inicial.
+- `docs/SECURITY.md`: amenazas, reglas mínimas y controles de seguridad.

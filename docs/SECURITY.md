@@ -4,14 +4,14 @@ La plataforma manejará datos personales, solicitudes privadas e imágenes de re
 
 ## Decisiones de seguridad
 
-| Área              | Decisión                                                                                |
-| ----------------- | --------------------------------------------------------------------------------------- |
-| Autenticación     | Firebase Auth futuro.                                                                   |
-| Autorización      | Roles `customer` y `admin` respaldados por datos server-side y reglas Firebase.         |
-| Archivos privados | Firebase Storage privado futuro para imágenes de cotización.                            |
-| Datos sensibles   | Nunca exponer datos privados en páginas públicas, metadata SEO ni logs.                 |
-| Integraciones     | Solo API oficial de Instagram; WhatsApp click-to-chat sin automatización no autorizada. |
-| Secretos          | Variables de entorno; ningún secreto real en repositorio.                               |
+| Área              | Decisión                                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| Autenticación     | Firebase Auth futuro.                                                                     |
+| Autorización      | Roles `customer`, `artist` y `admin` respaldados por datos server-side y reglas Firebase. |
+| Archivos privados | Firebase Storage privado futuro para imágenes de cotización.                              |
+| Datos sensibles   | Nunca exponer datos privados en páginas públicas, metadata SEO ni logs.                   |
+| Integraciones     | Solo API oficial de Instagram; WhatsApp click-to-chat sin automatización no autorizada.   |
+| Secretos          | Variables de entorno; ningún secreto real en repositorio.                                 |
 
 ## Modelo de amenazas
 
@@ -36,9 +36,10 @@ La plataforma manejará datos personales, solicitudes privadas e imágenes de re
 | Rol        | Permisos esperados                                                                           |
 | ---------- | -------------------------------------------------------------------------------------------- |
 | `customer` | Gestionar sus cotizaciones, imágenes y citas propias según estado permitido.                 |
+| `artist`   | Gestionar portafolio propio, disponibilidad y citas/cotizaciones asignadas.                  |
 | `admin`    | Gestionar cotizaciones, agenda, contenido público, productos, reseñas, sponsors y comunidad. |
 
-El rol administrativo debe ser asignado por proceso controlado. No debe existir un formulario público para convertirse en administrador.
+El rol administrativo debe ser asignado por proceso controlado. No debe existir un formulario público para convertirse en administrador o artista. El primer admin debe crearse manualmente desde consola/Firebase Admin SDK o script server-only ejecutado una vez.
 
 ## Reglas Firebase obligatorias
 
@@ -48,6 +49,7 @@ Checklist mínimo por colección privada:
 - [ ] Política de lectura para dueño del recurso.
 - [ ] Política de escritura con ownership validado.
 - [ ] Política de administración restringida al rol `admin`.
+- [ ] Validación de campos permitidos, tipos, límites y transiciones de estado.
 - [ ] Pruebas que demuestren que un cliente no puede leer datos de otro.
 - [ ] Pruebas que demuestren que una sesión anónima no puede leer datos privados.
 
@@ -60,6 +62,16 @@ Checklist mínimo por colección privada:
 | Acceso         | Generar URLs firmadas desde servidor después de validar permisos.    |
 | Limpieza       | Borrar archivos huérfanos cuando se elimina una cotización.          |
 | Logs           | No registrar URLs firmadas completas ni rutas privadas innecesarias. |
+
+Rutas esperadas:
+
+- `quote-images/{customerId}/{quoteId}/{fileId}`: privado; dueño, admin o artista asignado.
+- `portfolio/{artistId}/{itemId}/{fileId}`: público solo si el item asociado está publicado.
+- `artist-profiles/{artistId}/{fileId}` y `products/{productId}/{fileId}`: públicos solo para recursos publicados/activos.
+
+## Firebase Admin SDK
+
+El Admin SDK ignora Firestore y Storage Security Rules. Debe quedar limitado a server actions, route handlers o jobs server-only para asignar roles, emitir URLs firmadas, limpiar archivos huérfanos y resolver operaciones transaccionales de agenda. Cada uso debe validar sesión, rol, ownership e input antes de ejecutar la operación privilegiada.
 
 ## Validación de entradas
 
@@ -79,6 +91,12 @@ No se deben commitear valores reales de:
 - Configuración de despliegue sensible.
 
 Se recomienda documentar variables esperadas en un archivo de ejemplo sin valores reales cuando se cree la aplicación.
+
+En Vercel, `NEXT_PUBLIC_FIREBASE_*` puede configurarse como variables públicas del cliente. `FIREBASE_SERVICE_ACCOUNT_JSON` debe ser server-only y nunca debe aparecer en bundles cliente, logs ni documentación con valores reales.
+
+## Migración Supabase → Firebase
+
+Supabase fue reemplazado intencionalmente por Firebase como dirección backend. No se deben reintroducir clientes, variables ni documentación Supabase salvo una decisión explícita nueva. La arquitectura de seguridad debe basarse en Firebase Auth, Firestore, Storage y Security Rules.
 
 ## Integraciones externas
 
@@ -101,6 +119,7 @@ Se recomienda documentar variables esperadas en un archivo de ejemplo sin valore
 - [ ] Cliente A no puede obtener imágenes privadas de Cliente B.
 - [ ] Usuario anónimo no puede acceder a rutas cliente/admin.
 - [ ] Cliente no puede modificar su rol.
+- [ ] Cliente no puede asignarse como artista o administrador.
 - [ ] Cliente no puede escribir notas administrativas.
 - [ ] Admin puede gestionar cotizaciones con sesión válida.
 - [ ] Dos citas solapadas no pueden crearse simultáneamente.
