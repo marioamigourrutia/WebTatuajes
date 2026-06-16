@@ -1,4 +1,5 @@
 import { appConfig } from "@/lib/config/app";
+import { LoginPanel } from "@/lib/auth/login-panel";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
 const highlights = ["Cotizaciones privadas", "Portafolio profesional", "Agenda segura"];
@@ -72,6 +73,16 @@ export default function HomePage() {
               </li>
             ))}
           </ul>
+          <div className="mt-6 rounded-2xl border border-stone-800 bg-stone-900/60 p-4">
+            <h3 className="text-lg font-semibold text-stone-50">Acceso inicial</h3>
+            <p className="mt-2 text-sm leading-6 text-stone-400">
+              Base mínima para login. Los roles de artista/admin se asignan solo por proceso
+              controlado, nunca por autogestión pública.
+            </p>
+            <div className="mt-4">
+              <LoginPanel />
+            </div>
+          </div>
         </aside>
       </section>
     </main>
