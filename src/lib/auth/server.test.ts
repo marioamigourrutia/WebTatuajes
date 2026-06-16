@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { getRoleFromServerProfile, getServerAuthzProfileFromIdToken } from "./server";
+import {
+  getRoleFromServerProfile,
+  getServerAuthStatusFromIdToken,
+  getServerAuthzProfileFromIdToken,
+} from "./server";
 
 describe("server auth helpers", () => {
   it("accepts roles only from server-side profile data", () => {
@@ -37,5 +41,28 @@ describe("server auth helpers", () => {
         readProfile: vi.fn().mockResolvedValue({ role: "owner" }),
       }),
     ).resolves.toBeNull();
+  });
+
+  it("returns null when token verification fails", async () => {
+    await expect(
+      getServerAuthzProfileFromIdToken("bad-token", {
+        auth: { verifyIdToken: vi.fn().mockRejectedValue(new Error("invalid token")) },
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("reports admin status from server-side profile role", async () => {
+    const status = await getServerAuthStatusFromIdToken("token", {
+      auth: {
+        verifyIdToken: vi.fn().mockResolvedValue({
+          uid: "admin-a",
+          email: "admin@example.test",
+          email_verified: true,
+        }),
+      },
+      readProfile: vi.fn().mockResolvedValue({ role: "admin" }),
+    });
+
+    expect(status).toMatchObject({ authenticated: true, admin: true });
   });
 });

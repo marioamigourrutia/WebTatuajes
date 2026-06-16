@@ -49,3 +49,18 @@ export function requirePublicFirebaseConfig(): PublicFirebaseConfig {
 
   return config;
 }
+
+export function isFirebaseAuthEmulatorEnabled(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_ENABLED === "true"
+  );
+}
+
+export function getFirebaseAuthEmulatorUrl(): string {
+  return process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL || "http://127.0.0.1:9099";
+}
+
+export function getFirebaseDemoProjectId(): string {
+  return process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "demo-webtatuajes";
+}

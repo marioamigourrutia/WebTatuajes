@@ -56,6 +56,20 @@ export function getFirebaseAdminServiceAccount(): FirebaseAdminServiceAccount | 
   return parseFirebaseServiceAccountJson(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
 }
 
+export function isFirebaseAdminEmulatorEnabled(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.FIREBASE_AUTH_EMULATOR_HOST !== undefined &&
+    process.env.FIRESTORE_EMULATOR_HOST !== undefined
+  );
+}
+
+export function getFirebaseAdminProjectId(): string | null {
+  const serviceAccount = getFirebaseAdminServiceAccount();
+
+  return serviceAccount?.projectId ?? process.env.FIREBASE_PROJECT_ID ?? null;
+}
+
 export function requireFirebaseAdminServiceAccount(): FirebaseAdminServiceAccount {
   const serviceAccount = getFirebaseAdminServiceAccount();
 
