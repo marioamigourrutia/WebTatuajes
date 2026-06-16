@@ -1,0 +1,69 @@
+export type FirebaseAdminServiceAccount = {
+  projectId: string;
+  clientEmail: string;
+  privateKey: string;
+};
+
+const placeholderServiceAccountValues = new Set(["", "{}", "{ }"]);
+
+type RawServiceAccount = {
+  project_id?: unknown;
+  client_email?: unknown;
+  private_key?: unknown;
+};
+
+function isPlaceholderServiceAccount(value: string): boolean {
+  const trimmed = value.trim();
+
+  return placeholderServiceAccountValues.has(trimmed) || trimmed.includes("your-");
+}
+
+export function parseFirebaseServiceAccountJson(
+  serviceAccountJson: string | undefined,
+): FirebaseAdminServiceAccount | null {
+  if (!serviceAccountJson || isPlaceholderServiceAccount(serviceAccountJson)) {
+    return null;
+  }
+
+  let parsed: RawServiceAccount;
+
+  try {
+    parsed = JSON.parse(serviceAccountJson) as RawServiceAccount;
+  } catch {
+    return null;
+  }
+
+  if (
+    typeof parsed.project_id !== "string" ||
+    typeof parsed.client_email !== "string" ||
+    typeof parsed.private_key !== "string"
+  ) {
+    return null;
+  }
+
+  const projectId = parsed.project_id.trim();
+  const clientEmail = parsed.client_email.trim();
+  const privateKey = parsed.private_key.replace(/\\n/g, "\n").trim();
+
+  if (!projectId || !clientEmail || !privateKey) {
+    return null;
+  }
+
+  return { projectId, clientEmail, privateKey };
+}
+
+export function getFirebaseAdminServiceAccount(): FirebaseAdminServiceAccount | null {
+  return parseFirebaseServiceAccountJson(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+}
+
+export function requireFirebaseAdminServiceAccount(): FirebaseAdminServiceAccount {
+  const serviceAccount = getFirebaseAdminServiceAccount();
+
+  if (!serviceAccount) {
+    throw new Error(
+      "Firebase Admin service account is missing or still a placeholder. Set FIREBASE_SERVICE_ACCOUNT_JSON only in a server environment.",
+    );
+  }
+
+  return serviceAccount;
+}

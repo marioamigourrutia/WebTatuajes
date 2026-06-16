@@ -41,7 +41,7 @@ La plataforma manejará datos personales, solicitudes privadas e imágenes de re
 
 El rol administrativo debe ser asignado por proceso controlado. No debe existir un formulario público para convertirse en administrador o artista. El primer admin debe crearse manualmente desde consola/Firebase Admin SDK o script server-only ejecutado una vez.
 
-La base de Auth inicial solo habilita login/logout cliente. La UI no permite elegir ni elevar roles. Cualquier asignación futura de `artist` o `admin` debe ejecutarse desde un entorno server-only con Firebase Admin SDK, validación explícita del operador y sin exponer `FIREBASE_SERVICE_ACCOUNT_JSON` al cliente.
+La base de Auth inicial solo habilita login/logout cliente. La UI no permite elegir ni elevar roles. Cualquier asignación futura de `artist` o `admin` debe ejecutarse desde un entorno server-only con Firebase Admin SDK, validación explícita del operador y sin exponer `FIREBASE_SERVICE_ACCOUNT_JSON` al cliente. El primer admin puede asignarse con `npm run admin:assign-first-admin`; el script corre dry-run por defecto y requiere `FIREBASE_ADMIN_CONFIRM_ASSIGNMENT=assign-first-admin` para escribir.
 
 ## Reglas Firebase obligatorias
 
@@ -76,7 +76,7 @@ Las subidas a `quote-images` deben incluir metadata de Storage con `customer_id`
 
 ## Firebase Admin SDK
 
-El Admin SDK ignora Firestore y Storage Security Rules. Debe quedar limitado a server actions, route handlers o jobs server-only para asignar roles, emitir URLs firmadas, limpiar archivos huérfanos y resolver operaciones transaccionales de agenda. Cada uso debe validar sesión, rol, ownership e input antes de ejecutar la operación privilegiada.
+El Admin SDK ignora Firestore y Storage Security Rules. Debe quedar limitado a server actions, route handlers, scripts locales controlados o jobs server-only para asignar roles, emitir URLs firmadas, limpiar archivos huérfanos y resolver operaciones transaccionales de agenda. Cada uso debe validar sesión, rol, ownership e input antes de ejecutar la operación privilegiada. Los helpers iniciales no inicializan Admin SDK con placeholders y leen el rol desde `profiles/{uid}`, no desde estado cliente.
 
 ## Validación de entradas
 
@@ -133,10 +133,12 @@ Supabase fue reemplazado intencionalmente por Firebase como dirección backend. 
 - [x] Storage rechaza MIME no permitido, archivos de más de 10 MB y metadata de quote inconsistente.
 - [x] Storage rechaza subidas de clientes a rutas de perfiles de artista y portafolio.
 - [x] Artista/admin pueden crear contenido público y subir assets por rutas legítimas.
+- [x] La configuración server-only de Firebase Admin no inicializa con placeholders.
+- [x] La asignación del primer admin queda detrás de script server-only con dry-run y confirmación explícita.
 - [ ] Dos citas solapadas no pueden crearse simultáneamente.
 
 ## Riesgos abiertos
 
-- Definir cómo se asigna el primer usuario administrador sin abrir una puerta pública.
+- Probar la asignación de primer admin contra un proyecto Firebase real de prueba o emulador controlado antes de producción.
 - Definir retención de imágenes privadas y eliminación a solicitud del cliente.
 - Definir política de backups y recuperación ante errores humanos.
