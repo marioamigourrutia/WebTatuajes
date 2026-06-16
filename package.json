@@ -13,10 +13,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:rules": "firebase emulators:exec --project demo-webtatuajes --only firestore,storage \"vitest run --config vitest.rules.config.ts\""
+    "test:rules": "firebase emulators:exec --project demo-webtatuajes --only firestore,storage \"vitest run --config vitest.rules.config.ts\"",
+    "admin:assign-first-admin": "node scripts/assign-first-admin.mjs"
   },
   "dependencies": {
     "firebase": "^12.14.0",
+    "firebase-admin": "^14.0.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"

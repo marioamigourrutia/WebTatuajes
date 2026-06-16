@@ -11,7 +11,7 @@ Este documento define la arquitectura Firebase antes de implementar SDKs o funci
 | Datos    | Firestore separa contenido público publicable de datos privados por ownership.                                                                     |
 | Archivos | Storage usa rutas por dominio y dueño; referencias de cotización privadas, portafolio público solo si está publicado.                              |
 | Reglas   | Least privilege desde el inicio, validación de shape/tipos y pruebas con emuladores antes de producción.                                           |
-| SDK      | No se agrega dependencia Firebase todavía; primero se documentan contratos y reglas.                                                               |
+| SDK      | Cliente Firebase inicial para Auth y Firebase Admin SDK server-only para validación de sesión/rol y primer admin controlado.                       |
 
 ## Modelo de autenticación y acceso
 
@@ -22,7 +22,7 @@ Este documento define la arquitectura Firebase antes de implementar SDKs o funci
 | `artist`   | Tatuador o colaborador operativo | Gestiona portafolio propio, disponibilidad y citas asignadas. Puede leer cotizaciones que debe atender. |
 | `admin`    | Dueño/equipo autorizado          | Gestiona usuarios, roles, cotizaciones, agenda, contenido público y configuración.                      |
 
-La fuente de verdad del rol debe estar protegida. Para el MVP se recomienda `profiles/{uid}.role` con reglas estrictas y mutaciones server-side; más adelante se pueden usar custom claims para checks rápidos, sincronizados desde un proceso administrativo. El primer admin debe crearse manualmente desde consola/Firebase Admin SDK o script server-only ejecutado una vez.
+La fuente de verdad del rol debe estar protegida. Para el MVP se recomienda `profiles/{uid}.role` con reglas estrictas y mutaciones server-side; más adelante se pueden usar custom claims para checks rápidos, sincronizados desde un proceso administrativo. El primer admin se crea manualmente desde consola/Firebase Admin SDK o con `npm run admin:assign-first-admin` en un entorno server-only y con confirmación explícita para escribir.
 
 ### Estrategia de login
 
@@ -74,7 +74,7 @@ Principios:
 - Rechazar `list/query` en colecciones privadas o admin-only salvo que exista un caso público explícito.
 - Probar reglas con Firebase Emulator Suite antes de conectar datos reales.
 
-Las operaciones con privilegios —asignar roles, responder cotizaciones, crear URLs firmadas, limpiar archivos huérfanos o resolver conflictos de agenda— deben pasar por servidor con Firebase Admin SDK. El Admin SDK ignora Security Rules: por eso cada handler/server action debe validar sesión, rol, ownership e input antes de ejecutar.
+Las operaciones con privilegios —asignar roles, responder cotizaciones, crear URLs firmadas, limpiar archivos huérfanos o resolver conflictos de agenda— deben pasar por servidor con Firebase Admin SDK. El Admin SDK ignora Security Rules: por eso cada handler/server action debe validar sesión, rol, ownership e input antes de ejecutar. Los helpers server-side validan ID tokens y leen `profiles/{uid}.role`; los custom claims no reemplazan esa fuente de verdad.
 
 ## Desarrollo local y Vercel
 
@@ -85,7 +85,7 @@ El estado actual usa `.env.example` con placeholders y helpers de configuración
 3. Mantener credenciales reales fuera de git.
 4. Ejecutar pruebas de reglas antes de habilitar flujos privados.
 
-En Vercel se deben configurar las mismas `NEXT_PUBLIC_FIREBASE_*` para cliente y `FIREBASE_SERVICE_ACCOUNT_JSON` solo como variable server-side. No exponer service accounts en código, logs, bundles cliente ni documentación pública.
+En Vercel se deben configurar las mismas `NEXT_PUBLIC_FIREBASE_*` para cliente y `FIREBASE_SERVICE_ACCOUNT_JSON` solo como variable server-side. No exponer service accounts en código, logs, bundles cliente ni documentación pública. El helper Admin no inicializa Firebase si `FIREBASE_SERVICE_ACCOUNT_JSON` falta, es `{}` o contiene placeholders.
 
 ## Nota de migración desde Supabase
 
