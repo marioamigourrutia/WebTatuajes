@@ -41,6 +41,8 @@ La plataforma manejará datos personales, solicitudes privadas e imágenes de re
 
 El rol administrativo debe ser asignado por proceso controlado. No debe existir un formulario público para convertirse en administrador o artista. El primer admin debe crearse manualmente desde consola/Firebase Admin SDK o script server-only ejecutado una vez.
 
+La base de Auth inicial solo habilita login/logout cliente. La UI no permite elegir ni elevar roles. Cualquier asignación futura de `artist` o `admin` debe ejecutarse desde un entorno server-only con Firebase Admin SDK, validación explícita del operador y sin exponer `FIREBASE_SERVICE_ACCOUNT_JSON` al cliente.
+
 ## Reglas Firebase obligatorias
 
 Checklist mínimo por colección privada:

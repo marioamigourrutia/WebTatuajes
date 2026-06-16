@@ -16,6 +16,7 @@
     "test:rules": "firebase emulators:exec --project demo-webtatuajes --only firestore,storage \"vitest run --config vitest.rules.config.ts\""
   },
   "dependencies": {
+    "firebase": "^12.14.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
@@ -32,7 +33,6 @@
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
-    "firebase": "^12.14.0",
     "firebase-tools": "^15.20.0",
     "jsdom": "latest",
     "prettier": "^3.8.4",
