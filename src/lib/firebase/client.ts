@@ -1,6 +1,12 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { getPublicFirebaseConfig } from "@/lib/config/firebase";
+import { connectAuthEmulator, getAuth, type Auth } from "firebase/auth";
+import {
+  getFirebaseAuthEmulatorUrl,
+  getPublicFirebaseConfig,
+  isFirebaseAuthEmulatorEnabled,
+} from "@/lib/config/firebase";
+
+let authEmulatorConnected = false;
 
 export function getFirebaseClientApp(): FirebaseApp | null {
   const config = getPublicFirebaseConfig();
@@ -19,5 +25,12 @@ export function getFirebaseAuth(): Auth | null {
     return null;
   }
 
-  return getAuth(app);
+  const auth = getAuth(app);
+
+  if (isFirebaseAuthEmulatorEnabled() && !authEmulatorConnected) {
+    connectAuthEmulator(auth, getFirebaseAuthEmulatorUrl(), { disableWarnings: true });
+    authEmulatorConnected = true;
+  }
+
+  return auth;
 }

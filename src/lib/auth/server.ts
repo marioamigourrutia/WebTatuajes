@@ -17,6 +17,12 @@ export type ServerAuthzProfile = AuthzProfile & {
   email: string | null;
 };
 
+export type ServerAuthStatus = {
+  authenticated: boolean;
+  admin: boolean;
+  profile: ServerAuthzProfile | null;
+};
+
 export function getRoleFromServerProfile(profileData: unknown): AppRole | null {
   if (!profileData || typeof profileData !== "object" || !("role" in profileData)) {
     return null;
@@ -54,18 +60,35 @@ export async function getServerAuthzProfileFromIdToken(
     return null;
   }
 
-  const decodedToken = await auth.verifyIdToken(idToken, true);
-  const profileData = await readProfile(decodedToken.uid);
-  const role = getRoleFromServerProfile(profileData);
+  try {
+    const decodedToken = await auth.verifyIdToken(idToken, true);
+    const profileData = await readProfile(decodedToken.uid);
+    const role = getRoleFromServerProfile(profileData);
 
-  if (!role) {
+    if (!role) {
+      return null;
+    }
+
+    return {
+      uid: decodedToken.uid,
+      email: typeof decodedToken.email === "string" ? decodedToken.email : null,
+      emailVerified: decodedToken.email_verified === true,
+      role,
+    };
+  } catch {
     return null;
   }
+}
+
+export async function getServerAuthStatusFromIdToken(
+  idToken: string | undefined,
+  options: ServerAuthOptions = {},
+): Promise<ServerAuthStatus> {
+  const profile = await getServerAuthzProfileFromIdToken(idToken, options);
 
   return {
-    uid: decodedToken.uid,
-    email: typeof decodedToken.email === "string" ? decodedToken.email : null,
-    emailVerified: decodedToken.email_verified === true,
-    role,
+    authenticated: profile !== null,
+    admin: profile?.role === "admin",
+    profile,
   };
 }

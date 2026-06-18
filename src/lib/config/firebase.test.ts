@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getPublicFirebaseConfig, requirePublicFirebaseConfig } from "./firebase";
+import {
+  getFirebaseAuthEmulatorUrl,
+  getPublicFirebaseConfig,
+  isFirebaseAuthEmulatorEnabled,
+  requirePublicFirebaseConfig,
+} from "./firebase";
 
 describe("firebase public configuration", () => {
   afterEach(() => {
@@ -46,5 +51,21 @@ describe("firebase public configuration", () => {
     vi.stubEnv("NEXT_PUBLIC_FIREBASE_API_KEY", "");
 
     expect(() => requirePublicFirebaseConfig()).toThrow("Firebase public configuration is missing");
+  });
+
+  it("enables Auth Emulator only with explicit non-production opt-in", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_ENABLED", "true");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL", "http://localhost:9099");
+
+    expect(isFirebaseAuthEmulatorEnabled()).toBe(true);
+    expect(getFirebaseAuthEmulatorUrl()).toBe("http://localhost:9099");
+  });
+
+  it("disables Auth Emulator in production even when the flag is set", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_ENABLED", "true");
+
+    expect(isFirebaseAuthEmulatorEnabled()).toBe(false);
   });
 });

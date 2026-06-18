@@ -1,12 +1,17 @@
 import { cert, getApp, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
-import { getFirebaseAdminServiceAccount } from "../config/firebase-admin";
+import {
+  getFirebaseAdminProjectId,
+  getFirebaseAdminServiceAccount,
+  isFirebaseAdminEmulatorEnabled,
+} from "../config/firebase-admin";
 
 export function getFirebaseAdminApp(): App | null {
   const serviceAccount = getFirebaseAdminServiceAccount();
+  const projectId = getFirebaseAdminProjectId();
 
-  if (!serviceAccount) {
+  if (!serviceAccount && !isFirebaseAdminEmulatorEnabled()) {
     return null;
   }
 
@@ -14,13 +19,17 @@ export function getFirebaseAdminApp(): App | null {
     return getApp();
   }
 
-  return initializeApp({
-    credential: cert({
-      projectId: serviceAccount.projectId,
-      clientEmail: serviceAccount.clientEmail,
-      privateKey: serviceAccount.privateKey,
-    }),
-  });
+  if (serviceAccount) {
+    return initializeApp({
+      credential: cert({
+        projectId: serviceAccount.projectId,
+        clientEmail: serviceAccount.clientEmail,
+        privateKey: serviceAccount.privateKey,
+      }),
+    });
+  }
+
+  return initializeApp({ projectId: projectId ?? "demo-webtatuajes" });
 }
 
 export function getFirebaseAdminAuth(): Auth | null {

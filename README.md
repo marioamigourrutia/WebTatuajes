@@ -8,8 +8,8 @@ Plataforma web profesional para un estudio de tatuajes en Chile. La aplicación 
 - Fase 2: base técnica inicial creada y verificada con linting, TypeScript estricto, Vitest y build.
 - Fase 3 Supabase queda detenida por cambio de dirección técnica.
 - Dirección actual: desarrollo local ahora; futuro despliegue en Vercel y backend en Firebase.
-- Hay una base mínima de Firebase Auth para login/logout local cuando se configuren variables públicas reales o de emulador.
-- Hay una base server-only inicial con Firebase Admin SDK para validar tokens, leer roles desde `profiles/{uid}` y asignar el primer admin mediante script controlado. Todavía no hay funcionalidades de negocio ni panel admin.
+- Hay un flujo local mínimo con Firebase Auth Emulator para login/logout, seed controlado de admin local y validación server-side de rol en `/admin`.
+- Hay una base server-only inicial con Firebase Admin SDK para validar tokens, leer roles desde `profiles/{uid}` y asignar el primer admin mediante scripts controlados. Todavía no hay funcionalidades de negocio completas ni panel admin real.
 
 ## Requisitos
 
@@ -27,7 +27,56 @@ npm run dev
 
 Los valores de `.env.example` son placeholders. No agregues credenciales reales al repositorio.
 
-Para probar el login localmente, completá las variables `NEXT_PUBLIC_FIREBASE_*` en `.env.local` con un proyecto Firebase de prueba. Con placeholders, la app no inicializa Firebase y muestra un estado seguro de configuración pendiente. La conexión explícita al Auth Emulator queda como siguiente paso.
+Para probar el flujo local completo con emuladores, usá los valores demo indicados más abajo. Con placeholders, la app no inicializa Firebase y muestra un estado seguro de configuración pendiente.
+
+### Flujo local con Firebase Auth Emulator
+
+1. Copiá `.env.example` a `.env.local` y reemplazá las variables públicas Firebase por valores demo locales:
+
+```bash
+NEXT_PUBLIC_FIREBASE_API_KEY=demo-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=demo-webtatuajes.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-webtatuajes
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=demo-webtatuajes.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:demo
+NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_ENABLED=true
+NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL=http://127.0.0.1:9099
+FIREBASE_PROJECT_ID=demo-webtatuajes
+FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
+FIREBASE_SERVICE_ACCOUNT_JSON={}
+```
+
+2. Terminal A: levantá emuladores locales:
+
+```bash
+npm run emulators
+```
+
+3. Terminal B: sembrá el admin local controlado:
+
+```bash
+npm run admin:seed-local
+```
+
+Este script carga `.env.local` automáticamente con `node --env-file=.env.local`; no hace falta exportar esas variables a mano.
+
+Credenciales de prueba creadas solo en emuladores:
+
+```text
+admin@example.test / Password123!
+```
+
+4. Terminal C: levantá Next.js:
+
+```bash
+npm run dev:local
+```
+
+5. Abrí `http://localhost:3000/admin`, iniciá sesión con esas credenciales y presioná **Validar rol en servidor**. El resultado esperado es `Autenticado: sí`, `Admin: sí`, `Rol servidor: admin`.
+
+El seed local se niega a correr si detecta `NODE_ENV=production`, un `FIREBASE_SERVICE_ACCOUNT_JSON` real, un project id distinto de `demo-webtatuajes` o hosts que no sean los emuladores locales. No asigna roles contra producción.
 
 ## Scripts
 
@@ -39,31 +88,38 @@ npm run lint       # ESLint
 npm run typecheck  # TypeScript estricto
 npm run test       # Vitest
 npm run test:rules # pruebas locales de Firebase Security Rules con emuladores
+npm run emulators  # Auth, Firestore y Storage emulators para desarrollo local
+npm run admin:seed-local # crea admin@example.test en emuladores locales
 ```
 
 ## Variables de entorno
 
-| Variable                                   | Uso                                                                                        |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_SITE_URL`                     | URL pública del sitio.                                                                     |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`             | API key pública del proyecto Firebase futuro.                                              |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Auth domain público de Firebase.                                                           |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | ID público del proyecto Firebase.                                                          |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Bucket público configurado en Firebase.                                                    |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Sender ID público de Firebase.                                                             |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`              | App ID público de Firebase.                                                                |
-| `FIREBASE_SERVICE_ACCOUNT_JSON`            | JSON server-only de Firebase Admin. No usar valores reales en git ni exponer al cliente.   |
-| `FIRST_ADMIN_UID`                          | UID objetivo para el script controlado de primer admin. Usar este valor o email, no ambos. |
-| `FIRST_ADMIN_EMAIL`                        | Email objetivo para resolver el UID del primer admin. Usar este valor o UID, no ambos.     |
-| `FIREBASE_ADMIN_CONFIRM_ASSIGNMENT`        | Debe valer `assign-first-admin` para escribir; vacío ejecuta dry-run.                      |
-| `NEXT_PUBLIC_WHATSAPP_PHONE`               | Número para enlace click-to-chat.                                                          |
-| `NEXT_PUBLIC_WHATSAPP_MESSAGE`             | Mensaje prellenado de WhatsApp.                                                            |
-| `NEXT_PUBLIC_APP_LOCALE`                   | Locale de la app, por defecto `es-CL`.                                                     |
-| `NEXT_PUBLIC_APP_TIME_ZONE`                | Zona horaria, por defecto `America/Santiago`.                                              |
+| Variable                                     | Uso                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_SITE_URL`                       | URL pública del sitio.                                                                     |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`               | API key pública del proyecto Firebase futuro.                                              |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`           | Auth domain público de Firebase.                                                           |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`            | ID público del proyecto Firebase.                                                          |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`        | Bucket público configurado en Firebase.                                                    |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`   | Sender ID público de Firebase.                                                             |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`                | App ID público de Firebase.                                                                |
+| `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_ENABLED` | Opt-in explícito para conectar Firebase Auth cliente al emulador; ignorado en producción.  |
+| `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL`     | URL del Auth Emulator para cliente local, por defecto `http://127.0.0.1:9099`.             |
+| `FIREBASE_PROJECT_ID`                        | Project id server-side para emuladores/Admin SDK local.                                    |
+| `FIREBASE_AUTH_EMULATOR_HOST`                | Host server-side del Auth Emulator, sin protocolo.                                         |
+| `FIRESTORE_EMULATOR_HOST`                    | Host server-side del Firestore Emulator, sin protocolo.                                    |
+| `FIREBASE_SERVICE_ACCOUNT_JSON`              | JSON server-only de Firebase Admin. No usar valores reales en git ni exponer al cliente.   |
+| `FIRST_ADMIN_UID`                            | UID objetivo para el script controlado de primer admin. Usar este valor o email, no ambos. |
+| `FIRST_ADMIN_EMAIL`                          | Email objetivo para resolver el UID del primer admin. Usar este valor o UID, no ambos.     |
+| `FIREBASE_ADMIN_CONFIRM_ASSIGNMENT`          | Debe valer `assign-first-admin` para escribir; vacío ejecuta dry-run.                      |
+| `NEXT_PUBLIC_WHATSAPP_PHONE`                 | Número para enlace click-to-chat.                                                          |
+| `NEXT_PUBLIC_WHATSAPP_MESSAGE`               | Mensaje prellenado de WhatsApp.                                                            |
+| `NEXT_PUBLIC_APP_LOCALE`                     | Locale de la app, por defecto `es-CL`.                                                     |
+| `NEXT_PUBLIC_APP_TIME_ZONE`                  | Zona horaria, por defecto `America/Santiago`.                                              |
 
 ## Firebase y Vercel
 
-La app incluye placeholders de configuración Firebase, una primera base local de Firestore/Storage Security Rules con pruebas de emulador, scaffolding mínimo de Firebase Auth cliente y helpers server-only de Firebase Admin. No usa credenciales reales ni conecta un proyecto Firebase de producción por defecto.
+La app incluye placeholders de configuración Firebase, una primera base local de Firestore/Storage Security Rules con pruebas de emulador, Firebase Auth cliente conectado al Auth Emulator solo por opt-in explícito y helpers server-only de Firebase Admin. No usa credenciales reales ni conecta un proyecto Firebase de producción por defecto.
 
 Los roles `artist` y `admin` no se asignan desde la UI pública. El primer admin debe crearse mediante consola Firebase o el script server-only con Admin SDK ejecutado en un entorno controlado.
 
@@ -97,7 +153,7 @@ npm install
 npm run test:rules
 ```
 
-El comando levanta Firestore y Storage mediante Firebase Emulator Suite con el proyecto demo `demo-webtatuajes`. Requiere Java disponible en el sistema.
+El comando levanta Firestore y Storage mediante Firebase Emulator Suite con el proyecto demo `demo-webtatuajes`. Requiere Java disponible en el sistema. Para el flujo manual de login/admin usá `npm run emulators`, que también levanta Auth Emulator.
 
 El hosting objetivo futuro es Vercel. No hay configuración de despliegue real en esta fase.
 
@@ -110,6 +166,5 @@ El hosting objetivo futuro es Vercel. No hay configuración de despliegue real e
 
 ## Próximos pasos recomendados
 
-- Probar el script de primer `admin` contra un proyecto Firebase real de prueba o emulador controlado antes de producción.
-- Conectar las futuras rutas privadas a los helpers server-side de sesión/rol antes de crear paneles administrativos.
-- Conectar Auth Emulator en desarrollo local antes de probar flujos con datos reales.
+- Mantener las futuras rutas privadas conectadas a helpers server-side de sesión/rol antes de crear paneles administrativos reales.
+- Definir la estrategia de sesión/cookies seguras antes de construir navegación privada persistente.
