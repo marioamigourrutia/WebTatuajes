@@ -9,7 +9,7 @@ Plataforma web profesional para un estudio de tatuajes en Chile. La aplicación 
 - Fase 3 Supabase queda detenida por cambio de dirección técnica.
 - Dirección actual: desarrollo local ahora; futuro despliegue en Vercel y backend en Firebase.
 - Hay un flujo local mínimo con Firebase Auth Emulator para login/logout, seed controlado de admin local y validación server-side de rol en `/admin`.
-- Hay un primer flujo de negocio local: formulario público de cotización en `/quote`, escritura server-side con Firebase Admin SDK, dashboard admin validado en servidor y cambio de estado de solicitudes.
+- Hay un primer flujo de negocio local: formulario público de cotización en `/quote`, escritura server-side con Firebase Admin SDK, dashboard admin validado en servidor, cambio de estado, detalle completo, enlaces de contacto y nota interna de solicitudes.
 
 ## Requisitos
 
@@ -78,9 +78,15 @@ npm run dev:local
 
 6. Abrí `http://localhost:3000/admin`, iniciá sesión con esas credenciales y presioná **Validar rol en servidor**. El resultado esperado es `Autenticado: sí`, `Admin server-side: sí`, `Rol servidor: admin` y la solicitud reciente en la lista admin.
 
-7. En el dashboard admin, cambiá el estado interno de la solicitud a **Contactado**, **Cerrado** o **Spam**. El resultado esperado es el mensaje `Estado actualizado desde ruta server-side con rol admin validado.` y la lista actualizada sin recargar.
+7. En el dashboard admin, revisá el detalle completo de la solicitud: descripción, presupuesto, zona, tamaño, datos de contacto, fecha, estado y nota interna.
 
-El formulario público no abre escrituras cliente en Firestore Rules: la creación pasa por `/api/quotes` y usa Admin SDK server-side. El listado de `/admin` y el cambio de estado pasan por rutas server-side que vuelven a validar ID token y rol admin; no confían en estado de rol del cliente.
+8. Usá **Enviar email** o **Abrir WhatsApp** para contactar al cliente con un mensaje prellenado que incluye contexto de la cotización.
+
+9. Cambiá el estado interno de la solicitud a **Contactado**, **Cerrado** o **Spam**. El resultado esperado es el mensaje `Estado actualizado desde ruta server-side con rol admin validado.` y la lista actualizada sin recargar.
+
+10. Escribí una **Nota interna** y presioná **Guardar nota**. El resultado esperado es el mensaje `Nota interna guardada desde ruta server-side con rol admin validado.` y la nota persistida para el dashboard admin.
+
+El formulario público no abre escrituras cliente en Firestore Rules: la creación pasa por `/api/quotes` y usa Admin SDK server-side. El listado de `/admin`, el cambio de estado y el guardado de nota interna pasan por rutas server-side que vuelven a validar ID token y rol admin; no confían en estado de rol del cliente.
 
 El seed local se niega a correr si detecta `NODE_ENV=production`, un `FIREBASE_SERVICE_ACCOUNT_JSON` real, un project id distinto de `demo-webtatuajes` o hosts que no sean los emuladores locales. No asigna roles contra producción.
 

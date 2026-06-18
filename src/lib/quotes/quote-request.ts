@@ -32,8 +32,10 @@ export type RecentQuoteRequest = {
   preferredContactMethod: string;
   bodyPlacement: string;
   approximateSize: string;
+  description: string;
   descriptionPreview: string;
   budgetClp: number | null;
+  internalNote: string;
 };
 
 type FirestoreLike = NonNullable<ReturnType<typeof getFirebaseAdminFirestore>>;
@@ -45,6 +47,7 @@ const maxLengths = {
   description: 1500,
   bodyPlacement: 120,
   approximateSize: 120,
+  internalNote: 2000,
 };
 
 function cleanString(value: unknown): string {
@@ -65,6 +68,29 @@ export function isQuoteStatus(value: string): value is QuoteStatus {
 
 function isValidQuoteId(value: string): boolean {
   return /^[A-Za-z0-9_-]{6,80}$/.test(value);
+}
+
+export function validateQuoteInternalNoteInput(quoteId: unknown, internalNote: unknown) {
+  const cleanQuoteId = cleanString(quoteId);
+  const cleanInternalNote = cleanLongText(internalNote);
+
+  if (!cleanQuoteId) {
+    return { ok: false as const, status: 400, error: "Falta el ID de la solicitud." };
+  }
+
+  if (!isValidQuoteId(cleanQuoteId)) {
+    return { ok: false as const, status: 400, error: "ID de solicitud inválido." };
+  }
+
+  if (typeof internalNote !== "string") {
+    return { ok: false as const, status: 400, error: "La nota interna debe ser texto." };
+  }
+
+  if (cleanInternalNote.length > maxLengths.internalNote) {
+    return { ok: false as const, status: 400, error: "La nota interna es demasiado larga." };
+  }
+
+  return { ok: true as const, quoteId: cleanQuoteId, internalNote: cleanInternalNote };
 }
 
 function isValidEmail(value: string): boolean {
@@ -213,8 +239,10 @@ export async function listRecentQuoteRequests(firestore: FirestoreLike, limit = 
       preferredContactMethod: cleanString(data.preferred_contact_method) || "email",
       bodyPlacement: cleanString(data.body_area),
       approximateSize: cleanString(data.size_description),
+      description: cleanLongText(data.description),
       descriptionPreview: preview(data.description),
       budgetClp: typeof data.budget_clp === "number" ? data.budget_clp : null,
+      internalNote: cleanLongText(data.admin_note),
     };
   });
 }
@@ -252,4 +280,34 @@ export async function updateQuoteRequestStatus(
   });
 
   return { ok: true as const, quoteId: cleanQuoteId, quoteStatus: cleanStatus };
+}
+
+export async function updateQuoteRequestInternalNote(
+  firestore: FirestoreLike,
+  quoteId: unknown,
+  internalNote: unknown,
+) {
+  const validation = validateQuoteInternalNoteInput(quoteId, internalNote);
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const reference = firestore.collection("quotes").doc(validation.quoteId);
+  const snapshot = await reference.get();
+
+  if (!snapshot.exists) {
+    return { ok: false as const, status: 404, error: "La solicitud no existe." };
+  }
+
+  await reference.update({
+    admin_note: validation.internalNote,
+    updated_at: FieldValue.serverTimestamp(),
+  });
+
+  return {
+    ok: true as const,
+    quoteId: validation.quoteId,
+    internalNote: validation.internalNote,
+  };
 }
