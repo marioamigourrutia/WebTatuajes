@@ -5,7 +5,7 @@ import {
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import { readFileSync } from "node:fs";
-import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getBytes, ref, uploadBytes } from "firebase/storage";
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 
@@ -69,6 +69,7 @@ beforeEach(async () => {
       customer_id: "customer-a",
       quote_id: "quote-a",
       storage_path: "quote-images/customer-a/quote-a/reference.png",
+      original_filename: "reference.png",
       mime_type: "image/png",
       size_bytes: 128,
     });
@@ -275,6 +276,7 @@ describe("Firestore private data rules", () => {
         customer_id: "customer-a",
         quote_id: "quote-a",
         storage_path: "quote-images/customer-a/quote-a/reference.svg",
+        original_filename: "reference.svg",
         mime_type: "image/svg+xml",
         size_bytes: 128,
       }),
@@ -284,6 +286,7 @@ describe("Firestore private data rules", () => {
         customer_id: "customer-a",
         quote_id: "quote-b",
         storage_path: "quote-images/customer-a/quote-b/reference.png",
+        original_filename: "reference.png",
         mime_type: "image/png",
         size_bytes: 128,
       }),
@@ -293,9 +296,21 @@ describe("Firestore private data rules", () => {
         customer_id: "customer-a",
         quote_id: "quote-a",
         storage_path: "quote-images/customer-a/quote-a/reference.png",
+        original_filename: "reference.png",
         mime_type: "image/png",
         size_bytes: 128,
         public_url: "https://example.invalid/reference.png",
+      }),
+    );
+
+    await assertSucceeds(
+      setDoc(doc(customerA, "quote_images/valid-image"), {
+        customer_id: "customer-a",
+        quote_id: "quote-a",
+        storage_path: "quote-images/customer-a/quote-a/reference.png",
+        original_filename: "reference.png",
+        mime_type: "image/png",
+        size_bytes: 128,
       }),
     );
   });
@@ -581,6 +596,12 @@ describe("Storage private quote image rules", () => {
     await assertSucceeds(getBytes(ref(userStorage("customer-a"), path)));
     await assertSucceeds(getBytes(ref(userStorage("artist-a"), path)));
     await assertSucceeds(getBytes(ref(userStorage("admin-a"), path)));
+
+    const emulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
+    const rawMediaUrl = `http://${emulatorHost}/v0/b/${projectId}.appspot.com/o/${encodeURIComponent(path)}?alt=media`;
+    const rawMediaResponse = await fetch(rawMediaUrl);
+
+    expect(rawMediaResponse.status).toBe(403);
   });
 
   it("blocks customers from uploading private quote images outside their own quote path", async () => {

@@ -1,5 +1,5 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { getFirebaseAdminFirestore } from "../firebase/admin";
+import { getFirebaseAdminFirestore, getFirebaseAdminStorageBucket } from "../firebase/admin";
 
 export const preferredContactMethods = ["email", "phone", "whatsapp"] as const;
 export const quoteStatuses = ["pending", "contacted", "closed", "spam"] as const;
@@ -16,6 +16,28 @@ export type QuoteRequestInput = {
   approximateSize: string;
   budgetClp?: number;
   preferredContactMethod: PreferredContactMethod;
+};
+
+export type QuoteReferenceImageInput = {
+  file: File;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
+export type QuoteReferenceImage = {
+  id: string;
+  storagePath: string;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+  accessUrl: string | null;
+};
+
+export type AdminQuoteReferenceImageFile = {
+  storagePath: string;
+  originalFilename: string;
+  mimeType: string;
 };
 
 export type QuoteRequestValidationResult =
@@ -36,9 +58,11 @@ export type RecentQuoteRequest = {
   descriptionPreview: string;
   budgetClp: number | null;
   internalNote: string;
+  referenceImages: QuoteReferenceImage[];
 };
 
 type FirestoreLike = NonNullable<ReturnType<typeof getFirebaseAdminFirestore>>;
+type StorageBucketLike = NonNullable<ReturnType<typeof getFirebaseAdminStorageBucket>>;
 
 const maxLengths = {
   customerName: 80,
@@ -49,6 +73,12 @@ const maxLengths = {
   approximateSize: 120,
   internalNote: 2000,
 };
+
+export const referenceImageConstraints = {
+  maxFiles: 3,
+  maxSizeBytes: 5 * 1024 * 1024,
+  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+} as const;
 
 function cleanString(value: unknown): string {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
@@ -68,6 +98,10 @@ export function isQuoteStatus(value: string): value is QuoteStatus {
 
 function isValidQuoteId(value: string): boolean {
   return /^[A-Za-z0-9_-]{6,80}$/.test(value);
+}
+
+function isValidQuoteImageId(value: string): boolean {
+  return /^[A-Za-z0-9_-]{6,120}$/.test(value);
 }
 
 export function validateQuoteInternalNoteInput(quoteId: unknown, internalNote: unknown) {
@@ -95,6 +129,74 @@ export function validateQuoteInternalNoteInput(quoteId: unknown, internalNote: u
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function hasArrayBuffer(value: unknown): value is { arrayBuffer: () => Promise<ArrayBuffer> } {
+  return typeof (value as { arrayBuffer?: unknown }).arrayBuffer === "function";
+}
+
+function getFileName(file: File): string {
+  return cleanString(file.name).replace(/[\\/]/g, "_") || "reference-image";
+}
+
+function getFileExtension(fileName: string, mimeType: string): string {
+  const extension = fileName.split(".").pop()?.toLowerCase();
+
+  if (extension && /^[a-z0-9]{1,8}$/.test(extension)) {
+    return extension;
+  }
+
+  return mimeType.split("/")[1] ?? "image";
+}
+
+function isAllowedReferenceImageMimeType(value: string): boolean {
+  return referenceImageConstraints.allowedMimeTypes.includes(
+    value as (typeof referenceImageConstraints.allowedMimeTypes)[number],
+  );
+}
+
+export function validateQuoteReferenceImages(files: File[]) {
+  const referenceImages = files.filter((file) => file.size > 0 || file.name || file.type);
+  const errors: Record<string, string> = {};
+
+  if (referenceImages.length > referenceImageConstraints.maxFiles) {
+    errors.referenceImages = `Podés adjuntar hasta ${referenceImageConstraints.maxFiles} imágenes.`;
+  }
+
+  referenceImages.forEach((file, index) => {
+    const field = `referenceImages.${index}`;
+
+    if (!hasArrayBuffer(file)) {
+      errors[field] = "El archivo adjunto no es válido.";
+      return;
+    }
+
+    if (!isAllowedReferenceImageMimeType(file.type)) {
+      errors[field] = "Solo se permiten imágenes JPG, PNG, WEBP o GIF.";
+    }
+
+    if (file.size <= 0) {
+      errors[field] = "La imagen está vacía.";
+    }
+
+    if (file.size > referenceImageConstraints.maxSizeBytes) {
+      errors[field] = "Cada imagen debe pesar 5 MB o menos.";
+    }
+  });
+
+  if (Object.keys(errors).length > 0) {
+    return { ok: false as const, errors };
+  }
+
+  return {
+    ok: true as const,
+    value: referenceImages.map((file) => ({
+      file,
+      originalFilename: getFileName(file),
+      mimeType: file.type,
+      sizeBytes: file.size,
+    })),
+  };
 }
 
 function parseBudgetClp(value: unknown): number | undefined {
@@ -201,6 +303,130 @@ export async function createQuoteRequest(input: unknown, firestore = getFirebase
   return { ok: true as const, id: reference.id };
 }
 
+export async function createQuoteRequestFromFormData(
+  formData: FormData,
+  firestore = getFirebaseAdminFirestore(),
+  storageBucket = getFirebaseAdminStorageBucket(),
+) {
+  const body = Object.fromEntries(
+    Array.from(formData.entries()).filter(([, value]) => !(value instanceof File)),
+  );
+  const imageValidation = validateQuoteReferenceImages(
+    formData.getAll("referenceImages").filter((value): value is File => value instanceof File),
+  );
+
+  if (!imageValidation.ok) {
+    return { ok: false as const, status: 400, errors: imageValidation.errors };
+  }
+
+  if (imageValidation.value.length === 0) {
+    return createQuoteRequest(body, firestore);
+  }
+
+  if (!storageBucket) {
+    return {
+      ok: false as const,
+      status: 503,
+      errors: { form: "Firebase Storage no está configurado." },
+    };
+  }
+
+  return createQuoteRequestWithReferenceImages(
+    body,
+    imageValidation.value,
+    firestore,
+    storageBucket,
+  );
+}
+
+export async function createQuoteRequestWithReferenceImages(
+  input: unknown,
+  referenceImages: QuoteReferenceImageInput[],
+  firestore = getFirebaseAdminFirestore(),
+  storageBucket: StorageBucketLike | null = getFirebaseAdminStorageBucket(),
+) {
+  const validation = validateQuoteRequestInput(input);
+
+  if (!validation.ok) {
+    return { ok: false as const, status: 400, errors: validation.errors };
+  }
+
+  if (!firestore) {
+    return {
+      ok: false as const,
+      status: 503,
+      errors: { form: "Firebase Admin no está configurado." },
+    };
+  }
+
+  if (referenceImages.length === 0) {
+    return createQuoteRequest(input, firestore);
+  }
+
+  if (!storageBucket) {
+    return {
+      ok: false as const,
+      status: 503,
+      errors: { form: "Firebase Storage no está configurado." },
+    };
+  }
+
+  const quoteReference = await firestore.collection("quotes").add({
+    ...mapQuoteRequestToFirestore(validation.value),
+    created_at: FieldValue.serverTimestamp(),
+    updated_at: FieldValue.serverTimestamp(),
+  });
+
+  const uploadedPaths: string[] = [];
+  const createdImageReferences: { delete: () => Promise<unknown> }[] = [];
+  const createdAt = Date.now();
+  const operations = referenceImages.map(async (image, index) => {
+    const extension = getFileExtension(image.originalFilename, image.mimeType);
+    const storagePath = `quote-images/anonymous/${quoteReference.id}/${createdAt}-${index}.${extension}`;
+    const buffer = Buffer.from(await image.file.arrayBuffer());
+
+    await storageBucket.file(storagePath).save(buffer, {
+      contentType: image.mimeType,
+      metadata: {
+        metadata: {
+          customer_id: "anonymous",
+          quote_id: quoteReference.id,
+          original_filename: image.originalFilename,
+        },
+      },
+    });
+    uploadedPaths.push(storagePath);
+
+    const imageReference = await firestore.collection("quote_images").add({
+      customer_id: "anonymous",
+      quote_id: quoteReference.id,
+      storage_path: storagePath,
+      original_filename: image.originalFilename,
+      mime_type: image.mimeType,
+      size_bytes: image.sizeBytes,
+      created_at: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
+    });
+    createdImageReferences.push(imageReference);
+  });
+
+  const results = await Promise.allSettled(operations);
+  const rejectedResult = results.find(
+    (result): result is PromiseRejectedResult => result.status === "rejected",
+  );
+
+  if (rejectedResult) {
+    await Promise.allSettled([
+      ...uploadedPaths.map((path) => storageBucket.file(path).delete()),
+      ...createdImageReferences.map((reference) => reference.delete()),
+      quoteReference.delete(),
+    ]);
+    throw rejectedResult.reason;
+  }
+
+  return { ok: true as const, id: quoteReference.id };
+}
+
 function serializeCreatedAt(value: unknown): string | null {
   if (value instanceof Timestamp) {
     return value.toDate().toISOString();
@@ -219,12 +445,115 @@ function preview(value: unknown): string {
   return text.length > 140 ? `${text.slice(0, 137)}…` : text;
 }
 
+function buildReferenceImageAccessUrl(imageId: string): string | null {
+  return isValidQuoteImageId(imageId)
+    ? `/api/admin/quotes/images?imageId=${encodeURIComponent(imageId)}`
+    : null;
+}
+
+function isValidQuoteImageStoragePath(value: string): boolean {
+  return /^quote-images\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(value);
+}
+
+function serializeQuoteImage(document: { id: string; data: () => Record<string, unknown> }) {
+  const data = document.data();
+  const storagePath = cleanString(data.storage_path);
+
+  return {
+    id: document.id,
+    storagePath,
+    originalFilename: cleanString(data.original_filename) || "Referencia",
+    mimeType: cleanString(data.mime_type),
+    sizeBytes: typeof data.size_bytes === "number" ? data.size_bytes : 0,
+    accessUrl: buildReferenceImageAccessUrl(document.id),
+  } satisfies QuoteReferenceImage;
+}
+
+export async function getAdminQuoteReferenceImageFile(
+  firestore: FirestoreLike,
+  imageId: unknown,
+  quoteId?: unknown,
+) {
+  const cleanImageId = cleanString(imageId);
+  const cleanQuoteId = quoteId === undefined ? undefined : cleanString(quoteId);
+
+  if (!cleanImageId) {
+    return { ok: false as const, status: 400, error: "Falta el ID de la imagen." };
+  }
+
+  if (!isValidQuoteImageId(cleanImageId)) {
+    return { ok: false as const, status: 400, error: "ID de imagen inválido." };
+  }
+
+  if (cleanQuoteId !== undefined && !isValidQuoteId(cleanQuoteId)) {
+    return { ok: false as const, status: 400, error: "ID de solicitud inválido." };
+  }
+
+  const snapshot = await firestore.collection("quote_images").doc(cleanImageId).get();
+
+  if (!snapshot.exists) {
+    return { ok: false as const, status: 404, error: "La imagen no existe." };
+  }
+
+  const data = snapshot.data() ?? {};
+  const storagePath = cleanString(data.storage_path);
+  const mimeType = cleanString(data.mime_type);
+  const originalFilename = cleanString(data.original_filename) || "reference-image";
+  const imageQuoteId = cleanString(data.quote_id);
+
+  if (cleanQuoteId !== undefined && imageQuoteId !== cleanQuoteId) {
+    return { ok: false as const, status: 404, error: "La imagen no existe." };
+  }
+
+  if (
+    !storagePath ||
+    !isValidQuoteImageStoragePath(storagePath) ||
+    !mimeType ||
+    !isAllowedReferenceImageMimeType(mimeType)
+  ) {
+    return { ok: false as const, status: 422, error: "La metadata de imagen es inválida." };
+  }
+
+  return {
+    ok: true as const,
+    file: { storagePath, originalFilename, mimeType } satisfies AdminQuoteReferenceImageFile,
+  };
+}
+
+async function listReferenceImagesByQuoteId(firestore: FirestoreLike, quoteIds: string[]) {
+  if (quoteIds.length === 0) {
+    return new Map<string, QuoteReferenceImage[]>();
+  }
+
+  const imagesByQuoteId = new Map<string, QuoteReferenceImage[]>();
+
+  await Promise.all(
+    quoteIds.map(async (quoteId) => {
+      const snapshot = await firestore
+        .collection("quote_images")
+        .where("quote_id", "==", quoteId)
+        .get();
+      imagesByQuoteId.set(
+        quoteId,
+        snapshot.docs.map((document) => serializeQuoteImage(document)),
+      );
+    }),
+  );
+
+  return imagesByQuoteId;
+}
+
 export async function listRecentQuoteRequests(firestore: FirestoreLike, limit = 20) {
   const snapshot = await firestore
     .collection("quotes")
     .orderBy("created_at", "desc")
     .limit(limit)
     .get();
+
+  const referenceImagesByQuoteId = await listReferenceImagesByQuoteId(
+    firestore,
+    snapshot.docs.map((document) => document.id),
+  );
 
   return snapshot.docs.map((document): RecentQuoteRequest => {
     const data = document.data();
@@ -243,6 +572,7 @@ export async function listRecentQuoteRequests(firestore: FirestoreLike, limit = 
       descriptionPreview: preview(data.description),
       budgetClp: typeof data.budget_clp === "number" ? data.budget_clp : null,
       internalNote: cleanLongText(data.admin_note),
+      referenceImages: referenceImagesByQuoteId.get(document.id) ?? [],
     };
   });
 }

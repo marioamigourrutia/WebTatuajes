@@ -121,6 +121,7 @@ service cloud.firestore {
           'customer_id',
           'quote_id',
           'storage_path',
+          'original_filename',
           'mime_type',
           'size_bytes',
           'created_at',
@@ -129,6 +130,7 @@ service cloud.firestore {
         && data.customer_id is string
         && data.quote_id is string
         && data.storage_path is string
+        && data.original_filename is string
         && data.mime_type in ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
         && data.size_bytes is int
         && data.size_bytes > 0

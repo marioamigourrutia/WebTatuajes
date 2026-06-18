@@ -7,6 +7,8 @@ type QuoteFormErrors = Record<string, string>;
 const fieldClass =
   "mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-3 py-2 text-stone-100";
 const labelClass = "text-xs font-semibold uppercase tracking-[0.2em] text-stone-400";
+const maxReferenceImageCount = 3;
+const maxReferenceImageSizeBytes = 5 * 1024 * 1024;
 
 type QuoteRequestFormProps = {
   showLocalTestingNote?: boolean;
@@ -17,6 +19,30 @@ export function QuoteRequestForm({ showLocalTestingNote = false }: QuoteRequestF
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  function validateReferenceImages(files: FileList | null) {
+    const nextErrors: QuoteFormErrors = {};
+
+    if (!files || files.length === 0) {
+      return nextErrors;
+    }
+
+    if (files.length > maxReferenceImageCount) {
+      nextErrors.referenceImages = `Podés adjuntar hasta ${maxReferenceImageCount} imágenes.`;
+    }
+
+    Array.from(files).forEach((file, index) => {
+      if (!file.type.startsWith("image/")) {
+        nextErrors[`referenceImages.${index}`] = "Solo se permiten archivos de imagen.";
+      }
+
+      if (file.size > maxReferenceImageSizeBytes) {
+        nextErrors[`referenceImages.${index}`] = "Cada imagen debe pesar 5 MB o menos.";
+      }
+    });
+
+    return nextErrors;
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -25,13 +51,20 @@ export function QuoteRequestForm({ showLocalTestingNote = false }: QuoteRequestF
     setCreatedId(null);
 
     const formData = new FormData(form);
-    const body = Object.fromEntries(formData.entries());
+    const imageErrors = validateReferenceImages(
+      form.querySelector<HTMLInputElement>('input[name="referenceImages"]')?.files ?? null,
+    );
+
+    if (Object.keys(imageErrors).length > 0) {
+      setErrors(imageErrors);
+      setSubmitting(false);
+      return;
+    }
 
     try {
       const response = await fetch("/api/quotes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: formData,
       });
       const result = (await response.json()) as { id?: string; errors?: QuoteFormErrors };
 
@@ -130,6 +163,30 @@ export function QuoteRequestForm({ showLocalTestingNote = false }: QuoteRequestF
           ) : null}
         </label>
       </div>
+
+      <label className="block">
+        <span className={labelClass}>Imágenes de referencia opcionales</span>
+        <input
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className={fieldClass}
+          multiple
+          name="referenceImages"
+          type="file"
+        />
+        <span className="mt-1 block text-xs text-stone-500">
+          Hasta 3 imágenes JPG, PNG, WEBP o GIF. Máximo 5 MB cada una.
+        </span>
+        {errors.referenceImages ? (
+          <span className="text-sm text-red-300">{errors.referenceImages}</span>
+        ) : null}
+        {Object.entries(errors)
+          .filter(([key]) => key.startsWith("referenceImages."))
+          .map(([key, message]) => (
+            <span className="block text-sm text-red-300" key={key}>
+              {message}
+            </span>
+          ))}
+      </label>
 
       {errors.form ? <p className="text-sm text-red-300">{errors.form}</p> : null}
       {createdId ? (
