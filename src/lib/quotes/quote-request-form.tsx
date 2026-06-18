@@ -8,7 +8,11 @@ const fieldClass =
   "mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-3 py-2 text-stone-100";
 const labelClass = "text-xs font-semibold uppercase tracking-[0.2em] text-stone-400";
 
-export function QuoteRequestForm() {
+type QuoteRequestFormProps = {
+  showLocalTestingNote?: boolean;
+};
+
+export function QuoteRequestForm({ showLocalTestingNote = false }: QuoteRequestFormProps) {
   const [errors, setErrors] = useState<QuoteFormErrors>({});
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -51,10 +55,10 @@ export function QuoteRequestForm() {
       onSubmit={handleSubmit}
     >
       <div>
-        <h1 className="text-3xl font-black text-stone-50">Solicitar cotización</h1>
+        <h2 className="text-3xl font-black text-stone-50">Formulario de cotización</h2>
         <p className="mt-2 text-sm leading-6 text-stone-400">
-          Contanos tu idea y la guardamos en Firestore desde una ruta server-side. No necesitás
-          iniciar sesión.
+          Guardamos la solicitud desde una ruta server-side. El formulario solo muestra éxito si el
+          servidor confirma la creación y devuelve un ID.
         </p>
       </div>
 
@@ -91,7 +95,13 @@ export function QuoteRequestForm() {
 
       <label className="block">
         <span className={labelClass}>Idea / descripción</span>
-        <textarea className={fieldClass} name="description" required rows={5} />
+        <textarea
+          className={fieldClass}
+          name="description"
+          placeholder="Ej.: flores nativas en línea fina, antebrazo interno, referencia en blanco y negro…"
+          required
+          rows={5}
+        />
         {errors.description ? (
           <span className="text-sm text-red-300">{errors.description}</span>
         ) : null}
@@ -123,9 +133,22 @@ export function QuoteRequestForm() {
 
       {errors.form ? <p className="text-sm text-red-300">{errors.form}</p> : null}
       {createdId ? (
-        <p className="rounded-2xl border border-emerald-700 bg-emerald-950/50 p-3 text-sm text-emerald-200">
-          Solicitud recibida. ID local: {createdId}
-        </p>
+        <div className="rounded-2xl border border-emerald-700 bg-emerald-950/50 p-4 text-sm text-emerald-100">
+          <p className="font-semibold">Solicitud recibida correctamente.</p>
+          <p className="mt-1 text-emerald-200">
+            Guardamos tu cotización con ID local <span className="font-mono">{createdId}</span>. El
+            estudio puede revisarla desde el panel interno.
+          </p>
+          {showLocalTestingNote ? (
+            <p className="mt-3 text-emerald-200">
+              Prueba local: después de iniciar sesión como admin, podés verla y cambiar su estado en{" "}
+              <a className="font-semibold underline underline-offset-4" href="/admin">
+                /admin
+              </a>
+              .
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       <button

@@ -14,3 +14,7 @@ export function buildWhatsAppUrl({ phone, message }: WhatsAppLinkInput): string 
 
   return `https://wa.me/${normalizedPhone}?${params.toString()}`;
 }
+
+export function hasWhatsAppConfig(phone: string): boolean {
+  return phone.replace(/\D/g, "").length > 0;
+}

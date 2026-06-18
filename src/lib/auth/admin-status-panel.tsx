@@ -24,6 +24,15 @@ type RecentQuoteRequest = {
   budgetClp: number | null;
 };
 
+const quoteStatuses = ["pending", "contacted", "closed", "spam"] as const;
+
+const quoteStatusLabels: Record<(typeof quoteStatuses)[number], string> = {
+  pending: "Pendiente",
+  contacted: "Contactado",
+  closed: "Cerrado",
+  spam: "Spam",
+};
+
 function formatDate(value: string | null) {
   if (!value) {
     return "sin fecha";
@@ -40,7 +49,9 @@ export function AdminStatusPanel() {
   const [status, setStatus] = useState<AdminStatusResponse | null>(null);
   const [quotes, setQuotes] = useState<RecentQuoteRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [updatingQuoteId, setUpdatingQuoteId] = useState<string | null>(null);
 
   async function checkServerStatus() {
     if (!user) {
@@ -50,6 +61,7 @@ export function AdminStatusPanel() {
 
     setLoading(true);
     setError(null);
+    setNotice(null);
 
     try {
       const idToken = await user.getIdToken();
@@ -93,13 +105,56 @@ export function AdminStatusPanel() {
     }
   }
 
+  async function updateQuoteStatus(quoteId: string, status: string) {
+    if (!user) {
+      setError("Iniciá sesión antes de cambiar el estado.");
+      return;
+    }
+
+    setUpdatingQuoteId(quoteId);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/admin/quotes/status", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ quoteId, status }),
+      });
+      const body = (await response.json()) as { error?: string; status?: string };
+
+      if (!response.ok || !body.status) {
+        setError(body.error ?? "No se pudo actualizar el estado de la solicitud.");
+        return;
+      }
+
+      setQuotes((currentQuotes) =>
+        currentQuotes.map((quote) =>
+          quote.id === quoteId ? { ...quote, status: body.status ?? quote.status } : quote,
+        ),
+      );
+      setNotice("Estado actualizado desde ruta server-side con rol admin validado.");
+    } catch {
+      setError("No se pudo conectar con la ruta server-side de actualización.");
+    } finally {
+      setUpdatingQuoteId(null);
+    }
+  }
+
   return (
     <div className="space-y-5 rounded-3xl border border-stone-700 bg-stone-950/70 p-6">
       <div>
-        <h2 className="text-2xl font-bold text-stone-50">Estado admin local</h2>
+        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
+          Operaciones
+        </p>
+        <h1 className="mt-3 text-3xl font-black text-stone-50">Dashboard admin local</h1>
         <p className="mt-2 text-sm leading-6 text-stone-400">
-          Este flujo usa login cliente solo para obtener un ID token. La autorización real se valida
-          en el servidor contra Firebase Admin y el documento <code>profiles/{"{uid}"}</code>.
+          Validá el token contra servidor, revisá cotizaciones recientes y actualizá estados sin
+          abrir escrituras cliente en Firestore.
         </p>
       </div>
 
@@ -115,15 +170,16 @@ export function AdminStatusPanel() {
       </button>
 
       {status ? (
-        <div className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4 text-sm text-stone-200">
+        <div className="grid gap-3 rounded-2xl border border-stone-800 bg-stone-900/70 p-4 text-sm text-stone-200 sm:grid-cols-2">
           <p>Autenticado: {status.authenticated ? "sí" : "no"}</p>
-          <p>Admin: {status.admin ? "sí" : "no"}</p>
+          <p>Admin server-side: {status.admin ? "sí" : "no"}</p>
           <p>Rol servidor: {status.profile?.role ?? "sin perfil válido"}</p>
           <p>Usuario: {status.profile?.email ?? status.profile?.uid ?? "n/a"}</p>
         </div>
       ) : null}
 
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
+      {notice ? <p className="text-sm text-emerald-300">{notice}</p> : null}
 
       {status?.admin ? (
         <section className="space-y-3">
@@ -163,6 +219,26 @@ export function AdminStatusPanel() {
                     {quote.bodyPlacement} · {quote.approximateSize}
                     {quote.budgetClp ? ` · $${quote.budgetClp.toLocaleString("es-CL")}` : ""}
                   </p>
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                      Estado interno
+                    </label>
+                    <select
+                      className="rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={updatingQuoteId === quote.id}
+                      onChange={(event) => updateQuoteStatus(quote.id, event.target.value)}
+                      value={quote.status}
+                    >
+                      {quoteStatuses.map((statusOption) => (
+                        <option key={statusOption} value={statusOption}>
+                          {quoteStatusLabels[statusOption]}
+                        </option>
+                      ))}
+                    </select>
+                    {updatingQuoteId === quote.id ? (
+                      <span className="text-sm text-stone-400">Actualizando…</span>
+                    ) : null}
+                  </div>
                 </li>
               ))}
             </ul>
