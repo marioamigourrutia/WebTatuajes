@@ -231,7 +231,7 @@ describe("Firestore private data rules", () => {
       }),
     );
 
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(customerA, "quotes/quote-a"), {
         description: "Updated customer description",
       }),
@@ -257,7 +257,7 @@ describe("Firestore private data rules", () => {
         budget_clp: "100000",
       }),
     );
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(customerA, "quotes/valid-customer-quote"), {
         customer_id: "customer-a",
         status: "pending",
@@ -306,13 +306,13 @@ describe("Firestore private data rules", () => {
 
     await assertSucceeds(getDoc(doc(artistA, "quotes/quote-a")));
     await assertSucceeds(getDoc(doc(artistA, "appointments/appointment-a")));
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(artistA, "quotes/quote-a"), {
-        status: "reviewing",
+        status: "contacted",
       }),
     );
 
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(adminA, "quotes/quote-a"), {
         admin_notes: "Internal note",
       }),

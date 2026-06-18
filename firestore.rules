@@ -104,7 +104,7 @@ service cloud.firestore {
           'updated_at'
         ])
         && data.customer_id is string
-        && validStatus(data.status, ['pending', 'reviewing', 'approved', 'scheduled', 'completed', 'cancelled'])
+        && validStatus(data.status, ['pending', 'contacted', 'closed', 'spam'])
         && optionalString(data, 'artist_id')
         && optionalString(data, 'body_area')
         && optionalString(data, 'size_description')
@@ -271,32 +271,7 @@ service cloud.firestore {
         || isAdmin()
         || (isArtist() && resource.data.artist_id == request.auth.uid);
       allow list: if false;
-      allow create: if signedIn()
-        && validQuote(request.resource.data)
-        && request.resource.data.customer_id == request.auth.uid
-        && request.resource.data.status == 'pending'
-        && !('admin_notes' in request.resource.data)
-        && !('artist_id' in request.resource.data);
-      allow update: if (isAdmin() && validQuote(request.resource.data))
-        || (signedIn()
-          && validQuote(request.resource.data)
-          && resource.data.customer_id == request.auth.uid
-          && request.resource.data.customer_id == resource.data.customer_id
-          && changedOnlyAllowedKeys([
-            'body_area',
-            'size_description',
-            'style',
-            'description',
-            'budget_clp',
-            'updated_at'
-          ]))
-        || (isArtist()
-          && validQuote(request.resource.data)
-          && resource.data.artist_id == request.auth.uid
-          && request.resource.data.customer_id == resource.data.customer_id
-          && request.resource.data.artist_id == resource.data.artist_id
-          && changedOnlyAllowedKeys(['status', 'updated_at']));
-      allow delete: if isAdmin();
+      allow create, update, delete: if false;
 
       match /events/{eventId} {
         allow get: if isAdmin()

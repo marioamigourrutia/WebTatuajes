@@ -2,8 +2,10 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getFirebaseAdminFirestore } from "../firebase/admin";
 
 export const preferredContactMethods = ["email", "phone", "whatsapp"] as const;
+export const quoteStatuses = ["pending", "contacted", "closed", "spam"] as const;
 
 export type PreferredContactMethod = (typeof preferredContactMethods)[number];
+export type QuoteStatus = (typeof quoteStatuses)[number];
 
 export type QuoteRequestInput = {
   customerName: string;
@@ -55,6 +57,14 @@ function cleanLongText(value: unknown): string {
 
 function isPreferredContactMethod(value: string): value is PreferredContactMethod {
   return preferredContactMethods.includes(value as PreferredContactMethod);
+}
+
+export function isQuoteStatus(value: string): value is QuoteStatus {
+  return quoteStatuses.includes(value as QuoteStatus);
+}
+
+function isValidQuoteId(value: string): boolean {
+  return /^[A-Za-z0-9_-]{6,80}$/.test(value);
 }
 
 function isValidEmail(value: string): boolean {
@@ -207,4 +217,39 @@ export async function listRecentQuoteRequests(firestore: FirestoreLike, limit = 
       budgetClp: typeof data.budget_clp === "number" ? data.budget_clp : null,
     };
   });
+}
+
+export async function updateQuoteRequestStatus(
+  firestore: FirestoreLike,
+  quoteId: unknown,
+  status: unknown,
+) {
+  const cleanQuoteId = cleanString(quoteId);
+  const cleanStatus = cleanString(status);
+
+  if (!cleanQuoteId) {
+    return { ok: false as const, status: 400, error: "Falta el ID de la solicitud." };
+  }
+
+  if (!isValidQuoteId(cleanQuoteId)) {
+    return { ok: false as const, status: 400, error: "ID de solicitud inválido." };
+  }
+
+  if (!isQuoteStatus(cleanStatus)) {
+    return { ok: false as const, status: 400, error: "Estado de cotización no permitido." };
+  }
+
+  const reference = firestore.collection("quotes").doc(cleanQuoteId);
+  const snapshot = await reference.get();
+
+  if (!snapshot.exists) {
+    return { ok: false as const, status: 404, error: "La solicitud no existe." };
+  }
+
+  await reference.update({
+    status: cleanStatus,
+    updated_at: FieldValue.serverTimestamp(),
+  });
+
+  return { ok: true as const, quoteId: cleanQuoteId, quoteStatus: cleanStatus };
 }

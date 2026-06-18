@@ -3,6 +3,8 @@ import {
   createQuoteRequest,
   listRecentQuoteRequests,
   mapQuoteRequestToFirestore,
+  quoteStatuses,
+  updateQuoteRequestStatus,
   validateQuoteRequestInput,
 } from "./quote-request";
 
@@ -148,5 +150,64 @@ describe("quote request firestore helpers", () => {
     ]);
     expect(orderBy).toHaveBeenCalledWith("created_at", "desc");
     expect(limit).toHaveBeenCalledWith(5);
+  });
+
+  it("updates quote status through the injected server Firestore dependency", async () => {
+    const update = vi.fn().mockResolvedValue(undefined);
+    const get = vi.fn().mockResolvedValue({ exists: true });
+    const doc = vi.fn().mockReturnValue({ get, update });
+    const collection = vi.fn().mockReturnValue({ doc });
+
+    await expect(
+      updateQuoteRequestStatus({ collection } as never, " quote-1 ", "contacted"),
+    ).resolves.toEqual({ ok: true, quoteId: "quote-1", quoteStatus: "contacted" });
+
+    expect(collection).toHaveBeenCalledWith("quotes");
+    expect(doc).toHaveBeenCalledWith("quote-1");
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "contacted",
+        updated_at: expect.anything(),
+      }),
+    );
+  });
+
+  it("rejects invalid quote status values before writing", async () => {
+    const update = vi.fn();
+    const doc = vi.fn().mockReturnValue({ get: vi.fn(), update });
+    const collection = vi.fn().mockReturnValue({ doc });
+
+    await expect(
+      updateQuoteRequestStatus({ collection } as never, "quote-1", "approved"),
+    ).resolves.toMatchObject({ ok: false, status: 400 });
+    expect(quoteStatuses).toEqual(["pending", "contacted", "closed", "spam"]);
+    expect(doc).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed quote IDs before reading Firestore", async () => {
+    const update = vi.fn();
+    const doc = vi.fn().mockReturnValue({ get: vi.fn(), update });
+    const collection = vi.fn().mockReturnValue({ doc });
+
+    await expect(
+      updateQuoteRequestStatus({ collection } as never, "../../profiles/admin", "contacted"),
+    ).resolves.toEqual({ ok: false, status: 400, error: "ID de solicitud inválido." });
+
+    expect(collection).not.toHaveBeenCalled();
+    expect(doc).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("does not update a missing quote", async () => {
+    const update = vi.fn();
+    const get = vi.fn().mockResolvedValue({ exists: false });
+    const doc = vi.fn().mockReturnValue({ get, update });
+    const collection = vi.fn().mockReturnValue({ doc });
+
+    await expect(
+      updateQuoteRequestStatus({ collection } as never, "quote-404", "closed"),
+    ).resolves.toMatchObject({ ok: false, status: 404 });
+    expect(update).not.toHaveBeenCalled();
   });
 });
