@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { LoginPanel } from "@/lib/auth/login-panel";
 import { useAuth } from "@/lib/auth/auth-context";
+import { buildQuoteMailtoUrl, buildQuoteWhatsAppUrl } from "@/lib/quotes/contact-links";
 
 type AdminStatusResponse = {
   authenticated: boolean;
@@ -20,8 +21,10 @@ type RecentQuoteRequest = {
   preferredContactMethod: string;
   bodyPlacement: string;
   approximateSize: string;
+  description: string;
   descriptionPreview: string;
   budgetClp: number | null;
+  internalNote: string;
 };
 
 const quoteStatuses = ["pending", "contacted", "closed", "spam"] as const;
@@ -52,6 +55,8 @@ export function AdminStatusPanel() {
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [updatingQuoteId, setUpdatingQuoteId] = useState<string | null>(null);
+  const [savingNoteQuoteId, setSavingNoteQuoteId] = useState<string | null>(null);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
 
   async function checkServerStatus() {
     if (!user) {
@@ -96,12 +101,58 @@ export function AdminStatusPanel() {
         return;
       }
 
-      setQuotes(quotesBody.quotes ?? []);
+      const nextQuotes = quotesBody.quotes ?? [];
+      setQuotes(nextQuotes);
+      setNoteDrafts(
+        Object.fromEntries(nextQuotes.map((quote) => [quote.id, quote.internalNote ?? ""])),
+      );
     } catch {
       setError("No se pudo consultar el estado de admin en el servidor.");
       setQuotes([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function saveQuoteInternalNote(quoteId: string) {
+    if (!user) {
+      setError("Iniciá sesión antes de guardar una nota interna.");
+      return;
+    }
+
+    setSavingNoteQuoteId(quoteId);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const idToken = await user.getIdToken();
+      const internalNote = noteDrafts[quoteId] ?? "";
+      const response = await fetch("/api/admin/quotes/note", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ quoteId, internalNote }),
+      });
+      const body = (await response.json()) as { error?: string; internalNote?: string };
+
+      if (!response.ok || body.internalNote === undefined) {
+        setError(body.error ?? "No se pudo guardar la nota interna.");
+        return;
+      }
+
+      setQuotes((currentQuotes) =>
+        currentQuotes.map((quote) =>
+          quote.id === quoteId ? { ...quote, internalNote: body.internalNote ?? "" } : quote,
+        ),
+      );
+      setNoteDrafts((currentDrafts) => ({ ...currentDrafts, [quoteId]: body.internalNote ?? "" }));
+      setNotice("Nota interna guardada desde ruta server-side con rol admin validado.");
+    } catch {
+      setError("No se pudo conectar con la ruta server-side de notas internas.");
+    } finally {
+      setSavingNoteQuoteId(null);
     }
   }
 
@@ -214,11 +265,85 @@ export function AdminStatusPanel() {
                       <p>Estado: {quote.status}</p>
                     </div>
                   </div>
-                  <p className="mt-3 text-sm text-stone-300">{quote.descriptionPreview}</p>
-                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-stone-500">
-                    {quote.bodyPlacement} · {quote.approximateSize}
-                    {quote.budgetClp ? ` · $${quote.budgetClp.toLocaleString("es-CL")}` : ""}
-                  </p>
+                  <div className="mt-4 grid gap-3 text-sm text-stone-300 md:grid-cols-2">
+                    <p>
+                      <span className="font-semibold text-stone-100">Zona:</span>{" "}
+                      {quote.bodyPlacement}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-stone-100">Tamaño:</span>{" "}
+                      {quote.approximateSize}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-stone-100">Presupuesto:</span>{" "}
+                      {quote.budgetClp ? `$${quote.budgetClp.toLocaleString("es-CL")}` : "sin dato"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-stone-100">Contacto preferido:</span>{" "}
+                      {quote.preferredContactMethod}
+                    </p>
+                  </div>
+                  <div className="mt-4 rounded-xl border border-stone-800 bg-stone-950/70 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                      Descripción completa
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-stone-300">
+                      {quote.description || quote.descriptionPreview || "Sin descripción."}
+                    </p>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <a
+                      className="rounded-full border border-amber-300/50 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-300 hover:text-stone-950"
+                      href={buildQuoteMailtoUrl(quote)}
+                    >
+                      Enviar email
+                    </a>
+                    {buildQuoteWhatsAppUrl(quote) ? (
+                      <a
+                        className="rounded-full border border-emerald-300/50 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-300 hover:text-stone-950"
+                        href={buildQuoteWhatsAppUrl(quote) ?? undefined}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Abrir WhatsApp
+                      </a>
+                    ) : null}
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <label
+                      className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500"
+                      htmlFor={`note-${quote.id}`}
+                    >
+                      Nota interna
+                    </label>
+                    <textarea
+                      className="min-h-28 w-full rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={savingNoteQuoteId === quote.id}
+                      id={`note-${quote.id}`}
+                      maxLength={2000}
+                      onChange={(event) =>
+                        setNoteDrafts((currentDrafts) => ({
+                          ...currentDrafts,
+                          [quote.id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Notas privadas para seguimiento del estudio."
+                      value={noteDrafts[quote.id] ?? quote.internalNote ?? ""}
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        className="rounded-full bg-stone-100 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={savingNoteQuoteId === quote.id}
+                        onClick={() => saveQuoteInternalNote(quote.id)}
+                        type="button"
+                      >
+                        {savingNoteQuoteId === quote.id ? "Guardando…" : "Guardar nota"}
+                      </button>
+                      <span className="text-xs text-stone-500">
+                        {(noteDrafts[quote.id] ?? "").length}/2000
+                      </span>
+                    </div>
+                  </div>
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                     <label className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
                       Estado interno

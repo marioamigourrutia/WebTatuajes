@@ -4,7 +4,9 @@ import {
   listRecentQuoteRequests,
   mapQuoteRequestToFirestore,
   quoteStatuses,
+  updateQuoteRequestInternalNote,
   updateQuoteRequestStatus,
+  validateQuoteInternalNoteInput,
   validateQuoteRequestInput,
 } from "./quote-request";
 
@@ -130,6 +132,7 @@ describe("quote request firestore helpers", () => {
           size_description: "10 cm",
           description: "Una descripción suficientemente larga".repeat(10),
           budget_clp: 100000,
+          admin_note: "Enviar referencias de líneas finas.",
         }),
       },
     ];
@@ -145,7 +148,10 @@ describe("quote request firestore helpers", () => {
         customerName: "Ana Cliente",
         email: "ana@example.test",
         status: "pending",
+        description: "Una descripción suficientemente larga".repeat(10),
+        descriptionPreview: expect.stringContaining("Una descripción"),
         budgetClp: 100000,
+        internalNote: "Enviar referencias de líneas finas.",
       }),
     ]);
     expect(orderBy).toHaveBeenCalledWith("created_at", "desc");
@@ -208,6 +214,60 @@ describe("quote request firestore helpers", () => {
     await expect(
       updateQuoteRequestStatus({ collection } as never, "quote-404", "closed"),
     ).resolves.toMatchObject({ ok: false, status: 404 });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("validates internal note payloads before writing", () => {
+    expect(
+      validateQuoteInternalNoteInput(" quote-1 ", "  Llamar mañana\r\ncon propuesta.  "),
+    ).toEqual({
+      ok: true,
+      quoteId: "quote-1",
+      internalNote: "Llamar mañana\ncon propuesta.",
+    });
+    expect(validateQuoteInternalNoteInput("../../profiles/admin", "nota")).toEqual({
+      ok: false,
+      status: 400,
+      error: "ID de solicitud inválido.",
+    });
+    expect(validateQuoteInternalNoteInput("quote-1", "x".repeat(2001))).toEqual({
+      ok: false,
+      status: 400,
+      error: "La nota interna es demasiado larga.",
+    });
+  });
+
+  it("updates internal notes through the injected server Firestore dependency", async () => {
+    const update = vi.fn().mockResolvedValue(undefined);
+    const get = vi.fn().mockResolvedValue({ exists: true });
+    const doc = vi.fn().mockReturnValue({ get, update });
+    const collection = vi.fn().mockReturnValue({ doc });
+
+    await expect(
+      updateQuoteRequestInternalNote({ collection } as never, "quote-1", " Nota privada "),
+    ).resolves.toEqual({ ok: true, quoteId: "quote-1", internalNote: "Nota privada" });
+
+    expect(collection).toHaveBeenCalledWith("quotes");
+    expect(doc).toHaveBeenCalledWith("quote-1");
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        admin_note: "Nota privada",
+        updated_at: expect.anything(),
+      }),
+    );
+  });
+
+  it("rejects invalid internal note data before reading Firestore", async () => {
+    const update = vi.fn();
+    const doc = vi.fn().mockReturnValue({ get: vi.fn(), update });
+    const collection = vi.fn().mockReturnValue({ doc });
+
+    await expect(
+      updateQuoteRequestInternalNote({ collection } as never, "quote-1", "x".repeat(2001)),
+    ).resolves.toMatchObject({ ok: false, status: 400 });
+
+    expect(collection).not.toHaveBeenCalled();
+    expect(doc).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
   });
 });
