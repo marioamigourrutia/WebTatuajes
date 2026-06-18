@@ -15,11 +15,12 @@ export function QuoteRequestForm() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     setSubmitting(true);
     setErrors({});
     setCreatedId(null);
 
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData(form);
     const body = Object.fromEntries(formData.entries());
 
     try {
@@ -35,7 +36,7 @@ export function QuoteRequestForm() {
         return;
       }
 
-      event.currentTarget.reset();
+      form.reset();
       setCreatedId(result.id ?? "creada");
     } catch {
       setErrors({ form: "No se pudo conectar con el servidor local." });
