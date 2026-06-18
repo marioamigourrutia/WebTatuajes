@@ -169,6 +169,13 @@ describe("Firestore private data rules", () => {
 
     await assertFails(getDoc(doc(db, "profiles/customer-a")));
     await assertFails(getDoc(doc(db, "quotes/quote-a")));
+    await assertFails(
+      setDoc(doc(db, "quotes/public-write-attempt"), {
+        customer_id: "anonymous",
+        status: "pending",
+        description: "Public writes must go through the server Admin SDK route.",
+      }),
+    );
     await assertFails(getDoc(doc(db, "quote_images/image-a")));
     await assertFails(getDoc(doc(db, "appointments/appointment-a")));
   });
@@ -181,6 +188,10 @@ describe("Firestore private data rules", () => {
     await assertFails(getDocs(collection(customerA, "quote_images")));
     await assertFails(getDocs(collection(customerA, "appointments")));
     await assertFails(getDocs(collection(customerA, "contact_leads")));
+  });
+
+  it("keeps quote collection listing closed to client SDKs, including admins", async () => {
+    await assertFails(getDocs(collection(userDb("admin-a"), "quotes")));
   });
 
   it("allows customers to read only their own private profile, quote, image metadata, and appointment", async () => {

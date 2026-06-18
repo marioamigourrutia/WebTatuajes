@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rules": "firebase emulators:exec --project demo-webtatuajes --only firestore,storage \"vitest run --config vitest.rules.config.ts\"",
+    "test:rules:existing": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 GCLOUD_PROJECT=demo-webtatuajes vitest run --config vitest.rules.config.ts",
     "emulators": "firebase emulators:start --project demo-webtatuajes --only auth,firestore,storage",
     "dev:local": "npm run dev",
     "admin:assign-first-admin": "node scripts/assign-first-admin.mjs",
