@@ -1,4 +1,5 @@
 import { appConfig } from "@/lib/config/app";
+import { getFeaturedPortfolioItems } from "@/lib/portfolio/portfolio";
 import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
 const services = [
@@ -15,6 +16,7 @@ const processSteps = [
 ];
 
 export default function HomePage() {
+  const featuredPortfolioItems = getFeaturedPortfolioItems(3);
   const whatsappUrl = hasWhatsAppConfig(appConfig.whatsappPhone)
     ? buildWhatsAppUrl({
         phone: appConfig.whatsappPhone,
@@ -86,6 +88,47 @@ export default function HomePage() {
             </div>
           </dl>
         </aside>
+      </section>
+
+      <section className="py-10">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
+              Portafolio
+            </p>
+            <h2 className="mt-3 text-3xl font-black text-stone-50">
+              Una muestra visual antes de cotizar.
+            </h2>
+            <p className="mt-3 max-w-2xl text-stone-300">
+              Piezas curadas por estilo, zona y etiquetas. Por ahora usamos placeholders visuales
+              hasta cargar fotografías reales del estudio.
+            </p>
+          </div>
+          <a
+            className="rounded-full border border-amber-300/50 px-6 py-3 text-center font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950"
+            href="/portfolio"
+          >
+            Ver portafolio completo
+          </a>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {featuredPortfolioItems.map((item) => (
+            <article
+              className="overflow-hidden rounded-3xl border border-stone-800 bg-stone-950/70"
+              key={item.id}
+            >
+              <div className="h-36" style={{ background: item.gradient }} />
+              <div className="space-y-3 p-5">
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-300">
+                  {item.style} · {item.bodyArea}
+                </p>
+                <h3 className="text-xl font-black text-stone-50">{item.title}</h3>
+                <p className="text-sm leading-6 text-stone-300">{item.description}</p>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="grid gap-6 py-10 md:grid-cols-[0.8fr_1.2fr]">

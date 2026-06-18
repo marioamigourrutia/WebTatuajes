@@ -10,6 +10,7 @@ Plataforma web profesional para un estudio de tatuajes en Chile. La aplicación 
 - Dirección actual: desarrollo local ahora; futuro despliegue en Vercel y backend en Firebase.
 - Hay un flujo local mínimo con Firebase Auth Emulator para login/logout, seed controlado de admin local y validación server-side de rol en `/admin`.
 - Hay un primer flujo de negocio local: formulario público de cotización en `/quote`, escritura server-side con Firebase Admin SDK, dashboard admin validado en servidor, cambio de estado, detalle completo, enlaces de contacto y nota interna de solicitudes.
+- Hay un portafolio público MVP en `/portfolio` con datos estáticos tipados, filtros simples por estilo/etiqueta, placeholders visuales locales y CTA hacia cotización. Todavía no incluye CMS, carga real de imágenes ni edición administrativa.
 
 ## Requisitos
 
@@ -75,17 +76,19 @@ admin@example.test / Password123!
 npm run dev:local
 ```
 
-5. Abrí `http://localhost:3000/quote`, cargá una solicitud de cotización y, si querés probar referencias, adjuntá hasta 3 imágenes JPG/PNG/WEBP/GIF de máximo 5 MB cada una. Enviála. El resultado esperado es un mensaje de éxito con el ID local de la solicitud.
+5. Abrí `http://localhost:3000/portfolio` para revisar la galería pública MVP y sus filtros. Desde una pieza, usá **Cotizar una idea similar** para ir al flujo de cotización.
 
-6. Abrí `http://localhost:3000/admin`, iniciá sesión con esas credenciales y presioná **Validar rol en servidor**. El resultado esperado es `Autenticado: sí`, `Admin server-side: sí`, `Rol servidor: admin` y la solicitud reciente en la lista admin.
+6. Abrí `http://localhost:3000/quote`, cargá una solicitud de cotización y, si querés probar referencias, adjuntá hasta 3 imágenes JPG/PNG/WEBP/GIF de máximo 5 MB cada una. Enviála. El resultado esperado es un mensaje de éxito con el ID local de la solicitud.
 
-7. En el dashboard admin, revisá el detalle completo de la solicitud: descripción, presupuesto, zona, tamaño, datos de contacto, fecha, estado, nota interna e imágenes de referencia si fueron adjuntadas.
+7. Abrí `http://localhost:3000/admin`, iniciá sesión con esas credenciales y presioná **Validar rol en servidor**. El resultado esperado es `Autenticado: sí`, `Admin server-side: sí`, `Rol servidor: admin` y la solicitud reciente en la lista admin.
 
-8. Usá **Enviar email** o **Abrir WhatsApp** para contactar al cliente con un mensaje prellenado que incluye contexto de la cotización.
+8. En el dashboard admin, revisá el detalle completo de la solicitud: descripción, presupuesto, zona, tamaño, datos de contacto, fecha, estado, nota interna e imágenes de referencia si fueron adjuntadas.
 
-9. Cambiá el estado interno de la solicitud a **Contactado**, **Cerrado** o **Spam**. El resultado esperado es el mensaje `Estado actualizado desde ruta server-side con rol admin validado.` y la lista actualizada sin recargar.
+9. Usá **Enviar email** o **Abrir WhatsApp** para contactar al cliente con un mensaje prellenado que incluye contexto de la cotización.
 
-10. Escribí una **Nota interna** y presioná **Guardar nota**. El resultado esperado es el mensaje `Nota interna guardada desde ruta server-side con rol admin validado.` y la nota persistida para el dashboard admin.
+10. Cambiá el estado interno de la solicitud a **Contactado**, **Cerrado** o **Spam**. El resultado esperado es el mensaje `Estado actualizado desde ruta server-side con rol admin validado.` y la lista actualizada sin recargar.
+
+11. Escribí una **Nota interna** y presioná **Guardar nota**. El resultado esperado es el mensaje `Nota interna guardada desde ruta server-side con rol admin validado.` y la nota persistida para el dashboard admin.
 
 El formulario público no abre escrituras cliente en Firestore Rules: la creación pasa por `/api/quotes` y usa Admin SDK server-side. Las imágenes de referencia también se suben desde servidor a Firebase Storage y se registran en `quote_images`; el cliente público no recibe permisos amplios de escritura directa. El listado de `/admin`, el cambio de estado y el guardado de nota interna pasan por rutas server-side que vuelven a validar ID token y rol admin; no confían en estado de rol del cliente.
 
@@ -187,3 +190,4 @@ El hosting objetivo futuro es Vercel. No hay configuración de despliegue real e
 
 - Mantener las futuras rutas privadas conectadas a helpers server-side de sesión/rol antes de crear paneles administrativos reales.
 - Definir la estrategia de sesión/cookies seguras antes de construir navegación privada persistente.
+- Reemplazar placeholders del portafolio por imágenes reales cuando exista flujo seguro de carga, revisión y publicación.
