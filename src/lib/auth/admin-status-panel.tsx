@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LoginPanel } from "@/lib/auth/login-panel";
 import { useAuth } from "@/lib/auth/auth-context";
 import { buildQuoteMailtoUrl, buildQuoteWhatsAppUrl } from "@/lib/quotes/contact-links";
@@ -25,6 +25,14 @@ type RecentQuoteRequest = {
   descriptionPreview: string;
   budgetClp: number | null;
   internalNote: string;
+  referenceImages: {
+    id: string;
+    storagePath: string;
+    originalFilename: string;
+    mimeType: string;
+    sizeBytes: number;
+    accessUrl: string | null;
+  }[];
 };
 
 const quoteStatuses = ["pending", "contacted", "closed", "spam"] as const;
@@ -47,6 +55,14 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function formatFileSize(sizeBytes: number) {
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
+    return "sin tamaño";
+  }
+
+  return `${(sizeBytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
 export function AdminStatusPanel() {
   const { user } = useAuth();
   const [status, setStatus] = useState<AdminStatusResponse | null>(null);
@@ -57,6 +73,63 @@ export function AdminStatusPanel() {
   const [updatingQuoteId, setUpdatingQuoteId] = useState<string | null>(null);
   const [savingNoteQuoteId, setSavingNoteQuoteId] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const imageRequests = quotes.flatMap((quote) =>
+      quote.referenceImages
+        .filter((image) => image.accessUrl)
+        .map((image) => ({ id: image.id, accessUrl: image.accessUrl as string })),
+    );
+
+    if (!user || imageRequests.length === 0) {
+      void Promise.resolve().then(() => setImagePreviewUrls({}));
+      return;
+    }
+
+    const currentUser = user;
+    let cancelled = false;
+    const objectUrls: string[] = [];
+
+    async function loadImagePreviews() {
+      try {
+        setImagePreviewUrls({});
+        const idToken = await currentUser.getIdToken();
+        const loadedEntries = await Promise.all(
+          imageRequests.map(async (image) => {
+            const response = await fetch(image.accessUrl, {
+              headers: { Authorization: `Bearer ${idToken}` },
+            });
+
+            if (!response.ok) {
+              throw new Error("Image proxy request failed.");
+            }
+
+            const objectUrl = URL.createObjectURL(await response.blob());
+            objectUrls.push(objectUrl);
+            return [image.id, objectUrl] as const;
+          }),
+        );
+
+        if (cancelled) {
+          objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+        } else {
+          setImagePreviewUrls(Object.fromEntries(loadedEntries));
+        }
+      } catch {
+        if (!cancelled) {
+          setImagePreviewUrls({});
+        }
+      }
+    }
+
+    void loadImagePreviews();
+
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+    };
+  }, [quotes, user]);
 
   async function checkServerStatus() {
     if (!user) {
@@ -291,6 +364,46 @@ export function AdminStatusPanel() {
                       {quote.description || quote.descriptionPreview || "Sin descripción."}
                     </p>
                   </div>
+                  {quote.referenceImages.length > 0 ? (
+                    <div className="mt-4 rounded-xl border border-stone-800 bg-stone-950/70 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                        Imágenes de referencia
+                      </p>
+                      <ul className="mt-3 grid gap-3 sm:grid-cols-3">
+                        {quote.referenceImages.map((image) => (
+                          <li className="space-y-2" key={image.id}>
+                            {imagePreviewUrls[image.id] ? (
+                              <a href={imagePreviewUrls[image.id]} rel="noreferrer" target="_blank">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  alt={`Referencia ${image.originalFilename}`}
+                                  className="h-32 w-full rounded-lg object-cover"
+                                  src={imagePreviewUrls[image.id]}
+                                />
+                              </a>
+                            ) : (
+                              <div className="flex h-32 items-center justify-center rounded-lg border border-stone-800 text-xs text-stone-500">
+                                Preview privada disponible al validar admin.
+                              </div>
+                            )}
+                            <p className="break-all text-xs text-stone-400">
+                              {image.originalFilename} · {formatFileSize(image.sizeBytes)}
+                            </p>
+                            {imagePreviewUrls[image.id] ? (
+                              <a
+                                className="text-xs font-semibold text-amber-200 underline underline-offset-4"
+                                href={imagePreviewUrls[image.id]}
+                                rel="noreferrer"
+                                target="_blank"
+                              >
+                                Abrir imagen
+                              </a>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                   <div className="mt-4 flex flex-wrap gap-2">
                     <a
                       className="rounded-full border border-amber-300/50 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-300 hover:text-stone-950"

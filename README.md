@@ -45,6 +45,7 @@ NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL=http://127.0.0.1:9099
 FIREBASE_PROJECT_ID=demo-webtatuajes
 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099
 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
+FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199
 FIREBASE_SERVICE_ACCOUNT_JSON={}
 ```
 
@@ -74,11 +75,11 @@ admin@example.test / Password123!
 npm run dev:local
 ```
 
-5. Abrí `http://localhost:3000/quote`, cargá una solicitud de cotización y enviála. El resultado esperado es un mensaje de éxito con el ID local de la solicitud.
+5. Abrí `http://localhost:3000/quote`, cargá una solicitud de cotización y, si querés probar referencias, adjuntá hasta 3 imágenes JPG/PNG/WEBP/GIF de máximo 5 MB cada una. Enviála. El resultado esperado es un mensaje de éxito con el ID local de la solicitud.
 
 6. Abrí `http://localhost:3000/admin`, iniciá sesión con esas credenciales y presioná **Validar rol en servidor**. El resultado esperado es `Autenticado: sí`, `Admin server-side: sí`, `Rol servidor: admin` y la solicitud reciente en la lista admin.
 
-7. En el dashboard admin, revisá el detalle completo de la solicitud: descripción, presupuesto, zona, tamaño, datos de contacto, fecha, estado y nota interna.
+7. En el dashboard admin, revisá el detalle completo de la solicitud: descripción, presupuesto, zona, tamaño, datos de contacto, fecha, estado, nota interna e imágenes de referencia si fueron adjuntadas.
 
 8. Usá **Enviar email** o **Abrir WhatsApp** para contactar al cliente con un mensaje prellenado que incluye contexto de la cotización.
 
@@ -86,7 +87,9 @@ npm run dev:local
 
 10. Escribí una **Nota interna** y presioná **Guardar nota**. El resultado esperado es el mensaje `Nota interna guardada desde ruta server-side con rol admin validado.` y la nota persistida para el dashboard admin.
 
-El formulario público no abre escrituras cliente en Firestore Rules: la creación pasa por `/api/quotes` y usa Admin SDK server-side. El listado de `/admin`, el cambio de estado y el guardado de nota interna pasan por rutas server-side que vuelven a validar ID token y rol admin; no confían en estado de rol del cliente.
+El formulario público no abre escrituras cliente en Firestore Rules: la creación pasa por `/api/quotes` y usa Admin SDK server-side. Las imágenes de referencia también se suben desde servidor a Firebase Storage y se registran en `quote_images`; el cliente público no recibe permisos amplios de escritura directa. El listado de `/admin`, el cambio de estado y el guardado de nota interna pasan por rutas server-side que vuelven a validar ID token y rol admin; no confían en estado de rol del cliente.
+
+Las previews de imágenes del panel admin no exponen URLs públicas ni URLs raw del Storage Emulator. El cliente admin obtiene blobs mediante `/api/admin/quotes/images?imageId=...`, enviando el ID token en `Authorization`; la ruta vuelve a validar rol admin server-side, lee metadata en `quote_images` y sirve bytes desde Firebase Admin Storage con `Cache-Control: no-store`.
 
 El seed local se niega a correr si detecta `NODE_ENV=production`, un `FIREBASE_SERVICE_ACCOUNT_JSON` real, un project id distinto de `demo-webtatuajes` o hosts que no sean los emuladores locales. No asigna roles contra producción.
 
@@ -107,28 +110,29 @@ npm run admin:seed-local # crea admin@example.test en emuladores locales
 
 ## Variables de entorno
 
-| Variable                                     | Uso                                                                                        |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_SITE_URL`                       | URL pública del sitio.                                                                     |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`               | API key pública del proyecto Firebase futuro.                                              |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`           | Auth domain público de Firebase.                                                           |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`            | ID público del proyecto Firebase.                                                          |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`        | Bucket público configurado en Firebase.                                                    |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`   | Sender ID público de Firebase.                                                             |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`                | App ID público de Firebase.                                                                |
-| `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_ENABLED` | Opt-in explícito para conectar Firebase Auth cliente al emulador; ignorado en producción.  |
-| `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL`     | URL del Auth Emulator para cliente local, por defecto `http://127.0.0.1:9099`.             |
-| `FIREBASE_PROJECT_ID`                        | Project id server-side para emuladores/Admin SDK local.                                    |
-| `FIREBASE_AUTH_EMULATOR_HOST`                | Host server-side del Auth Emulator, sin protocolo.                                         |
-| `FIRESTORE_EMULATOR_HOST`                    | Host server-side del Firestore Emulator, sin protocolo.                                    |
-| `FIREBASE_SERVICE_ACCOUNT_JSON`              | JSON server-only de Firebase Admin. No usar valores reales en git ni exponer al cliente.   |
-| `FIRST_ADMIN_UID`                            | UID objetivo para el script controlado de primer admin. Usar este valor o email, no ambos. |
-| `FIRST_ADMIN_EMAIL`                          | Email objetivo para resolver el UID del primer admin. Usar este valor o UID, no ambos.     |
-| `FIREBASE_ADMIN_CONFIRM_ASSIGNMENT`          | Debe valer `assign-first-admin` para escribir; vacío ejecuta dry-run.                      |
-| `NEXT_PUBLIC_WHATSAPP_PHONE`                 | Número para enlace click-to-chat.                                                          |
-| `NEXT_PUBLIC_WHATSAPP_MESSAGE`               | Mensaje prellenado de WhatsApp.                                                            |
-| `NEXT_PUBLIC_APP_LOCALE`                     | Locale de la app, por defecto `es-CL`.                                                     |
-| `NEXT_PUBLIC_APP_TIME_ZONE`                  | Zona horaria, por defecto `America/Santiago`.                                              |
+| Variable                                     | Uso                                                                                                                                                              |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`                       | URL pública del sitio.                                                                                                                                           |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`               | API key pública del proyecto Firebase futuro.                                                                                                                    |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`           | Auth domain público de Firebase.                                                                                                                                 |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`            | ID público del proyecto Firebase.                                                                                                                                |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`        | Bucket público configurado en Firebase.                                                                                                                          |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`   | Sender ID público de Firebase.                                                                                                                                   |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`                | App ID público de Firebase.                                                                                                                                      |
+| `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_ENABLED` | Opt-in explícito para conectar Firebase Auth cliente al emulador; ignorado en producción.                                                                        |
+| `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL`     | URL del Auth Emulator para cliente local, por defecto `http://127.0.0.1:9099`.                                                                                   |
+| `FIREBASE_PROJECT_ID`                        | Project id server-side para emuladores/Admin SDK local.                                                                                                          |
+| `FIREBASE_AUTH_EMULATOR_HOST`                | Host server-side del Auth Emulator, sin protocolo.                                                                                                               |
+| `FIRESTORE_EMULATOR_HOST`                    | Host server-side del Firestore Emulator, sin protocolo.                                                                                                          |
+| `FIREBASE_STORAGE_EMULATOR_HOST`             | Host server-side del Storage Emulator, sin protocolo; necesario para que Admin Storage apunte al emulador local. Si ya tenés `.env.local`, agregalo manualmente. |
+| `FIREBASE_SERVICE_ACCOUNT_JSON`              | JSON server-only de Firebase Admin. No usar valores reales en git ni exponer al cliente.                                                                         |
+| `FIRST_ADMIN_UID`                            | UID objetivo para el script controlado de primer admin. Usar este valor o email, no ambos.                                                                       |
+| `FIRST_ADMIN_EMAIL`                          | Email objetivo para resolver el UID del primer admin. Usar este valor o UID, no ambos.                                                                           |
+| `FIREBASE_ADMIN_CONFIRM_ASSIGNMENT`          | Debe valer `assign-first-admin` para escribir; vacío ejecuta dry-run.                                                                                            |
+| `NEXT_PUBLIC_WHATSAPP_PHONE`                 | Número para enlace click-to-chat.                                                                                                                                |
+| `NEXT_PUBLIC_WHATSAPP_MESSAGE`               | Mensaje prellenado de WhatsApp.                                                                                                                                  |
+| `NEXT_PUBLIC_APP_LOCALE`                     | Locale de la app, por defecto `es-CL`.                                                                                                                           |
+| `NEXT_PUBLIC_APP_TIME_ZONE`                  | Zona horaria, por defecto `America/Santiago`.                                                                                                                    |
 
 ## Firebase y Vercel
 
