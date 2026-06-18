@@ -41,9 +41,15 @@ export default function HomePage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <a
               className="rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 transition hover:bg-amber-200"
+              href="/quote"
+            >
+              Solicitar cotización
+            </a>
+            <a
+              className="rounded-full border border-amber-300/50 px-6 py-3 font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950"
               href={whatsappUrl}
             >
-              Consultar por WhatsApp
+              WhatsApp
             </a>
             <a
               className="rounded-full border border-stone-500 px-6 py-3 font-semibold text-stone-100 transition hover:border-stone-200"
@@ -60,8 +66,8 @@ export default function HomePage() {
         >
           <h2 className="text-2xl font-bold text-stone-50">Base en construcción</h2>
           <p className="mt-3 text-stone-300">
-            Fase 2: configuración técnica inicial. Todavía no hay funcionalidades de negocio ni
-            conexión a un proyecto Firebase real.
+            Primer flujo de negocio local: solicitudes de cotización públicas guardadas desde el
+            servidor y visibles para admin validado server-side.
           </p>
           <ul className="mt-6 grid gap-3">
             {highlights.map((item) => (

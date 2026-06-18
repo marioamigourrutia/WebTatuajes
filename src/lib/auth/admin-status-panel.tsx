@@ -10,9 +10,35 @@ type AdminStatusResponse = {
   profile: { uid: string; email: string | null; role: string } | null;
 };
 
+type RecentQuoteRequest = {
+  id: string;
+  createdAt: string | null;
+  customerName: string;
+  email: string;
+  phone: string | null;
+  status: string;
+  preferredContactMethod: string;
+  bodyPlacement: string;
+  approximateSize: string;
+  descriptionPreview: string;
+  budgetClp: number | null;
+};
+
+function formatDate(value: string | null) {
+  if (!value) {
+    return "sin fecha";
+  }
+
+  return new Intl.DateTimeFormat("es-CL", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 export function AdminStatusPanel() {
   const { user } = useAuth();
   const [status, setStatus] = useState<AdminStatusResponse | null>(null);
+  const [quotes, setQuotes] = useState<RecentQuoteRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -36,9 +62,32 @@ export function AdminStatusPanel() {
       setStatus(body);
       if (!response.ok) {
         setError("El servidor no pudo validar un perfil con rol permitido.");
+        setQuotes([]);
+        return;
       }
+
+      if (!body.admin) {
+        setError("El perfil autenticado no tiene rol admin en el servidor.");
+        setQuotes([]);
+        return;
+      }
+
+      const quotesResponse = await fetch("/api/admin/quotes", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      const quotesBody = (await quotesResponse.json()) as { quotes?: RecentQuoteRequest[] };
+
+      if (!quotesResponse.ok) {
+        setError("El servidor no pudo listar solicitudes de cotización.");
+        setQuotes([]);
+        return;
+      }
+
+      setQuotes(quotesBody.quotes ?? []);
     } catch {
       setError("No se pudo consultar el estado de admin en el servidor.");
+      setQuotes([]);
     } finally {
       setLoading(false);
     }
@@ -75,6 +124,51 @@ export function AdminStatusPanel() {
       ) : null}
 
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
+
+      {status?.admin ? (
+        <section className="space-y-3">
+          <div>
+            <h3 className="text-xl font-bold text-stone-50">Solicitudes recientes</h3>
+            <p className="mt-1 text-sm text-stone-400">
+              Esta lista viene de una ruta server-side que vuelve a validar el ID token y el rol
+              admin.
+            </p>
+          </div>
+          {quotes.length === 0 ? (
+            <p className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4 text-sm text-stone-400">
+              Todavía no hay solicitudes locales.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {quotes.map((quote) => (
+                <li
+                  key={quote.id}
+                  className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="font-semibold text-stone-100">{quote.customerName}</p>
+                      <p className="text-sm text-stone-400">
+                        {quote.email}
+                        {quote.phone ? ` · ${quote.phone}` : ""} · {quote.preferredContactMethod}
+                      </p>
+                    </div>
+                    <div className="text-sm text-stone-400 sm:text-right">
+                      <p>{formatDate(quote.createdAt)}</p>
+                      <p>Estado: {quote.status}</p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm text-stone-300">{quote.descriptionPreview}</p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-stone-500">
+                    {quote.bodyPlacement} · {quote.approximateSize}
+                    {quote.budgetClp ? ` · $${quote.budgetClp.toLocaleString("es-CL")}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

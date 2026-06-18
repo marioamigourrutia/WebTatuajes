@@ -9,7 +9,7 @@ Plataforma web profesional para un estudio de tatuajes en Chile. La aplicación 
 - Fase 3 Supabase queda detenida por cambio de dirección técnica.
 - Dirección actual: desarrollo local ahora; futuro despliegue en Vercel y backend en Firebase.
 - Hay un flujo local mínimo con Firebase Auth Emulator para login/logout, seed controlado de admin local y validación server-side de rol en `/admin`.
-- Hay una base server-only inicial con Firebase Admin SDK para validar tokens, leer roles desde `profiles/{uid}` y asignar el primer admin mediante scripts controlados. Todavía no hay funcionalidades de negocio completas ni panel admin real.
+- Hay un primer flujo de negocio local: formulario público de cotización en `/quote`, escritura server-side con Firebase Admin SDK y listado admin validado en servidor.
 
 ## Requisitos
 
@@ -74,7 +74,11 @@ admin@example.test / Password123!
 npm run dev:local
 ```
 
-5. Abrí `http://localhost:3000/admin`, iniciá sesión con esas credenciales y presioná **Validar rol en servidor**. El resultado esperado es `Autenticado: sí`, `Admin: sí`, `Rol servidor: admin`.
+5. Abrí `http://localhost:3000/quote`, cargá una solicitud de cotización y enviála. El resultado esperado es un mensaje con el ID local de la solicitud.
+
+6. Abrí `http://localhost:3000/admin`, iniciá sesión con esas credenciales y presioná **Validar rol en servidor**. El resultado esperado es `Autenticado: sí`, `Admin: sí`, `Rol servidor: admin` y la solicitud reciente en la lista admin.
+
+El formulario público no abre escrituras cliente en Firestore Rules: la creación pasa por `/api/quotes` y usa Admin SDK server-side. El listado de `/admin` también pasa por una ruta server-side que vuelve a validar token y rol admin; no confía en estado de rol del cliente.
 
 El seed local se niega a correr si detecta `NODE_ENV=production`, un `FIREBASE_SERVICE_ACCOUNT_JSON` real, un project id distinto de `demo-webtatuajes` o hosts que no sean los emuladores locales. No asigna roles contra producción.
 
@@ -88,6 +92,7 @@ npm run lint       # ESLint
 npm run typecheck  # TypeScript estricto
 npm run test       # Vitest
 npm run test:rules # pruebas locales de Firebase Security Rules con emuladores
+npm run test:rules:existing # rules tests contra emuladores ya levantados
 npm run emulators  # Auth, Firestore y Storage emulators para desarrollo local
 npm run admin:seed-local # crea admin@example.test en emuladores locales
 ```
@@ -154,6 +159,8 @@ npm run test:rules
 ```
 
 El comando levanta Firestore y Storage mediante Firebase Emulator Suite con el proyecto demo `demo-webtatuajes`. Requiere Java disponible en el sistema. Para el flujo manual de login/admin usá `npm run emulators`, que también levanta Auth Emulator.
+
+Si ya tenés los emuladores levantados con `npm run emulators`, usá `npm run test:rules:existing` para ejecutar las pruebas contra esos procesos. Ese comando limpia datos del emulador; después volvé a correr `npm run admin:seed-local` antes de probar `/admin` manualmente.
 
 El hosting objetivo futuro es Vercel. No hay configuración de despliegue real en esta fase.
 
