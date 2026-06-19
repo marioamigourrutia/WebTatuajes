@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "firebase": "^12.14.0",
-    "firebase-admin": "^14.0.0",
+    "firebase-admin": "^13.10.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
