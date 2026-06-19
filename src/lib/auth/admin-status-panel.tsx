@@ -51,6 +51,7 @@ type RecentQuoteRequest = {
     sizeBytes: number;
     accessUrl: string | null;
   }[];
+  referenceUrls: string[];
 };
 
 type DepositDraft = {
@@ -683,6 +684,27 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
                         {quote.description || quote.descriptionPreview || "Sin descripción."}
                       </p>
                     </div>
+                    {quote.referenceUrls.length > 0 ? (
+                      <div className="mt-4 rounded-xl border border-stone-800 bg-stone-950/70 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                          Enlaces de referencia
+                        </p>
+                        <ul className="mt-2 space-y-2 text-sm">
+                          {quote.referenceUrls.map((referenceUrl) => (
+                            <li className="break-all" key={referenceUrl}>
+                              <a
+                                className="font-semibold text-amber-200 underline underline-offset-4"
+                                href={referenceUrl}
+                                rel="noopener noreferrer"
+                                target="_blank"
+                              >
+                                {referenceUrl}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                     {quote.referenceImages.length > 0 ? (
                       <div className="mt-4 rounded-xl border border-stone-800 bg-stone-950/70 p-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">

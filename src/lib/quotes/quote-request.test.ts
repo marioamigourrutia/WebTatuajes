@@ -13,12 +13,14 @@ import {
   quoteStatuses,
   recordQuoteDeposit,
   referenceImageConstraints,
+  referenceUrlConstraints,
   serializeClientQuoteStatus,
   updateQuoteRequestInternalNote,
   updateQuoteRequestStatus,
   validateQuoteDepositInput,
   validateQuoteInternalNoteInput,
   validateQuoteReferenceImages,
+  validateQuoteReferenceUrls,
   validateQuoteRequestInput,
 } from "./quote-request";
 
@@ -165,6 +167,7 @@ describe("quote request validation", () => {
         budgetClp: 80000,
         preferredContactMethod: "whatsapp",
         preferredTattooDate: "2026-07-15",
+        referenceUrls: [],
         consents: {
           dataProcessing: true,
           imageHandling: true,
@@ -312,6 +315,57 @@ describe("quote request validation", () => {
     });
   });
 
+  it("sanitizes and validates optional reference URLs", () => {
+    expect(
+      validateQuoteReferenceUrls(" https://instagram.com/example/1 \nhttp://example.com/flash "),
+    ).toEqual({
+      ok: true,
+      value: ["https://instagram.com/example/1", "http://example.com/flash"],
+    });
+
+    expect(validateQuoteReferenceUrls("javascript:alert(1)")).toEqual({
+      ok: false,
+      errors: { "referenceUrls.0": "El enlace debe comenzar con http:// o https://." },
+    });
+    expect(validateQuoteReferenceUrls("data:text/plain,hello")).toMatchObject({
+      ok: false,
+      errors: { "referenceUrls.0": expect.any(String) },
+    });
+    expect(validateQuoteReferenceUrls("file:///tmp/photo.png")).toMatchObject({
+      ok: false,
+      errors: { "referenceUrls.0": expect.any(String) },
+    });
+    expect(
+      validateQuoteReferenceUrls(
+        Array.from(
+          { length: referenceUrlConstraints.maxUrls + 1 },
+          (_, index) => `https://example.com/${index}`,
+        ),
+      ),
+    ).toMatchObject({
+      ok: false,
+      errors: { referenceUrls: expect.any(String) },
+    });
+    expect(validateQuoteReferenceUrls(`https://example.com/${"a".repeat(501)}`)).toMatchObject({
+      ok: false,
+      errors: { "referenceUrls.0": expect.any(String) },
+    });
+  });
+
+  it("stores sanitized reference URLs in the Firestore quote document", () => {
+    const validation = validateQuoteRequestInput({
+      ...validInput,
+      referenceUrls: " https://pin.it/example \nhttps://photos.google.com/share/example ",
+    });
+
+    expect(validation.ok).toBe(true);
+    if (validation.ok) {
+      expect(mapQuoteRequestToFirestore(validation.value, "COT-2026-ABCDE")).toMatchObject({
+        reference_urls: ["https://pin.it/example", "https://photos.google.com/share/example"],
+      });
+    }
+  });
+
   it("maps validated input to a focused Firestore quote document", () => {
     const validation = validateQuoteRequestInput(validInput);
 
@@ -330,6 +384,7 @@ describe("quote request validation", () => {
         description: "Quiero un tatuaje floral en línea fina.",
         budget_clp: 80000,
         preferred_tattoo_date: "2026-07-15",
+        reference_urls: [],
         consents: {
           data_processing: true,
           image_handling: true,
@@ -715,6 +770,27 @@ describe("quote request firestore helpers", () => {
     expect(collection).not.toHaveBeenCalled();
   });
 
+  it("rejects uploaded files when quote file uploads are disabled", async () => {
+    const formData = new FormData();
+    Object.entries(validInput).forEach(([key, value]) => formData.set(key, String(value)));
+    formData.append("referenceImages", new File(["image"], "reference.png", { type: "image/png" }));
+    const collection = vi.fn();
+    const file = vi.fn();
+
+    await expect(
+      createQuoteRequestFromFormData(formData, { collection } as never, { file } as never, false),
+    ).resolves.toEqual({
+      ok: false,
+      status: 400,
+      errors: {
+        referenceImages:
+          "La carga de imágenes no está disponible en este entorno. Agrega enlaces de referencia o envía imágenes por WhatsApp/Instagram después de enviar la cotización.",
+      },
+    });
+    expect(collection).not.toHaveBeenCalled();
+    expect(file).not.toHaveBeenCalled();
+  });
+
   it("serializes recent quote documents for the admin list", async () => {
     const docs = [
       {
@@ -733,6 +809,11 @@ describe("quote request firestore helpers", () => {
           admin_note: "Enviar referencias de líneas finas.",
           quote_code: "COT-2026-ABCDE",
           preferred_tattoo_date: "2026-07-15",
+          reference_urls: [
+            "https://instagram.com/example/reference",
+            "javascript:alert(1)",
+            "https://pin.it/example",
+          ],
           calendar_date_status: "PENDING_CONFIRMATION",
           deposit: {
             amount_clp: 50000,
@@ -814,9 +895,11 @@ describe("quote request firestore helpers", () => {
             sizeBytes: 128,
           },
         ],
+        referenceUrls: ["https://instagram.com/example/reference", "https://pin.it/example"],
       }),
     ]);
     expect(JSON.stringify(result)).not.toContain("quote-images/anonymous/quote-1/reference.png");
+    expect(JSON.stringify(result)).not.toContain("javascript:alert");
     expect(JSON.stringify(result)).not.toContain("Cartola privada");
     expect(orderBy).toHaveBeenCalledWith("created_at", "desc");
     expect(limit).toHaveBeenCalledWith(5);

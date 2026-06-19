@@ -7,6 +7,7 @@ type QuoteFormErrors = Record<string, string>;
 const fieldClass =
   "mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-3 py-2 text-stone-100";
 const labelClass = "text-xs font-semibold uppercase tracking-[0.2em] text-stone-400";
+const quoteFileUploadsEnabled = process.env.NEXT_PUBLIC_QUOTE_FILE_UPLOADS_ENABLED === "true";
 const maxReferenceImageCount = 3;
 const maxReferenceImageSizeBytes = 5 * 1024 * 1024;
 const unavailablePublicStatuses = new Set(["PENDING_CONFIRMATION", "RESERVED", "UNAVAILABLE"]);
@@ -198,9 +199,11 @@ export function QuoteRequestForm() {
     setCreatedQuoteCode(null);
 
     const formData = new FormData(form);
-    const imageErrors = validateReferenceImages(
-      form.querySelector<HTMLInputElement>('input[name="referenceImages"]')?.files ?? null,
-    );
+    const imageErrors = quoteFileUploadsEnabled
+      ? validateReferenceImages(
+          form.querySelector<HTMLInputElement>('input[name="referenceImages"]')?.files ?? null,
+        )
+      : {};
 
     if (Object.keys(imageErrors).length > 0) {
       setErrors(imageErrors);
@@ -314,28 +317,60 @@ export function QuoteRequestForm() {
       <PreferredDateCalendar error={errors.preferredTattooDate} />
 
       <label className="block">
-        <span className={labelClass}>Imágenes de referencia opcionales</span>
-        <input
-          accept="image/jpeg,image/png,image/webp,image/gif"
+        <span className={labelClass}>Enlaces de referencia opcionales</span>
+        <textarea
           className={fieldClass}
-          multiple
-          name="referenceImages"
-          type="file"
+          name="referenceUrls"
+          placeholder="Pega un enlace por línea a referencias públicas de estilo, composición o inspiración."
+          rows={4}
         />
         <span className="mt-1 block text-xs text-stone-500">
-          Hasta 3 imágenes JPG, PNG, WEBP o GIF. Máximo 5 MB cada una.
+          Máximo 5 enlaces. No pegues fotos corporales, documentos privados ni enlaces que contengan
+          datos personales.
         </span>
-        {errors.referenceImages ? (
-          <span className="text-sm text-red-300">{errors.referenceImages}</span>
+        {errors.referenceUrls ? (
+          <span className="text-sm text-red-300">{errors.referenceUrls}</span>
         ) : null}
         {Object.entries(errors)
-          .filter(([key]) => key.startsWith("referenceImages."))
+          .filter(([key]) => key.startsWith("referenceUrls."))
           .map(([key, message]) => (
             <span className="block text-sm text-red-300" key={key}>
               {message}
             </span>
           ))}
       </label>
+
+      {quoteFileUploadsEnabled ? (
+        <label className="block">
+          <span className={labelClass}>Imágenes de referencia opcionales</span>
+          <input
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className={fieldClass}
+            multiple
+            name="referenceImages"
+            type="file"
+          />
+          <span className="mt-1 block text-xs text-stone-500">
+            Hasta 3 imágenes JPG, PNG, WEBP o GIF. Máximo 5 MB cada una.
+          </span>
+          {errors.referenceImages ? (
+            <span className="text-sm text-red-300">{errors.referenceImages}</span>
+          ) : null}
+          {Object.entries(errors)
+            .filter(([key]) => key.startsWith("referenceImages."))
+            .map(([key, message]) => (
+              <span className="block text-sm text-red-300" key={key}>
+                {message}
+              </span>
+            ))}
+        </label>
+      ) : (
+        <div className="rounded-2xl border border-amber-300/30 bg-amber-950/20 p-4 text-sm leading-6 text-amber-100">
+          La carga directa de imágenes no está disponible por ahora. Puedes agregar enlaces públicos
+          de inspiración y coordinar el envío de referencias privadas directamente con el estudio
+          después de enviar la cotización.
+        </div>
+      )}
 
       <fieldset className="space-y-3 rounded-2xl border border-stone-800 bg-stone-900/50 p-4">
         <legend className={labelClass}>Autorizaciones</legend>
@@ -352,8 +387,8 @@ export function QuoteRequestForm() {
         <label className="flex gap-3 text-sm leading-6 text-stone-300">
           <input className="mt-1" name="imageHandlingConsent" required type="checkbox" />
           <span>
-            Entiendo que las imágenes enviadas son voluntarias y se manejarán de forma privada para
-            evaluar la cotización.
+            Entiendo que las imágenes o enlaces enviados son voluntarios y se manejarán de forma
+            privada para evaluar la cotización.
           </span>
         </label>
         {errors.imageHandlingConsent ? (

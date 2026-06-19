@@ -26,6 +26,7 @@ export type QuoteRequestInput = {
   budgetClp?: number;
   preferredContactMethod: PreferredContactMethod;
   preferredTattooDate?: string;
+  referenceUrls: string[];
   consents: {
     dataProcessing: true;
     imageHandling: true;
@@ -84,6 +85,7 @@ export type RecentQuoteRequest = {
   internalNote: string;
   deposit: QuoteDepositSummary | null;
   referenceImages: QuoteReferenceImage[];
+  referenceUrls: string[];
 };
 
 export type QuoteDepositInput = {
@@ -138,13 +140,24 @@ const maxLengths = {
   internalNote: 2000,
   depositMethod: 80,
   depositReference: 120,
+  referenceUrl: 500,
 };
+
+export const referenceUrlConstraints = {
+  maxUrls: 5,
+  maxLength: maxLengths.referenceUrl,
+  allowedProtocols: ["http:", "https:"],
+} as const;
 
 export const referenceImageConstraints = {
   maxFiles: 3,
   maxSizeBytes: 5 * 1024 * 1024,
   allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
 } as const;
+
+export function areQuoteFileUploadsEnabled() {
+  return process.env.NEXT_PUBLIC_QUOTE_FILE_UPLOADS_ENABLED === "true";
+}
 
 function cleanString(value: unknown): string {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
@@ -241,6 +254,62 @@ function parsePositiveInteger(value: unknown): number {
   const parsed = Number(value);
 
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : Number.NaN;
+}
+
+function collectReferenceUrlValues(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap(collectReferenceUrlValues);
+  }
+
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return value
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+export function validateQuoteReferenceUrls(value: unknown) {
+  const rawUrls = collectReferenceUrlValues(value);
+  const errors: Record<string, string> = {};
+
+  if (rawUrls.length > referenceUrlConstraints.maxUrls) {
+    errors.referenceUrls = `Puedes agregar hasta ${referenceUrlConstraints.maxUrls} enlaces de referencia.`;
+  }
+
+  const urls = rawUrls.map((rawUrl, index) => {
+    const field = `referenceUrls.${index}`;
+
+    if (rawUrl.length > referenceUrlConstraints.maxLength) {
+      errors[field] = "El enlace de referencia es demasiado largo.";
+      return null;
+    }
+
+    try {
+      const parsed = new URL(rawUrl);
+      if (
+        !referenceUrlConstraints.allowedProtocols.includes(
+          parsed.protocol as (typeof referenceUrlConstraints.allowedProtocols)[number],
+        )
+      ) {
+        errors[field] = "El enlace debe comenzar con http:// o https://.";
+        return null;
+      }
+
+      return parsed.href;
+    } catch {
+      errors[field] = "Ingresa un enlace de referencia válido.";
+      return null;
+    }
+  });
+
+  if (Object.keys(errors).length > 0) {
+    return { ok: false as const, errors };
+  }
+
+  return { ok: true as const, value: urls.filter((url): url is string => Boolean(url)) };
 }
 
 export function validateQuoteDepositInput(input: unknown) {
@@ -375,6 +444,7 @@ export function validateQuoteRequestInput(input: unknown): QuoteRequestValidatio
   const approximateSize = cleanString(data.approximateSize);
   const preferredContactMethod = cleanString(data.preferredContactMethod);
   const preferredTattooDate = cleanString(data.preferredTattooDate);
+  const referenceUrlValidation = validateQuoteReferenceUrls(data.referenceUrls);
   const budgetClp = parseBudgetClp(data.budgetClp);
   const dataProcessingConsent = isChecked(data.dataProcessingConsent);
   const imageHandlingConsent = isChecked(data.imageHandlingConsent);
@@ -405,6 +475,9 @@ export function validateQuoteRequestInput(input: unknown): QuoteRequestValidatio
   if (preferredTattooDate && !isValidPreferredTattooDate(preferredTattooDate)) {
     errors.preferredTattooDate = "Ingresa una fecha tentativa válida en formato de Chile.";
   }
+  if (!referenceUrlValidation.ok) {
+    Object.assign(errors, referenceUrlValidation.errors);
+  }
   if (Number.isNaN(budgetClp)) errors.budgetClp = "El presupuesto debe ser un número positivo.";
   if (!dataProcessingConsent) {
     errors.dataProcessingConsent =
@@ -433,6 +506,7 @@ export function validateQuoteRequestInput(input: unknown): QuoteRequestValidatio
       budgetClp,
       preferredContactMethod: preferredContactMethod as PreferredContactMethod,
       preferredTattooDate: preferredTattooDate || undefined,
+      referenceUrls: referenceUrlValidation.ok ? referenceUrlValidation.value : [],
       consents: {
         dataProcessing: true,
         imageHandling: true,
@@ -457,6 +531,7 @@ export function mapQuoteRequestToFirestore(input: QuoteRequestInput, quoteCode: 
     description: input.description,
     budget_clp: input.budgetClp ?? null,
     preferred_tattoo_date: input.preferredTattooDate ?? null,
+    reference_urls: input.referenceUrls,
     consents: {
       data_processing: input.consents.dataProcessing,
       image_handling: input.consents.imageHandling,
@@ -536,6 +611,7 @@ export async function createQuoteRequestFromFormData(
   formData: FormData,
   firestore = getFirebaseAdminFirestore(),
   storageBucket = getFirebaseAdminStorageBucket(),
+  fileUploadsEnabled = areQuoteFileUploadsEnabled(),
 ) {
   const body = Object.fromEntries(
     Array.from(formData.entries()).filter(([, value]) => !(value instanceof File)),
@@ -546,6 +622,17 @@ export async function createQuoteRequestFromFormData(
 
   if (!imageValidation.ok) {
     return { ok: false as const, status: 400, errors: imageValidation.errors };
+  }
+
+  if (!fileUploadsEnabled && imageValidation.value.length > 0) {
+    return {
+      ok: false as const,
+      status: 400,
+      errors: {
+        referenceImages:
+          "La carga de imágenes no está disponible en este entorno. Agrega enlaces de referencia o envía imágenes por WhatsApp/Instagram después de enviar la cotización.",
+      },
+    };
   }
 
   if (imageValidation.value.length === 0) {
@@ -721,6 +808,15 @@ function preview(value: unknown): string {
   return text.length > 140 ? `${text.slice(0, 137)}…` : text;
 }
 
+function serializeQuoteReferenceUrls(value: unknown): string[] {
+  return collectReferenceUrlValues(value)
+    .slice(0, referenceUrlConstraints.maxUrls)
+    .flatMap((rawUrl) => {
+      const validation = validateQuoteReferenceUrls(rawUrl);
+      return validation.ok ? validation.value : [];
+    });
+}
+
 function buildReferenceImageAccessUrl(imageId: string): string | null {
   return isValidQuoteImageId(imageId)
     ? `/api/admin/quotes/images?imageId=${encodeURIComponent(imageId)}`
@@ -865,6 +961,7 @@ export async function listRecentQuoteRequests(firestore: FirestoreLike, limit = 
       internalNote: cleanLongText(data.admin_note),
       deposit: serializeQuoteDeposit(data.deposit),
       referenceImages: referenceImagesByQuoteId.get(document.id) ?? [],
+      referenceUrls: serializeQuoteReferenceUrls(data.reference_urls),
     };
   });
 }
