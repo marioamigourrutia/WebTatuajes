@@ -10,6 +10,7 @@ type AdminStatusResponse = {
   authenticated: boolean;
   admin: boolean;
   profile: { uid: string; email: string | null; role: string } | null;
+  configurationMessage?: string | null;
 };
 
 type RecentQuoteRequest = {
@@ -547,6 +548,12 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
           <p>Rol servidor: {status.profile?.role ?? "sin perfil válido"}</p>
           <p>Usuario: {status.profile?.email ?? status.profile?.uid ?? "n/a"}</p>
         </div>
+      ) : null}
+
+      {status?.configurationMessage ? (
+        <p className="rounded-2xl border border-amber-300/40 bg-amber-300/10 p-4 text-sm text-amber-100">
+          {status.configurationMessage}
+        </p>
       ) : null}
 
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
