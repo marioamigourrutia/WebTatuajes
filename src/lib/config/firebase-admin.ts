@@ -59,9 +59,13 @@ export function getFirebaseAdminServiceAccount(): FirebaseAdminServiceAccount | 
 export function isFirebaseAdminEmulatorEnabled(): boolean {
   return (
     process.env.NODE_ENV !== "production" &&
-    process.env.FIREBASE_AUTH_EMULATOR_HOST !== undefined &&
-    process.env.FIRESTORE_EMULATOR_HOST !== undefined
+    Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST?.trim()) &&
+    Boolean(process.env.FIRESTORE_EMULATOR_HOST?.trim())
   );
+}
+
+export function isFirebaseAdminBackendConfigured(): boolean {
+  return getFirebaseAdminServiceAccount() !== null || isFirebaseAdminEmulatorEnabled();
 }
 
 export function getFirebaseAdminProjectId(): string | null {

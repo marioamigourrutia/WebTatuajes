@@ -5,11 +5,11 @@ import {
   filterPortfolioItems,
   getPortfolioStyles,
   getPortfolioTags,
-  type PortfolioItem,
+  type PublicPortfolioItem,
 } from "./portfolio";
 
 type PortfolioGalleryProps = {
-  items: PortfolioItem[];
+  items: PublicPortfolioItem[];
 };
 
 export function PortfolioGallery({ items }: PortfolioGalleryProps) {
@@ -64,7 +64,16 @@ export function PortfolioGallery({ items }: PortfolioGalleryProps) {
             className="overflow-hidden rounded-3xl border border-stone-800 bg-stone-950/75 shadow-xl shadow-black/20"
             key={item.id}
           >
-            <div className="flex h-56 items-end p-5" style={{ background: item.gradient }}>
+            <div
+              className="flex h-56 items-end bg-cover bg-center p-5"
+              style={
+                item.imageUrl
+                  ? {
+                      backgroundImage: `linear-gradient(180deg, rgba(12,10,9,0.1), rgba(12,10,9,0.85)), url(${item.imageUrl})`,
+                    }
+                  : { background: item.gradient }
+              }
+            >
               <div className="rounded-2xl bg-stone-950/80 px-4 py-3 backdrop-blur">
                 <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-300">
                   {item.style}

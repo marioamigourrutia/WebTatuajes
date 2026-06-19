@@ -1,18 +1,26 @@
 # Plan de implementación — Plataforma web para tatuador
 
-Este plan organiza la construcción en fases verificables. La fase actual solo crea documentación de producto y arquitectura; no implementa funcionalidades de aplicación.
+Este plan organiza la construcción en fases verificables y refleja el estado real del repositorio en la rama `feat/admin-portfolio`. Firebase es la dirección backend oficial; las referencias anteriores a Supabase/PostgreSQL/RLS no son autoridad para este repo.
 
-## Estado inicial verificado
+## Estado actual verificado
 
-| Elemento        | Estado                                                                 |
-| --------------- | ---------------------------------------------------------------------- |
-| Repositorio     | Directorio vacío al inicio de la fase.                                 |
-| Stack instalado | No hay aplicación Next.js creada todavía.                              |
-| Package manager | No detectado; no existen `package.json`, lockfiles ni configuración.   |
-| Configuración   | No existían archivos de TypeScript, Next.js, ESLint, backend ni tests. |
-| Documentación   | Se crea en `docs/` durante esta fase.                                  |
+| Área           | Estado               | Nota                                                                                                                  |
+| -------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Stack          | Implementado         | Next.js App Router, TypeScript estricto, Tailwind, npm, ESLint, Prettier, Vitest y build.                             |
+| Firebase local | Implementado/Parcial | SDK cliente, Admin SDK server-only, Auth/Firestore/Storage emulators, rules y tests; falta conectar proyecto real.    |
+| Público        | Implementado/Parcial | Inicio, servicios, portafolio, cotización y contacto existen; faltan reseñas, shop, sponsors, comunidad e Instagram.  |
+| Admin          | Implementado/Parcial | Login local/admin session, cotizaciones y portafolio administrable; falta calendario, productos y contenido avanzado. |
+| Despliegue     | Pendiente            | Vercel es target, pero no hay despliegue productivo declarado ni credenciales reales en repo.                         |
 
-> Nota de auditoría posterior: la Fase 2 ya fue iniciada después de esta documentación. El repositorio ahora contiene aplicación Next.js, configuración npm, estructura `src/` y configuración de tests. La dirección backend cambió de Supabase a Firebase; la Fase 3 Supabase queda detenida.
+## Traducción de requisitos Supabase/PostgreSQL/RLS a Firebase
+
+| Requisito anterior | Equivalente Firebase en este repo                                                      |
+| ------------------ | -------------------------------------------------------------------------------------- |
+| PostgreSQL tables  | Colecciones Firestore con documentos tipados por dominio.                              |
+| RLS                | Firestore Security Rules + Storage Rules + validación server-side.                     |
+| DB constraints     | Reglas de shape/tipos, route handlers con Admin SDK y transacciones/locks para agenda. |
+| Private buckets    | Firebase Storage paths con metadata validada y serving server-side cuando corresponde. |
+| Service role       | Firebase Admin SDK server-only; nunca en cliente, logs ni docs con valores reales.     |
 
 ## Fase 1 — Documentación base
 
@@ -48,38 +56,39 @@ Objetivo: preparar Firebase Auth, Firestore/Storage y reglas de seguridad.
 
 - [x] Documentar arquitectura Firebase antes de implementar SDKs o funcionalidades de negocio.
 - [ ] Crear proyecto Firebase fuera del repositorio o conectar uno existente.
-- [ ] Definir colecciones iniciales para `profiles`, `quotes`, `quote_images`, `appointments` y contenido público.
-- [ ] Definir colecciones de `artists`, `portfolio_items`, `availability` y `contact_leads` según `docs/FIREBASE_ARCHITECTURE.md`.
-- [ ] Crear reglas para colecciones privadas.
-- [ ] Crear reglas para cliente, administrador y acceso público controlado.
-- [ ] Preparar Storage privado para `quote-images`.
-- [ ] Definir reglas de validación de archivos.
+- [x] Definir colecciones iniciales para `profiles`, `quotes`, `quote_images`, `appointments` y contenido público.
+- [x] Definir colecciones de `artists`, `portfolio_items`, `availability` y `contact_leads` según `docs/FIREBASE_ARCHITECTURE.md`.
+- [x] Crear reglas para colecciones privadas.
+- [x] Crear reglas para cliente, administrador y acceso público controlado.
+- [x] Preparar Storage controlado para `quote-images` y assets públicos.
+- [x] Definir reglas de validación de archivos.
 - [ ] Implementar restricción anti-duplicación para citas solapadas.
-- [ ] Probar acceso cruzado entre usuarios.
+- [x] Probar acceso cruzado entre usuarios en reglas.
 
 ## Fase 4 — Autenticación y roles
 
 Objetivo: habilitar sesiones y autorización confiable.
 
-- [ ] Integrar Firebase Auth con Next.js App Router.
+- [x] Integrar Firebase Auth local con Next.js App Router para login admin mediante emulator opt-in.
 - [ ] Crear flujo de registro/login para clientes.
-- [ ] Crear mecanismo controlado para asignar el primer administrador.
-- [ ] Proteger rutas `/account` y `/admin` desde servidor.
-- [ ] Validar rol administrativo en mutaciones server-side.
-- [ ] Agregar pruebas para acceso anónimo, cliente y admin.
+- [x] Crear mecanismo controlado para asignar el primer administrador.
+- [ ] Proteger rutas `/account` desde servidor.
+- [x] Proteger `/admin` desde servidor con cookie httpOnly de sesión admin.
+- [x] Validar rol administrativo en mutaciones server-side.
+- [x] Agregar pruebas para acceso anónimo, cliente y admin en helpers/reglas críticas.
 
 ## Fase 5 — Cotizaciones privadas
 
 Objetivo: implementar el flujo central de negocio.
 
-- [ ] Crear formulario de solicitud de cotización.
-- [ ] Validar campos de zona, tamaño, estilo, descripción y presupuesto CLP.
-- [ ] Implementar carga de imágenes a Firebase Storage privado.
-- [ ] Registrar metadata de imágenes en `quote_images`.
-- [ ] Permitir al cliente ver sus solicitudes.
-- [ ] Crear vista administrativa de cotizaciones.
-- [ ] Implementar cambios de estado y trazabilidad.
-- [ ] Probar que un cliente no pueda ver cotizaciones ni imágenes de otro.
+- [x] Crear formulario público de solicitud de cotización.
+- [x] Validar campos de zona, tamaño, descripción, contacto y presupuesto CLP server-side.
+- [x] Implementar carga server-side de imágenes a Firebase Storage controlado.
+- [x] Registrar metadata de imágenes en `quote_images`.
+- [ ] Permitir al cliente autenticado ver sus solicitudes.
+- [x] Crear vista administrativa de cotizaciones.
+- [x] Implementar cambios de estado y nota interna.
+- [x] Probar que un cliente no pueda ver cotizaciones ni imágenes de otro mediante reglas.
 
 ## Fase 6 — Calendario y agenda
 
@@ -97,20 +106,20 @@ Objetivo: gestionar citas sin duplicación.
 
 Objetivo: publicar el sitio comercial indexable.
 
-- [ ] Implementar inicio, portafolio y servicios.
+- [x] Implementar inicio, portafolio, servicios y contacto.
 - [ ] Implementar reseñas aprobadas.
 - [ ] Implementar productos públicos en CLP.
 - [ ] Implementar sponsors y comunidad.
-- [ ] Agregar metadata por página.
-- [ ] Agregar Open Graph.
-- [ ] Agregar sitemap y robots.
+- [x] Agregar metadata base y metadata en páginas públicas clave.
+- [x] Agregar Open Graph base.
+- [x] Agregar sitemap y robots para rutas públicas actuales.
 - [ ] Evaluar datos estructurados para negocio local y productos.
 
 ## Fase 8 — Integraciones
 
 Objetivo: conectar canales externos de forma segura y oficial.
 
-- [ ] Implementar WhatsApp click-to-chat con configuración por entorno.
+- [x] Implementar WhatsApp click-to-chat con configuración por entorno.
 - [ ] Preparar integración Instagram mediante API oficial.
 - [ ] Manejar límites, errores y fallback manual de Instagram.
 - [ ] No incluir scraping ni credenciales en el repositorio.
@@ -119,14 +128,31 @@ Objetivo: conectar canales externos de forma segura y oficial.
 
 Objetivo: validar seguridad, estabilidad y operación.
 
-- [ ] Ejecutar pruebas unitarias.
-- [ ] Ejecutar pruebas de integración Firebase/reglas.
+- [x] Ejecutar pruebas unitarias durante slices previos.
+- [x] Ejecutar pruebas de integración Firebase/reglas durante slices previos.
 - [ ] Ejecutar pruebas e2e de cotización, login, admin y agenda.
 - [ ] Revisar seguridad de Firebase Storage privado.
 - [ ] Revisar variables de entorno por ambiente.
 - [ ] Configurar despliegue.
-- [ ] Verificar build de producción.
+- [x] Verificar build de producción durante slices previos.
 - [ ] Revisar SEO técnico antes de publicar.
+
+## Mapa de producto por área
+
+| Área               | Estado    | Siguiente slice útil                                                                                                               |
+| ------------------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Páginas públicas   | Parcial   | Mantener `/`, `/servicios`, `/portfolio`, `/quote`, `/contacto`; agregar reseñas/shop/sponsors/comunidad solo cuando se prioricen. |
+| Cotización         | Parcial   | Agregar cuenta cliente y vista propia de solicitudes; hoy el flujo público crea solicitudes server-side.                           |
+| Admin auth/session | Parcial   | Endurecer sesión para producción real y revisar revocación/cookies en Vercel antes de publicar.                                    |
+| Portafolio         | Parcial   | Ya hay galería pública y CRUD-lite admin; faltan edición, borrado, orden manual y moderación avanzada.                             |
+| SEO                | Parcial   | Metadata, Open Graph base, robots y sitemap existen; faltan structured data y revisión final de dominio.                           |
+| Calendario         | Pendiente | Diseñar transacciones/locks antes de construir UI.                                                                                 |
+| Instagram          | Pendiente | Usar API oficial o fallback manual; no scraping.                                                                                   |
+| Shop/productos     | Pendiente | Modelar productos, imágenes y stock transaccional si aplica.                                                                       |
+| Reseñas            | Pendiente | Crear moderación admin antes de lectura pública.                                                                                   |
+| Sponsors           | Pendiente | Crear contenido administrable con publicación controlada.                                                                          |
+| Comunidad          | Pendiente | Crear contenido editorial moderado.                                                                                                |
+| Deployment         | Pendiente | Configurar proyecto Firebase real, variables Vercel y dominio canónico sin commitear secretos.                                     |
 
 ## Definición de listo para MVP
 
@@ -152,4 +178,4 @@ Objetivo: validar seguridad, estabilidad y operación.
 
 ## Próximo paso recomendado
 
-Revisar y aprobar `docs/FIREBASE_ARCHITECTURE.md`. Después, crear reglas Firestore/Storage y pruebas con emuladores antes de construir funcionalidades de negocio.
+Elegir el siguiente slice de producto. Si el objetivo es MVP operativo, priorizar calendario con locks transaccionales o cuenta cliente para seguimiento de cotizaciones antes de agregar contenido avanzado.

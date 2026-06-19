@@ -190,11 +190,31 @@ service cloud.firestore {
     }
 
     function validPortfolioItem(data) {
-      return data.keys().hasOnly(['artist_id', 'title', 'description', 'image_path', 'published', 'created_at', 'updated_at'])
+      return data.keys().hasOnly([
+          'artist_id',
+          'title',
+          'style',
+          'body_area',
+          'description',
+          'tags',
+          'image_path',
+          'image_original_filename',
+          'image_mime_type',
+          'image_size_bytes',
+          'published',
+          'created_at',
+          'updated_at'
+        ])
         && data.artist_id is string
         && optionalString(data, 'title')
+        && optionalString(data, 'style')
+        && optionalString(data, 'body_area')
         && optionalString(data, 'description')
+        && (!('tags' in data) || data.tags is list)
         && optionalString(data, 'image_path')
+        && optionalString(data, 'image_original_filename')
+        && optionalString(data, 'image_mime_type')
+        && optionalNumber(data, 'image_size_bytes')
         && optionalBool(data, 'published')
         && optionalTimestamp(data, 'created_at')
         && optionalTimestamp(data, 'updated_at');

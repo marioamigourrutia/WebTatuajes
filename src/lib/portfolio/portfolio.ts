@@ -8,7 +8,18 @@ export type PortfolioItem = {
   published: boolean;
   featured: boolean;
   gradient: string;
+  imageUrl?: string | null;
 };
+
+export type FirestorePortfolioItem = PortfolioItem & {
+  createdAt: string | null;
+  imagePath: string | null;
+  imageMimeType: string | null;
+  imageSizeBytes: number | null;
+  imageOriginalFilename: string | null;
+};
+
+export type PublicPortfolioItem = PortfolioItem;
 
 export type PortfolioFilter = {
   style?: string;
@@ -89,6 +100,8 @@ export const portfolioItems: PortfolioItem[] = [
   },
 ];
 
+const fallbackGradient = "linear-gradient(135deg, #1c1917 0%, #44403c 52%, #d6a25e 100%)";
+
 const sortByTitle = (items: PortfolioItem[]) =>
   [...items].sort((first, second) => first.title.localeCompare(second.title, "es-CL"));
 
@@ -133,4 +146,100 @@ export function filterPortfolioItems(
 
     return matchesStyle && matchesTag;
   });
+}
+
+function cleanString(value: unknown): string {
+  return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
+}
+
+function cleanLongText(value: unknown): string {
+  return typeof value === "string" ? value.trim().replace(/\r\n/g, "\n") : "";
+}
+
+function cleanTags(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      value
+        .map((tag) => cleanString(tag).toLocaleLowerCase("es-CL"))
+        .filter((tag) => tag.length > 0 && tag.length <= 40),
+    ),
+  ].slice(0, 8);
+}
+
+function serializeDate(value: unknown): string | null {
+  if (value && typeof value === "object" && "toDate" in value) {
+    const date = (value as { toDate: () => Date }).toDate();
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return null;
+}
+
+function portfolioImageUrl(itemId: string, imagePath: string): string | null {
+  return imagePath ? `/api/portfolio/images?itemId=${encodeURIComponent(itemId)}` : null;
+}
+
+export function mapFirestorePortfolioItem(document: {
+  id: string;
+  data: () => Record<string, unknown>;
+}): FirestorePortfolioItem {
+  const data = document.data();
+  const imagePath = cleanString(data.image_path) || null;
+
+  return {
+    id: document.id,
+    title: cleanString(data.title) || "Trabajo sin título",
+    style: cleanString(data.style) || "Personalizado",
+    bodyArea: cleanString(data.body_area) || "Zona a definir",
+    description: cleanLongText(data.description) || "Trabajo agregado desde el panel admin.",
+    tags: cleanTags(data.tags),
+    published: data.published === true,
+    featured: false,
+    gradient: fallbackGradient,
+    imageUrl: portfolioImageUrl(document.id, imagePath ?? ""),
+    imagePath,
+    imageMimeType: cleanString(data.image_mime_type) || null,
+    imageSizeBytes: typeof data.image_size_bytes === "number" ? data.image_size_bytes : null,
+    imageOriginalFilename: cleanString(data.image_original_filename) || null,
+    createdAt: serializeDate(data.created_at),
+  };
+}
+
+export function combinePortfolioItems(
+  staticItems: PortfolioItem[],
+  firestoreItems: PortfolioItem[],
+): PortfolioItem[] {
+  return sortByTitle([...staticItems, ...firestoreItems].filter((item) => item.published));
+}
+
+export function toPublicPortfolioItem(item: PortfolioItem): PublicPortfolioItem {
+  const publicItem: PublicPortfolioItem = {
+    id: item.id,
+    title: item.title,
+    style: item.style,
+    bodyArea: item.bodyArea,
+    description: item.description,
+    tags: item.tags,
+    published: item.published,
+    featured: item.featured,
+    gradient: item.gradient,
+  };
+
+  if (item.imageUrl !== undefined) {
+    publicItem.imageUrl = item.imageUrl;
+  }
+
+  return publicItem;
+}
+
+export function toPublicPortfolioItems(items: PortfolioItem[]): PublicPortfolioItem[] {
+  return items.map(toPublicPortfolioItem);
 }

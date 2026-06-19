@@ -1,15 +1,34 @@
 import type { Metadata } from "next";
 import { PortfolioGallery } from "@/lib/portfolio/portfolio-gallery";
-import { getPublishedPortfolioItems } from "@/lib/portfolio/portfolio";
+import {
+  combinePortfolioItems,
+  getPublishedPortfolioItems,
+  toPublicPortfolioItems,
+} from "@/lib/portfolio/portfolio";
+import { listPublicBackendPortfolioItems } from "@/lib/portfolio/public-portfolio-backend";
 
 export const metadata: Metadata = {
-  title: "Portafolio — WebTatuajes",
+  title: "Portafolio",
   description:
     "Galería pública de estilos y trabajos de referencia para cotizar tatuajes personalizados.",
 };
 
-export default function PortfolioPage() {
-  const items = getPublishedPortfolioItems();
+export const dynamic = "force-dynamic";
+
+async function getPublicPortfolioItems() {
+  try {
+    const firestoreItems = await listPublicBackendPortfolioItems();
+
+    return toPublicPortfolioItems(
+      combinePortfolioItems(getPublishedPortfolioItems(), firestoreItems),
+    );
+  } catch {
+    return toPublicPortfolioItems(getPublishedPortfolioItems());
+  }
+}
+
+export default async function PortfolioPage() {
+  const items = await getPublicPortfolioItems();
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
@@ -21,9 +40,8 @@ export default function PortfolioPage() {
           Referencias de estilo para imaginar tu próxima pieza.
         </h1>
         <p className="max-w-3xl text-lg leading-8 text-stone-300">
-          Esta galería usa placeholders visuales mientras el estudio carga imágenes reales. El foco
-          del MVP es mostrar estilos, zonas del cuerpo, etiquetas y una ruta clara hacia la
-          cotización.
+          Galería en actualización con referencias de estilo, zonas del cuerpo y etiquetas para
+          ayudarte a preparar una cotización clara.
         </p>
         <a
           className="inline-flex rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 transition hover:bg-amber-200"

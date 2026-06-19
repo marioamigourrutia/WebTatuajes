@@ -50,6 +50,19 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (message.includes("ECONNREFUSED") && message.includes("9099")) {
+    console.error(
+      "Firebase Auth Emulator is not running. Start it with `npm run emulators`, then run `npm run admin:seed-local` again.",
+    );
+  } else if (message.includes("ECONNREFUSED") && message.includes("8080")) {
+    console.error(
+      "Firestore Emulator is not running. Start it with `npm run emulators`, then run `npm run admin:seed-local` again.",
+    );
+  } else {
+    console.error(message);
+  }
+
   process.exitCode = 1;
 });

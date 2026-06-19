@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { LoginPanel } from "@/lib/auth/login-panel";
 import { useAuth } from "@/lib/auth/auth-context";
+import { AdminPortfolioPanel } from "@/lib/portfolio/admin-portfolio-panel";
 import { buildQuoteMailtoUrl, buildQuoteWhatsAppUrl } from "@/lib/quotes/contact-links";
 
 type AdminStatusResponse = {
@@ -13,6 +14,7 @@ type AdminStatusResponse = {
 
 type RecentQuoteRequest = {
   id: string;
+  quoteCode: string;
   createdAt: string | null;
   customerName: string;
   email: string;
@@ -24,15 +26,38 @@ type RecentQuoteRequest = {
   description: string;
   descriptionPreview: string;
   budgetClp: number | null;
+  preferredTattooDate: string | null;
+  calendarDateStatus: string | null;
+  consents: {
+    dataProcessing: boolean;
+    imageHandling: boolean;
+    privacyTerms: boolean;
+    marketingOptIn: boolean;
+  };
   internalNote: string;
+  deposit: {
+    amountClp: number;
+    method: string;
+    paidAt: string;
+    reference: string | null;
+    verified: boolean;
+    verifiedAt: string | null;
+  } | null;
   referenceImages: {
     id: string;
-    storagePath: string;
     originalFilename: string;
     mimeType: string;
     sizeBytes: number;
     accessUrl: string | null;
   }[];
+};
+
+type DepositDraft = {
+  amountClp: string;
+  method: string;
+  paidAt: string;
+  reference: string;
+  internalNote: string;
 };
 
 const quoteStatuses = ["pending", "contacted", "closed", "spam"] as const;
@@ -55,6 +80,51 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function formatPreferredDate(value: string | null) {
+  if (!value) {
+    return "sin fecha preferida";
+  }
+
+  return new Intl.DateTimeFormat("es-CL", {
+    dateStyle: "medium",
+    timeZone: "America/Santiago",
+  }).format(new Date(`${value}T12:00:00.000Z`));
+}
+
+function formatCalendarDateStatus(value: string | null) {
+  const labels: Record<string, string> = {
+    PENDING_CONFIRMATION: "pendiente de confirmación",
+    DEPOSIT_PENDING: "abono pendiente",
+    DEPOSIT_VERIFIED: "abono verificado",
+    CONFIRMED: "confirmada",
+    BLOCKED_BY_ADMIN: "bloqueada por admin",
+    CANCELLED: "cancelada",
+    RELEASED: "liberada",
+  };
+
+  return value ? (labels[value] ?? value) : "sin bloqueo de calendario";
+}
+
+function getEmptyDepositDraft(): DepositDraft {
+  return { amountClp: "", method: "transferencia", paidAt: "", reference: "", internalNote: "" };
+}
+
+function getStatusCalendarHint(quote: RecentQuoteRequest, nextStatus: string) {
+  if (!quote.preferredTattooDate || quote.calendarDateStatus !== "PENDING_CONFIRMATION") {
+    return "";
+  }
+
+  if (nextStatus === "spam" || nextStatus === "closed") {
+    return " Este cambio liberará la fecha preferida si sigue asociada a esta cotización.";
+  }
+
+  if (nextStatus === "contacted") {
+    return " La fecha preferida seguirá pendiente mientras coordinas con el cliente.";
+  }
+
+  return "";
+}
+
 function formatFileSize(sizeBytes: number) {
   if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
     return "sin tamaño";
@@ -63,16 +133,23 @@ function formatFileSize(sizeBytes: number) {
   return `${(sizeBytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-export function AdminStatusPanel() {
+export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatusResponse }) {
   const { user } = useAuth();
-  const [status, setStatus] = useState<AdminStatusResponse | null>(null);
+  const [status, setStatus] = useState<AdminStatusResponse | null>(initialStatus);
   const [quotes, setQuotes] = useState<RecentQuoteRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [updatingQuoteId, setUpdatingQuoteId] = useState<string | null>(null);
   const [savingNoteQuoteId, setSavingNoteQuoteId] = useState<string | null>(null);
+  const [savingDepositQuoteId, setSavingDepositQuoteId] = useState<string | null>(null);
+  const [calendarDateDraft, setCalendarDateDraft] = useState("");
+  const [updatingCalendarDate, setUpdatingCalendarDate] = useState(false);
+  const [confirmingReservationQuoteId, setConfirmingReservationQuoteId] = useState<string | null>(
+    null,
+  );
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [depositDrafts, setDepositDrafts] = useState<Record<string, DepositDraft>>({});
   const [imagePreviewUrls, setImagePreviewUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -133,7 +210,7 @@ export function AdminStatusPanel() {
 
   async function checkServerStatus() {
     if (!user) {
-      setError("Iniciá sesión antes de validar el rol en el servidor.");
+      setError("Inicia sesión antes de validar el rol en el servidor.");
       return;
     }
 
@@ -162,6 +239,17 @@ export function AdminStatusPanel() {
         return;
       }
 
+      const sessionResponse = await fetch("/api/admin/session", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+
+      if (!sessionResponse.ok) {
+        setError("El servidor validó el rol, pero no pudo crear la sesión admin segura.");
+        setQuotes([]);
+        return;
+      }
+
       const quotesResponse = await fetch("/api/admin/quotes", {
         method: "POST",
         headers: { Authorization: `Bearer ${idToken}` },
@@ -179,6 +267,9 @@ export function AdminStatusPanel() {
       setNoteDrafts(
         Object.fromEntries(nextQuotes.map((quote) => [quote.id, quote.internalNote ?? ""])),
       );
+      setDepositDrafts(
+        Object.fromEntries(nextQuotes.map((quote) => [quote.id, getEmptyDepositDraft()])),
+      );
     } catch {
       setError("No se pudo consultar el estado de admin en el servidor.");
       setQuotes([]);
@@ -187,9 +278,105 @@ export function AdminStatusPanel() {
     }
   }
 
+  async function saveQuoteDeposit(quote: RecentQuoteRequest) {
+    if (!user) {
+      setError("Inicia sesión antes de registrar un abono.");
+      return;
+    }
+
+    const draft = depositDrafts[quote.id] ?? getEmptyDepositDraft();
+    setSavingDepositQuoteId(quote.id);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/admin/quotes/deposit", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ quoteId: quote.id, deposit: draft }),
+      });
+      const body = (await response.json()) as {
+        error?: string;
+        errors?: Record<string, string>;
+        deposit?: RecentQuoteRequest["deposit"];
+        calendarDateStatus?: string | null;
+      };
+
+      if (!response.ok || !body.deposit) {
+        setError(
+          body.error ?? Object.values(body.errors ?? {})[0] ?? "No se pudo registrar el abono.",
+        );
+        return;
+      }
+
+      setQuotes((currentQuotes) =>
+        currentQuotes.map((currentQuote) =>
+          currentQuote.id === quote.id
+            ? {
+                ...currentQuote,
+                deposit: body.deposit ?? currentQuote.deposit,
+                calendarDateStatus: body.calendarDateStatus ?? currentQuote.calendarDateStatus,
+              }
+            : currentQuote,
+        ),
+      );
+      setNotice("Abono verificado y registrado desde ruta server-side con rol admin validado.");
+    } catch {
+      setError("No se pudo conectar con la ruta server-side de abonos.");
+    } finally {
+      setSavingDepositQuoteId(null);
+    }
+  }
+
+  async function confirmReservation(quote: RecentQuoteRequest) {
+    if (!user) {
+      setError("Inicia sesión antes de confirmar una reserva.");
+      return;
+    }
+
+    setConfirmingReservationQuoteId(quote.id);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/admin/quotes/confirm-reservation", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ quoteId: quote.id }),
+      });
+      const body = (await response.json()) as { error?: string; calendarDateStatus?: string };
+
+      if (!response.ok || body.calendarDateStatus !== "CONFIRMED") {
+        setError(body.error ?? "No se pudo confirmar la reserva.");
+        return;
+      }
+
+      setQuotes((currentQuotes) =>
+        currentQuotes.map((currentQuote) =>
+          currentQuote.id === quote.id
+            ? { ...currentQuote, calendarDateStatus: body.calendarDateStatus ?? "CONFIRMED" }
+            : currentQuote,
+        ),
+      );
+      setNotice("Reserva confirmada con abono verificado.");
+    } catch {
+      setError("No se pudo conectar con la ruta server-side de confirmación.");
+    } finally {
+      setConfirmingReservationQuoteId(null);
+    }
+  }
+
   async function saveQuoteInternalNote(quoteId: string) {
     if (!user) {
-      setError("Iniciá sesión antes de guardar una nota interna.");
+      setError("Inicia sesión antes de guardar una nota interna.");
       return;
     }
 
@@ -229,13 +416,14 @@ export function AdminStatusPanel() {
     }
   }
 
-  async function updateQuoteStatus(quoteId: string, status: string) {
+  async function updateQuoteStatus(quote: RecentQuoteRequest, status: string) {
     if (!user) {
-      setError("Iniciá sesión antes de cambiar el estado.");
+      setError("Inicia sesión antes de cambiar el estado.");
       return;
     }
 
-    setUpdatingQuoteId(quoteId);
+    const calendarHint = getStatusCalendarHint(quote, status);
+    setUpdatingQuoteId(quote.id);
     setError(null);
     setNotice(null);
 
@@ -247,9 +435,13 @@ export function AdminStatusPanel() {
           Authorization: `Bearer ${idToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ quoteId, status }),
+        body: JSON.stringify({ quoteId: quote.id, status }),
       });
-      const body = (await response.json()) as { error?: string; status?: string };
+      const body = (await response.json()) as {
+        error?: string;
+        status?: string;
+        calendarDateStatus?: string | null;
+      };
 
       if (!response.ok || !body.status) {
         setError(body.error ?? "No se pudo actualizar el estado de la solicitud.");
@@ -257,15 +449,64 @@ export function AdminStatusPanel() {
       }
 
       setQuotes((currentQuotes) =>
-        currentQuotes.map((quote) =>
-          quote.id === quoteId ? { ...quote, status: body.status ?? quote.status } : quote,
+        currentQuotes.map((currentQuote) =>
+          currentQuote.id === quote.id
+            ? {
+                ...currentQuote,
+                status: body.status ?? currentQuote.status,
+                calendarDateStatus: body.calendarDateStatus ?? currentQuote.calendarDateStatus,
+              }
+            : currentQuote,
         ),
       );
-      setNotice("Estado actualizado desde ruta server-side con rol admin validado.");
+      setNotice(`Estado actualizado desde ruta server-side con rol admin validado.${calendarHint}`);
     } catch {
       setError("No se pudo conectar con la ruta server-side de actualización.");
     } finally {
       setUpdatingQuoteId(null);
+    }
+  }
+
+  async function updateAdminCalendarDate(action: "block" | "unblock") {
+    if (!user) {
+      setError("Inicia sesión antes de modificar el calendario.");
+      return;
+    }
+
+    setUpdatingCalendarDate(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/admin/calendar", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action, date: calendarDateDraft }),
+      });
+      const body = (await response.json()) as {
+        error?: string;
+        date?: string;
+        calendarDateStatus?: string;
+      };
+
+      if (!response.ok || !body.date) {
+        setError(body.error ?? "No se pudo actualizar la fecha del calendario.");
+        return;
+      }
+
+      setNotice(
+        action === "block"
+          ? `Fecha ${body.date} marcada como no disponible.`
+          : `Fecha ${body.date} liberada si estaba bloqueada manualmente.`,
+      );
+    } catch {
+      setError("No se pudo conectar con la ruta server-side de calendario.");
+    } finally {
+      setUpdatingCalendarDate(false);
     }
   }
 
@@ -277,12 +518,18 @@ export function AdminStatusPanel() {
         </p>
         <h1 className="mt-3 text-3xl font-black text-stone-50">Dashboard admin local</h1>
         <p className="mt-2 text-sm leading-6 text-stone-400">
-          Validá el token contra servidor, revisá cotizaciones recientes y actualizá estados sin
+          Valida el token contra servidor, revisa cotizaciones recientes y actualiza estados sin
           abrir escrituras cliente en Firestore.
         </p>
       </div>
 
-      <LoginPanel />
+      <LoginPanel
+        onSessionCleared={() => {
+          setStatus({ authenticated: false, admin: false, profile: null });
+          setQuotes([]);
+        }}
+        onSessionEstablished={setStatus}
+      />
 
       <button
         className="rounded-full bg-amber-300 px-5 py-2 font-semibold text-stone-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
@@ -306,182 +553,381 @@ export function AdminStatusPanel() {
       {notice ? <p className="text-sm text-emerald-300">{notice}</p> : null}
 
       {status?.admin ? (
-        <section className="space-y-3">
-          <div>
-            <h3 className="text-xl font-bold text-stone-50">Solicitudes recientes</h3>
-            <p className="mt-1 text-sm text-stone-400">
-              Esta lista viene de una ruta server-side que vuelve a validar el ID token y el rol
-              admin.
-            </p>
-          </div>
-          {quotes.length === 0 ? (
-            <p className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4 text-sm text-stone-400">
-              Todavía no hay solicitudes locales.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {quotes.map((quote) => (
-                <li
-                  key={quote.id}
-                  className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4"
-                >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="font-semibold text-stone-100">{quote.customerName}</p>
-                      <p className="text-sm text-stone-400">
-                        {quote.email}
-                        {quote.phone ? ` · ${quote.phone}` : ""} · {quote.preferredContactMethod}
+        <div className="space-y-5">
+          <AdminPortfolioPanel enabled={status.admin} />
+
+          <section className="space-y-3 rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
+            <div>
+              <h3 className="text-xl font-bold text-stone-50">Calendario de disponibilidad</h3>
+              <p className="mt-1 text-sm text-stone-400">
+                Bloquea fechas no disponibles para el público. La acción server-side no sobrescribe
+                fechas asociadas a cotizaciones o reservas.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                className="rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={updatingCalendarDate}
+                onChange={(event) => setCalendarDateDraft(event.target.value)}
+                type="date"
+                value={calendarDateDraft}
+              />
+              <button
+                className="rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={!calendarDateDraft || updatingCalendarDate}
+                onClick={() => updateAdminCalendarDate("block")}
+                type="button"
+              >
+                Bloquear fecha
+              </button>
+              <button
+                className="rounded-full border border-stone-500 px-4 py-2 text-sm font-semibold text-stone-100 transition hover:bg-stone-100 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={!calendarDateDraft || updatingCalendarDate}
+                onClick={() => updateAdminCalendarDate("unblock")}
+                type="button"
+              >
+                Liberar bloqueo admin
+              </button>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div>
+              <h3 className="text-xl font-bold text-stone-50">Solicitudes recientes</h3>
+              <p className="mt-1 text-sm text-stone-400">
+                Esta lista viene de una ruta server-side que vuelve a validar el ID token y el rol
+                admin.
+              </p>
+            </div>
+            {quotes.length === 0 ? (
+              <p className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4 text-sm text-stone-400">
+                Todavía no hay solicitudes locales.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {quotes.map((quote) => (
+                  <li
+                    key={quote.id}
+                    className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-semibold text-stone-100">{quote.customerName}</p>
+                        <p className="font-mono text-xs text-amber-200">{quote.quoteCode}</p>
+                        <p className="text-sm text-stone-400">
+                          {quote.email}
+                          {quote.phone ? ` · ${quote.phone}` : ""} · {quote.preferredContactMethod}
+                        </p>
+                      </div>
+                      <div className="text-sm text-stone-400 sm:text-right">
+                        <p>{formatDate(quote.createdAt)}</p>
+                        <p>Estado: {quote.status}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid gap-3 text-sm text-stone-300 md:grid-cols-2">
+                      <p>
+                        <span className="font-semibold text-stone-100">Zona:</span>{" "}
+                        {quote.bodyPlacement}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-stone-100">Tamaño:</span>{" "}
+                        {quote.approximateSize}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-stone-100">Presupuesto:</span>{" "}
+                        {quote.budgetClp
+                          ? `$${quote.budgetClp.toLocaleString("es-CL")}`
+                          : "sin dato"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-stone-100">Contacto preferido:</span>{" "}
+                        {quote.preferredContactMethod}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-stone-100">Fecha preferida:</span>{" "}
+                        {formatPreferredDate(quote.preferredTattooDate)} ·{" "}
+                        {formatCalendarDateStatus(quote.calendarDateStatus)}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-stone-100">Marketing/comunidad:</span>{" "}
+                        {quote.consents.marketingOptIn ? "aceptado" : "no aceptado"}
                       </p>
                     </div>
-                    <div className="text-sm text-stone-400 sm:text-right">
-                      <p>{formatDate(quote.createdAt)}</p>
-                      <p>Estado: {quote.status}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 grid gap-3 text-sm text-stone-300 md:grid-cols-2">
-                    <p>
-                      <span className="font-semibold text-stone-100">Zona:</span>{" "}
-                      {quote.bodyPlacement}
-                    </p>
-                    <p>
-                      <span className="font-semibold text-stone-100">Tamaño:</span>{" "}
-                      {quote.approximateSize}
-                    </p>
-                    <p>
-                      <span className="font-semibold text-stone-100">Presupuesto:</span>{" "}
-                      {quote.budgetClp ? `$${quote.budgetClp.toLocaleString("es-CL")}` : "sin dato"}
-                    </p>
-                    <p>
-                      <span className="font-semibold text-stone-100">Contacto preferido:</span>{" "}
-                      {quote.preferredContactMethod}
-                    </p>
-                  </div>
-                  <div className="mt-4 rounded-xl border border-stone-800 bg-stone-950/70 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                      Descripción completa
-                    </p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-stone-300">
-                      {quote.description || quote.descriptionPreview || "Sin descripción."}
-                    </p>
-                  </div>
-                  {quote.referenceImages.length > 0 ? (
-                    <div className="mt-4 rounded-xl border border-stone-800 bg-stone-950/70 p-3">
+                    <div className="mt-4 rounded-xl border border-stone-800 bg-stone-950/70 p-3 text-sm text-stone-300">
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                        Imágenes de referencia
+                        Consentimientos
                       </p>
-                      <ul className="mt-3 grid gap-3 sm:grid-cols-3">
-                        {quote.referenceImages.map((image) => (
-                          <li className="space-y-2" key={image.id}>
-                            {imagePreviewUrls[image.id] ? (
-                              <a href={imagePreviewUrls[image.id]} rel="noreferrer" target="_blank">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  alt={`Referencia ${image.originalFilename}`}
-                                  className="h-32 w-full rounded-lg object-cover"
-                                  src={imagePreviewUrls[image.id]}
-                                />
-                              </a>
-                            ) : (
-                              <div className="flex h-32 items-center justify-center rounded-lg border border-stone-800 text-xs text-stone-500">
-                                Preview privada disponible al validar admin.
-                              </div>
-                            )}
-                            <p className="break-all text-xs text-stone-400">
-                              {image.originalFilename} · {formatFileSize(image.sizeBytes)}
-                            </p>
-                            {imagePreviewUrls[image.id] ? (
-                              <a
-                                className="text-xs font-semibold text-amber-200 underline underline-offset-4"
-                                href={imagePreviewUrls[image.id]}
-                                rel="noreferrer"
-                                target="_blank"
-                              >
-                                Abrir imagen
-                              </a>
-                            ) : null}
-                          </li>
-                        ))}
+                      <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                        <li>
+                          Datos para cotización: {quote.consents.dataProcessing ? "sí" : "no"}
+                        </li>
+                        <li>
+                          Manejo privado de imágenes: {quote.consents.imageHandling ? "sí" : "no"}
+                        </li>
+                        <li>Privacidad y reserva: {quote.consents.privacyTerms ? "sí" : "no"}</li>
+                        <li>Marketing/comunidad: {quote.consents.marketingOptIn ? "sí" : "no"}</li>
                       </ul>
                     </div>
-                  ) : null}
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <a
-                      className="rounded-full border border-amber-300/50 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-300 hover:text-stone-950"
-                      href={buildQuoteMailtoUrl(quote)}
-                    >
-                      Enviar email
-                    </a>
-                    {buildQuoteWhatsAppUrl(quote) ? (
-                      <a
-                        className="rounded-full border border-emerald-300/50 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-300 hover:text-stone-950"
-                        href={buildQuoteWhatsAppUrl(quote) ?? undefined}
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        Abrir WhatsApp
-                      </a>
-                    ) : null}
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    <label
-                      className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500"
-                      htmlFor={`note-${quote.id}`}
-                    >
-                      Nota interna
-                    </label>
-                    <textarea
-                      className="min-h-28 w-full rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={savingNoteQuoteId === quote.id}
-                      id={`note-${quote.id}`}
-                      maxLength={2000}
-                      onChange={(event) =>
-                        setNoteDrafts((currentDrafts) => ({
-                          ...currentDrafts,
-                          [quote.id]: event.target.value,
-                        }))
-                      }
-                      placeholder="Notas privadas para seguimiento del estudio."
-                      value={noteDrafts[quote.id] ?? quote.internalNote ?? ""}
-                    />
-                    <div className="flex items-center gap-3">
-                      <button
-                        className="rounded-full bg-stone-100 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={savingNoteQuoteId === quote.id}
-                        onClick={() => saveQuoteInternalNote(quote.id)}
-                        type="button"
-                      >
-                        {savingNoteQuoteId === quote.id ? "Guardando…" : "Guardar nota"}
-                      </button>
-                      <span className="text-xs text-stone-500">
-                        {(noteDrafts[quote.id] ?? "").length}/2000
-                      </span>
+                    <div className="mt-4 rounded-xl border border-stone-800 bg-stone-950/70 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                        Descripción completa
+                      </p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-stone-300">
+                        {quote.description || quote.descriptionPreview || "Sin descripción."}
+                      </p>
                     </div>
-                  </div>
-                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <label className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                      Estado interno
-                    </label>
-                    <select
-                      className="rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={updatingQuoteId === quote.id}
-                      onChange={(event) => updateQuoteStatus(quote.id, event.target.value)}
-                      value={quote.status}
-                    >
-                      {quoteStatuses.map((statusOption) => (
-                        <option key={statusOption} value={statusOption}>
-                          {quoteStatusLabels[statusOption]}
-                        </option>
-                      ))}
-                    </select>
-                    {updatingQuoteId === quote.id ? (
-                      <span className="text-sm text-stone-400">Actualizando…</span>
+                    {quote.referenceImages.length > 0 ? (
+                      <div className="mt-4 rounded-xl border border-stone-800 bg-stone-950/70 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                          Imágenes de referencia
+                        </p>
+                        <ul className="mt-3 grid gap-3 sm:grid-cols-3">
+                          {quote.referenceImages.map((image) => (
+                            <li className="space-y-2" key={image.id}>
+                              {imagePreviewUrls[image.id] ? (
+                                <a
+                                  href={imagePreviewUrls[image.id]}
+                                  rel="noreferrer"
+                                  target="_blank"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    alt={`Referencia ${image.originalFilename}`}
+                                    className="h-32 w-full rounded-lg object-cover"
+                                    src={imagePreviewUrls[image.id]}
+                                  />
+                                </a>
+                              ) : (
+                                <div className="flex h-32 items-center justify-center rounded-lg border border-stone-800 text-xs text-stone-500">
+                                  Preview privada disponible al validar admin.
+                                </div>
+                              )}
+                              <p className="break-all text-xs text-stone-400">
+                                {image.originalFilename} · {formatFileSize(image.sizeBytes)}
+                              </p>
+                              {imagePreviewUrls[image.id] ? (
+                                <a
+                                  className="text-xs font-semibold text-amber-200 underline underline-offset-4"
+                                  href={imagePreviewUrls[image.id]}
+                                  rel="noreferrer"
+                                  target="_blank"
+                                >
+                                  Abrir imagen
+                                </a>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <a
+                        className="rounded-full border border-amber-300/50 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-300 hover:text-stone-950"
+                        href={buildQuoteMailtoUrl(quote)}
+                      >
+                        Enviar email
+                      </a>
+                      {buildQuoteWhatsAppUrl(quote) ? (
+                        <a
+                          className="rounded-full border border-emerald-300/50 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-300 hover:text-stone-950"
+                          href={buildQuoteWhatsAppUrl(quote) ?? undefined}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          Abrir WhatsApp
+                        </a>
+                      ) : null}
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      <label
+                        className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500"
+                        htmlFor={`note-${quote.id}`}
+                      >
+                        Nota interna
+                      </label>
+                      <textarea
+                        className="min-h-28 w-full rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={savingNoteQuoteId === quote.id}
+                        id={`note-${quote.id}`}
+                        maxLength={2000}
+                        onChange={(event) =>
+                          setNoteDrafts((currentDrafts) => ({
+                            ...currentDrafts,
+                            [quote.id]: event.target.value,
+                          }))
+                        }
+                        placeholder="Notas privadas para seguimiento del estudio."
+                        value={noteDrafts[quote.id] ?? quote.internalNote ?? ""}
+                      />
+                      <div className="flex items-center gap-3">
+                        <button
+                          className="rounded-full bg-stone-100 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={savingNoteQuoteId === quote.id}
+                          onClick={() => saveQuoteInternalNote(quote.id)}
+                          type="button"
+                        >
+                          {savingNoteQuoteId === quote.id ? "Guardando…" : "Guardar nota"}
+                        </button>
+                        <span className="text-xs text-stone-500">
+                          {(noteDrafts[quote.id] ?? "").length}/2000
+                        </span>
+                      </div>
+                    </div>
+                    {quote.preferredTattooDate &&
+                    quote.calendarDateStatus === "PENDING_CONFIRMATION" ? (
+                      <div className="mt-4 space-y-3 rounded-xl border border-amber-300/30 bg-amber-950/20 p-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
+                            Abono manual
+                          </p>
+                          {quote.deposit?.verified ? (
+                            <p className="mt-1 text-sm text-stone-300">
+                              Verificado: ${quote.deposit.amountClp.toLocaleString("es-CL")} vía{" "}
+                              {quote.deposit.method} el {formatPreferredDate(quote.deposit.paidAt)}
+                              {quote.deposit.reference ? ` · Ref. ${quote.deposit.reference}` : ""}
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-sm text-stone-400">
+                              Registra el abono recibido antes de confirmar la reserva.
+                            </p>
+                          )}
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <input
+                            className="rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={savingDepositQuoteId === quote.id}
+                            inputMode="numeric"
+                            onChange={(event) =>
+                              setDepositDrafts((currentDrafts) => ({
+                                ...currentDrafts,
+                                [quote.id]: {
+                                  ...(currentDrafts[quote.id] ?? getEmptyDepositDraft()),
+                                  amountClp: event.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="Monto CLP"
+                            value={depositDrafts[quote.id]?.amountClp ?? ""}
+                          />
+                          <input
+                            className="rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={savingDepositQuoteId === quote.id}
+                            onChange={(event) =>
+                              setDepositDrafts((currentDrafts) => ({
+                                ...currentDrafts,
+                                [quote.id]: {
+                                  ...(currentDrafts[quote.id] ?? getEmptyDepositDraft()),
+                                  method: event.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="Método"
+                            value={depositDrafts[quote.id]?.method ?? "transferencia"}
+                          />
+                          <input
+                            className="rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={savingDepositQuoteId === quote.id}
+                            onChange={(event) =>
+                              setDepositDrafts((currentDrafts) => ({
+                                ...currentDrafts,
+                                [quote.id]: {
+                                  ...(currentDrafts[quote.id] ?? getEmptyDepositDraft()),
+                                  paidAt: event.target.value,
+                                },
+                              }))
+                            }
+                            type="date"
+                            value={depositDrafts[quote.id]?.paidAt ?? ""}
+                          />
+                          <input
+                            className="rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={savingDepositQuoteId === quote.id}
+                            onChange={(event) =>
+                              setDepositDrafts((currentDrafts) => ({
+                                ...currentDrafts,
+                                [quote.id]: {
+                                  ...(currentDrafts[quote.id] ?? getEmptyDepositDraft()),
+                                  reference: event.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="Referencia opcional"
+                            value={depositDrafts[quote.id]?.reference ?? ""}
+                          />
+                        </div>
+                        <textarea
+                          className="min-h-20 w-full rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={savingDepositQuoteId === quote.id}
+                          onChange={(event) =>
+                            setDepositDrafts((currentDrafts) => ({
+                              ...currentDrafts,
+                              [quote.id]: {
+                                ...(currentDrafts[quote.id] ?? getEmptyDepositDraft()),
+                                internalNote: event.target.value,
+                              },
+                            }))
+                          }
+                          placeholder="Nota interna opcional del abono. No se muestra públicamente."
+                          value={depositDrafts[quote.id]?.internalNote ?? ""}
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            className="rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={savingDepositQuoteId === quote.id}
+                            onClick={() => saveQuoteDeposit(quote)}
+                            type="button"
+                          >
+                            {savingDepositQuoteId === quote.id ? "Guardando…" : "Registrar abono"}
+                          </button>
+                          <button
+                            className="rounded-full border border-emerald-300/50 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-300 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={
+                              !quote.deposit?.verified || confirmingReservationQuoteId === quote.id
+                            }
+                            onClick={() => confirmReservation(quote)}
+                            type="button"
+                          >
+                            {confirmingReservationQuoteId === quote.id
+                              ? "Confirmando…"
+                              : "Confirmar reserva"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <label className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                        Estado interno
+                      </label>
+                      <select
+                        className="rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={updatingQuoteId === quote.id}
+                        onChange={(event) => updateQuoteStatus(quote, event.target.value)}
+                        value={quote.status}
+                      >
+                        {quoteStatuses.map((statusOption) => (
+                          <option key={statusOption} value={statusOption}>
+                            {quoteStatusLabels[statusOption]}
+                          </option>
+                        ))}
+                      </select>
+                      {updatingQuoteId === quote.id ? (
+                        <span className="text-sm text-stone-400">Actualizando…</span>
+                      ) : null}
+                    </div>
+                    {quote.preferredTattooDate &&
+                    quote.calendarDateStatus === "PENDING_CONFIRMATION" ? (
+                      <p className="mt-2 text-xs leading-5 text-stone-400">
+                        Contactado mantiene la fecha pendiente. Cerrado o Spam liberan la fecha solo
+                        si todavía pertenece a esta cotización; no se marca como confirmada sin una
+                        reserva explícita.
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
       ) : null}
     </div>
   );

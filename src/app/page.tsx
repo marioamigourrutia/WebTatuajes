@@ -10,7 +10,7 @@ const services = [
 ];
 
 const processSteps = [
-  "Contanos la idea, zona, tamaño y presupuesto estimado.",
+  "Cuéntanos la idea, zona, tamaño y presupuesto estimado.",
   "Revisamos viabilidad, estilo y próximos pasos de diseño.",
   "Coordinamos contacto y agenda cuando el proyecto esté claro.",
 ];
@@ -55,12 +55,6 @@ export default function HomePage() {
                 WhatsApp
               </a>
             ) : null}
-            <a
-              className="rounded-full border border-stone-500 px-6 py-3 font-semibold text-stone-100 transition hover:border-stone-200"
-              href="#proceso"
-            >
-              Ver proceso
-            </a>
           </div>
         </div>
 
@@ -76,15 +70,17 @@ export default function HomePage() {
           <dl className="mt-6 grid gap-3 text-sm text-stone-300 sm:grid-cols-3 lg:grid-cols-1">
             <div className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
               <dt className="font-semibold text-stone-100">Privado</dt>
-              <dd className="mt-1">La solicitud se guarda server-side, no desde cliente.</dd>
+              <dd className="mt-1">Tus datos se tratan con reserva durante la evaluación.</dd>
             </div>
             <div className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
               <dt className="font-semibold text-stone-100">Ordenado</dt>
-              <dd className="mt-1">El equipo revisa estados internos desde el panel admin.</dd>
+              <dd className="mt-1">Cada solicitud se revisa con contexto antes de responder.</dd>
             </div>
             <div className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
-              <dt className="font-semibold text-stone-100">Local MVP</dt>
-              <dd className="mt-1">Sin pagos ni agenda real todavía; foco en cotización.</dd>
+              <dt className="font-semibold text-stone-100">Claro</dt>
+              <dd className="mt-1">
+                La cotización define viabilidad antes de reservar una sesión.
+              </dd>
             </div>
           </dl>
         </aside>
@@ -100,8 +96,8 @@ export default function HomePage() {
               Una muestra visual antes de cotizar.
             </h2>
             <p className="mt-3 max-w-2xl text-stone-300">
-              Piezas curadas por estilo, zona y etiquetas. Por ahora usamos placeholders visuales
-              hasta cargar fotografías reales del estudio.
+              Piezas y referencias curadas por estilo, zona y etiquetas para preparar mejor tu
+              cotización.
             </p>
           </div>
           <a
@@ -150,6 +146,12 @@ export default function HomePage() {
             </li>
           ))}
         </ul>
+        <a
+          className="mt-5 inline-flex rounded-full border border-amber-300/50 px-6 py-3 font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950 md:col-start-2"
+          href="/servicios"
+        >
+          Ver servicios, cuidados y preguntas frecuentes
+        </a>
       </section>
 
       <section className="py-10" id="proceso">
@@ -173,11 +175,38 @@ export default function HomePage() {
       </section>
 
       <section className="py-10">
+        <div className="grid gap-6 rounded-3xl border border-stone-700 bg-stone-950/70 p-6 md:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
+              Contacto
+            </p>
+            <h2 className="mt-3 text-3xl font-black text-stone-50">
+              Atención por agenda y ubicación confirmada al reservar.
+            </h2>
+          </div>
+          <div className="space-y-4 text-stone-300">
+            <p className="leading-7">
+              Prepara tu solicitud con idea, zona, tamaño y referencias. El estudio confirma
+              próximos pasos, indicaciones de llegada y cuidados esperados cuando la cita queda
+              coordinada.
+            </p>
+            <a
+              className="inline-flex rounded-full border border-amber-300/50 px-6 py-3 font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950"
+              href="/contacto"
+            >
+              Ver contacto y ubicación
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-10">
         <div className="flex flex-col gap-4 rounded-3xl border border-amber-300/30 bg-amber-300 p-6 text-stone-950 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-3xl font-black">¿Tenés una idea para tatuarte?</h2>
+            <h2 className="text-3xl font-black">¿Tienes una idea para tatuarte?</h2>
             <p className="mt-2 max-w-2xl text-stone-800">
-              Mandá una cotización con datos concretos y el estudio la revisa desde el panel local.
+              Envía una cotización con datos concretos para revisar viabilidad, estilo y próximos
+              pasos.
             </p>
           </div>
           <a

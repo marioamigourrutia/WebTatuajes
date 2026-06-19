@@ -44,13 +44,18 @@ describe("admin quote status route", () => {
       ok: true,
       quoteId: "quote-1",
       quoteStatus: "contacted",
+      calendarDateStatus: "PENDING_CONFIRMATION",
     });
   });
 
   it("revalidates admin role before updating a quote status", async () => {
     const response = await POST(request({ quoteId: "quote-1", status: "contacted" }));
 
-    await expect(response.json()).resolves.toEqual({ quoteId: "quote-1", status: "contacted" });
+    await expect(response.json()).resolves.toEqual({
+      quoteId: "quote-1",
+      status: "contacted",
+      calendarDateStatus: "PENDING_CONFIRMATION",
+    });
     expect(response.status).toBe(200);
     expect(getServerAuthStatusFromIdTokenMock).toHaveBeenCalledWith("id-token");
     expect(updateQuoteRequestStatusMock).toHaveBeenCalledWith(

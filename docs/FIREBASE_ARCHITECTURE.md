@@ -1,6 +1,6 @@
 # Arquitectura Firebase — Autenticación, datos, archivos y reglas
 
-Este documento define la arquitectura Firebase antes de implementar SDKs o funcionalidades de negocio. La decisión base es usar Firebase como backend futuro para Auth, Firestore, Storage y reglas de seguridad, manteniendo el repositorio local-only hasta conectar un proyecto real.
+Este documento define la arquitectura Firebase oficial del repo. Firebase cubre Auth, Firestore, Storage, Admin SDK server-only y Security Rules; Vercel es el hosting objetivo para Next.js. El repo tiene implementación local con emuladores y placeholders, pero no debe afirmar que un proyecto Firebase real o un despliegue productivo ya están conectados.
 
 ## Decisiones rápidas
 
@@ -11,7 +11,7 @@ Este documento define la arquitectura Firebase antes de implementar SDKs o funci
 | Datos    | Firestore separa contenido público publicable de datos privados por ownership.                                                                     |
 | Archivos | Storage usa rutas por dominio y dueño; referencias de cotización privadas, portafolio público solo si está publicado.                              |
 | Reglas   | Least privilege desde el inicio, validación de shape/tipos y pruebas con emuladores antes de producción.                                           |
-| SDK      | Cliente Firebase inicial para Auth y Firebase Admin SDK server-only para validación de sesión/rol y primer admin controlado.                       |
+| SDK      | Cliente Firebase para Auth y Firebase Admin SDK server-only para validación de sesión/rol, cotizaciones, Storage y primer admin controlado.        |
 
 ## Modelo de autenticación y acceso
 
@@ -78,19 +78,37 @@ Las operaciones con privilegios —asignar roles, responder cotizaciones, crear 
 
 ## Desarrollo local y Vercel
 
-El estado actual usa `.env.example` con placeholders y helpers de configuración, sin SDK Firebase. Para desarrollo local futuro:
+Estado actual:
+
+| Área          | Estado                                                                                    |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| Configuración | `.env.example` contiene placeholders seguros; `.env.local` queda fuera de git.            |
+| Emuladores    | `npm run emulators` levanta Auth, Firestore y Storage para desarrollo local.              |
+| Admin SDK     | Inicializa solo con credenciales server-only válidas o emuladores; rechaza placeholders.  |
+| Rules         | `firestore.rules` y `storage.rules` existen y se prueban con Firebase Emulator Suite.     |
+| Vercel        | Es target de hosting; falta configurar variables reales, dominio y despliegue productivo. |
+
+Para desarrollo local:
 
 1. Crear `.env.local` desde `.env.example`.
-2. Usar Firebase Emulator Suite para Auth/Firestore/Storage cuando existan reglas.
+2. Usar Firebase Emulator Suite para Auth/Firestore/Storage.
 3. Mantener credenciales reales fuera de git.
-4. Ejecutar pruebas de reglas antes de habilitar flujos privados.
+4. Ejecutar pruebas de reglas antes de habilitar o modificar flujos privados.
 
 En Vercel se deben configurar las mismas `NEXT_PUBLIC_FIREBASE_*` para cliente y `FIREBASE_SERVICE_ACCOUNT_JSON` solo como variable server-side. No exponer service accounts en código, logs, bundles cliente ni documentación pública. El helper Admin no inicializa Firebase si `FIREBASE_SERVICE_ACCOUNT_JSON` falta, es `{}` o contiene placeholders.
 
-## Nota de migración desde Supabase
+## Nota de alineación: Supabase/PostgreSQL/RLS → Firebase
 
-La referencia a Supabase fue retirada intencionalmente. La dirección aprobada es Firebase + Vercel: Firebase cubre Auth, Firestore, Storage y Security Rules; Vercel queda como hosting futuro para Next.js. No se debe reintroducir Supabase salvo decisión explícita nueva.
+La referencia a Supabase fue retirada intencionalmente. La dirección aprobada es Firebase + Vercel. No se debe reintroducir Supabase/PostgreSQL/RLS salvo decisión explícita nueva.
+
+| Concepto de checklist externo | Equivalente aprobado                                                        |
+| ----------------------------- | --------------------------------------------------------------------------- |
+| PostgreSQL schema/tables      | Colecciones Firestore y documentos por dominio.                             |
+| RLS policies                  | Firestore Security Rules, Storage Rules y validación server-side.           |
+| DB constraints/transactions   | Transacciones Firestore, documentos de lock y route handlers con Admin SDK. |
+| Private object storage        | Firebase Storage con rutas por dominio, metadata y serving controlado.      |
+| Service role                  | Firebase Admin SDK server-only, nunca expuesto al cliente.                  |
 
 ## Próximo paso
 
-Antes de implementar pantallas de negocio, mantener las reglas y pruebas de emulador actualizadas para `profiles`, `quotes`, `quote_images`, `appointments`, `contact_leads`, contenido público y Storage privado.
+Mantener reglas y pruebas de emulador actualizadas con cada slice. Para el próximo slice grande, resolver calendario con transacciones/locks o cuenta cliente antes de agregar más contenido avanzado.

@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ errors: result.errors }, { status: result.status });
     }
 
-    return NextResponse.json({ id: result.id }, { status: 201 });
+    return NextResponse.json({ id: result.id, quoteCode: result.quoteCode }, { status: 201 });
   }
 
   let body: unknown;
@@ -42,5 +42,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ errors: result.errors }, { status: result.status });
   }
 
-  return NextResponse.json({ id: result.id }, { status: 201 });
+  return NextResponse.json({ id: result.id, quoteCode: result.quoteCode }, { status: 201 });
 }

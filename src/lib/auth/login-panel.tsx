@@ -3,9 +3,19 @@
 import { useState, type FormEvent } from "react";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { useAuth } from "@/lib/auth/auth-context";
+import { getAdminSessionFailureMessage, getLoginFailureMessage } from "@/lib/auth/login-errors";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 
-export function LoginPanel() {
+type LoginPanelProps = {
+  onSessionCleared?: () => void;
+  onSessionEstablished?: (status: {
+    authenticated: boolean;
+    admin: boolean;
+    profile: { uid: string; email: string | null; role: string } | null;
+  }) => void;
+};
+
+export function LoginPanel({ onSessionCleared, onSessionEstablished }: LoginPanelProps) {
   const { firebaseConfigured, loading, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,10 +34,29 @@ export function LoginPanel() {
 
     setSubmitting(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await credential.user.getIdToken();
+      const response = await fetch("/api/admin/session", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      const body = (await response.json()) as {
+        authenticated: boolean;
+        admin: boolean;
+        profile: { uid: string; email: string | null; role: string } | null;
+        error?: string;
+      };
+
+      if (!response.ok || !body.admin) {
+        await signOut(auth);
+        setError(getAdminSessionFailureMessage(body.error));
+        return;
+      }
+
+      onSessionEstablished?.(body);
       setPassword("");
-    } catch {
-      setError("No se pudo iniciar sesión. Revisá el email y la contraseña.");
+    } catch (loginError) {
+      setError(getLoginFailureMessage(loginError));
     } finally {
       setSubmitting(false);
     }
@@ -35,8 +64,14 @@ export function LoginPanel() {
 
   async function handleLogout() {
     const auth = getFirebaseAuth();
-    if (auth) {
-      await signOut(auth);
+    try {
+      await fetch("/api/admin/session", { method: "DELETE" });
+    } finally {
+      onSessionCleared?.();
+
+      if (auth) {
+        await signOut(auth);
+      }
     }
   }
 
@@ -47,7 +82,7 @@ export function LoginPanel() {
   if (!firebaseConfigured) {
     return (
       <p className="text-sm text-stone-400">
-        Login preparado. Configurá `NEXT_PUBLIC_FIREBASE_*` en `.env.local` para habilitar Firebase
+        Login preparado. Configura `NEXT_PUBLIC_FIREBASE_*` en `.env.local` para habilitar Firebase
         Auth localmente.
       </p>
     );

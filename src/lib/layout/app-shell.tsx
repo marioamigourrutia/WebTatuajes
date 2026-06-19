@@ -4,9 +4,10 @@ import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
 const navItems = [
   { href: "/", label: "Inicio" },
+  { href: "/servicios", label: "Servicios" },
   { href: "/portfolio", label: "Portafolio" },
+  { href: "/contacto", label: "Contacto" },
   { href: "/quote", label: "Cotizar" },
-  { href: "/admin", label: "Admin" },
 ];
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -51,7 +52,15 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       <footer className="border-t border-stone-800/80 bg-stone-950/70">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6 py-5 text-sm text-stone-400 sm:px-10 md:flex-row md:items-center md:justify-between">
           <p>Estudio profesional de tatuajes · Cotizaciones privadas y atención por agenda.</p>
-          <p>Entorno local MVP: sin pagos, CMS de portafolio ni credenciales reales.</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p>Diseños personalizados, evaluación responsable y comunicación clara.</p>
+            <Link
+              className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
+              href="/admin"
+            >
+              Administración
+            </Link>
+          </div>
         </div>
       </footer>
     </div>

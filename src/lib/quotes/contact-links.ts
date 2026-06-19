@@ -2,6 +2,7 @@ import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
 type QuoteContactInput = {
   id: string;
+  quoteCode?: string;
   customerName: string;
   email: string;
   phone: string | null;
@@ -10,7 +11,8 @@ type QuoteContactInput = {
 };
 
 export function buildQuoteMailtoUrl(quote: QuoteContactInput): string {
-  const subject = `Cotización de tatuaje ${quote.id}`;
+  const code = quote.quoteCode ?? quote.id;
+  const subject = `Cotización de tatuaje ${code}`;
   const body = `Hola ${quote.customerName},\n\nTe contactamos por tu solicitud de cotización para ${quote.bodyPlacement} (${quote.approximateSize}).\n\n`;
   const params = new URLSearchParams({ subject, body });
 
@@ -24,6 +26,6 @@ export function buildQuoteWhatsAppUrl(quote: QuoteContactInput): string | null {
 
   return buildWhatsAppUrl({
     phone: quote.phone,
-    message: `Hola ${quote.customerName}, te contactamos por tu solicitud de cotización ${quote.id} para ${quote.bodyPlacement} (${quote.approximateSize}).`,
+    message: `Hola ${quote.customerName}, te contactamos por tu solicitud de cotización ${quote.quoteCode ?? quote.id} para ${quote.bodyPlacement} (${quote.approximateSize}).`,
   });
 }
