@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { AdminStatusPanel } from "@/lib/auth/admin-status-panel";
-import { adminSessionCookieName, getServerAuthStatusFromSessionCookie } from "@/lib/auth/server";
 import { isFirebaseAdminBackendConfigured } from "@/lib/config/firebase-admin";
+
+const adminSessionCookieName = "webtatuajes_admin_session";
 
 const unauthenticatedAdminStatus = {
   authenticated: false,
@@ -19,6 +20,8 @@ export async function getSafeAdminInitialStatus(sessionCookie: string | undefine
   }
 
   try {
+    const { getServerAuthStatusFromSessionCookie } = await import("@/lib/auth/server");
+
     return await getServerAuthStatusFromSessionCookie(sessionCookie);
   } catch {
     return {
