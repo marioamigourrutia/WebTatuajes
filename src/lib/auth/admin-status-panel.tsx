@@ -5,6 +5,7 @@ import { LoginPanel } from "@/lib/auth/login-panel";
 import { useAuth } from "@/lib/auth/auth-context";
 import { AdminPortfolioPanel } from "@/lib/portfolio/admin-portfolio-panel";
 import { buildQuoteMailtoUrl, buildQuoteWhatsAppUrl } from "@/lib/quotes/contact-links";
+import { formatClpPrice } from "@/lib/shop/catalog";
 
 type AdminStatusResponse = {
   authenticated: boolean;
@@ -52,6 +53,20 @@ type RecentQuoteRequest = {
     accessUrl: string | null;
   }[];
   referenceUrls: string[];
+};
+
+type RecentPurchaseRequest = {
+  id: string;
+  purchaseCode: string;
+  createdAt: string | null;
+  customerName: string;
+  phone: string;
+  email: string | null;
+  productCode: string;
+  productTitle: string;
+  priceClp: number;
+  status: string;
+  whatsappUrl: string | null;
 };
 
 type DepositDraft = {
@@ -139,6 +154,7 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
   const { user } = useAuth();
   const [status, setStatus] = useState<AdminStatusResponse | null>(initialStatus);
   const [quotes, setQuotes] = useState<RecentQuoteRequest[]>([]);
+  const [purchaseRequests, setPurchaseRequests] = useState<RecentPurchaseRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -232,12 +248,14 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
       if (!response.ok) {
         setError("El servidor no pudo validar un perfil con rol permitido.");
         setQuotes([]);
+        setPurchaseRequests([]);
         return;
       }
 
       if (!body.admin) {
         setError("El perfil autenticado no tiene rol admin en el servidor.");
         setQuotes([]);
+        setPurchaseRequests([]);
         return;
       }
 
@@ -249,23 +267,42 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
       if (!sessionResponse.ok) {
         setError("El servidor validó el rol, pero no pudo crear la sesión admin segura.");
         setQuotes([]);
+        setPurchaseRequests([]);
         return;
       }
 
-      const quotesResponse = await fetch("/api/admin/quotes", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${idToken}` },
-      });
+      const [quotesResponse, purchaseRequestsResponse] = await Promise.all([
+        fetch("/api/admin/quotes", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${idToken}` },
+        }),
+        fetch("/api/admin/purchase-requests", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${idToken}` },
+        }),
+      ]);
       const quotesBody = (await quotesResponse.json()) as { quotes?: RecentQuoteRequest[] };
+      const purchaseRequestsBody = (await purchaseRequestsResponse.json()) as {
+        purchaseRequests?: RecentPurchaseRequest[];
+      };
 
       if (!quotesResponse.ok) {
         setError("El servidor no pudo listar solicitudes de cotización.");
         setQuotes([]);
+        setPurchaseRequests([]);
+        return;
+      }
+
+      if (!purchaseRequestsResponse.ok) {
+        setError("El servidor no pudo listar solicitudes de compra.");
+        setQuotes([]);
+        setPurchaseRequests([]);
         return;
       }
 
       const nextQuotes = quotesBody.quotes ?? [];
       setQuotes(nextQuotes);
+      setPurchaseRequests(purchaseRequestsBody.purchaseRequests ?? []);
       setNoteDrafts(
         Object.fromEntries(nextQuotes.map((quote) => [quote.id, quote.internalNote ?? ""])),
       );
@@ -275,6 +312,7 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
     } catch {
       setError("No se pudo consultar el estado de admin en el servidor.");
       setQuotes([]);
+      setPurchaseRequests([]);
     } finally {
       setLoading(false);
     }
@@ -529,6 +567,7 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
         onSessionCleared={() => {
           setStatus({ authenticated: false, admin: false, profile: null });
           setQuotes([]);
+          setPurchaseRequests([]);
         }}
         onSessionEstablished={setStatus}
       />
@@ -563,6 +602,65 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
       {status?.admin ? (
         <div className="space-y-5">
           <AdminPortfolioPanel enabled={status.admin} />
+
+          <section className="space-y-3 rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
+            <div>
+              <h3 className="text-xl font-bold text-stone-50">Solicitudes de compra recientes</h3>
+              <p className="mt-1 text-sm text-stone-400">
+                MVP de seguimiento para obras disponibles. La compra se coordina manualmente; no hay
+                pagos en línea.
+              </p>
+            </div>
+            {purchaseRequests.length === 0 ? (
+              <p className="rounded-2xl border border-stone-800 bg-stone-950/70 p-4 text-sm text-stone-400">
+                Todavía no hay solicitudes de compra.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {purchaseRequests.map((request) => (
+                  <li
+                    className="rounded-2xl border border-stone-800 bg-stone-950/70 p-4"
+                    key={request.id}
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-semibold text-stone-100">{request.customerName}</p>
+                        <p className="font-mono text-xs text-amber-200">{request.purchaseCode}</p>
+                        <p className="text-sm text-stone-400">
+                          {request.phone}
+                          {request.email ? ` · ${request.email}` : ""}
+                        </p>
+                      </div>
+                      <div className="text-sm text-stone-400 sm:text-right">
+                        <p>{formatDate(request.createdAt)}</p>
+                        <p>Estado: {request.status}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 text-sm text-stone-300">
+                      <p>
+                        <span className="font-semibold text-stone-100">Obra:</span>{" "}
+                        {request.productTitle} ({request.productCode})
+                      </p>
+                      <p>
+                        <span className="font-semibold text-stone-100">Precio:</span>{" "}
+                        {formatClpPrice(request.priceClp)}
+                      </p>
+                    </div>
+                    {request.whatsappUrl ? (
+                      <a
+                        className="mt-3 inline-flex rounded-full border border-emerald-300/50 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-300 hover:text-stone-950"
+                        href={request.whatsappUrl}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Abrir WhatsApp
+                      </a>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
           <section className="space-y-3 rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
             <div>

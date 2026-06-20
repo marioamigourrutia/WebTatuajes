@@ -13,7 +13,14 @@ describe("site metadata", () => {
   });
 
   it("centralizes public discovery routes without private admin routes", () => {
-    expect(publicSiteRoutes).toEqual(["/", "/quote", "/portfolio", "/servicios", "/contacto"]);
+    expect(publicSiteRoutes).toEqual([
+      "/",
+      "/quote",
+      "/portfolio",
+      "/tienda",
+      "/servicios",
+      "/contacto",
+    ]);
     expect(publicSiteRoutes.some((route) => route.startsWith("/admin"))).toBe(false);
   });
 
@@ -22,6 +29,7 @@ describe("site metadata", () => {
       expect.objectContaining({ url: "https://example.cl/", priority: 1 }),
       expect.objectContaining({ url: "https://example.cl/quote", priority: 0.7 }),
       expect.objectContaining({ url: "https://example.cl/portfolio", priority: 0.7 }),
+      expect.objectContaining({ url: "https://example.cl/tienda", priority: 0.7 }),
       expect.objectContaining({ url: "https://example.cl/servicios", priority: 0.7 }),
       expect.objectContaining({ url: "https://example.cl/contacto", priority: 0.7 }),
     ]);

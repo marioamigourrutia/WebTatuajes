@@ -3,7 +3,14 @@ import type { MetadataRoute } from "next";
 
 const LOCAL_SITE_URL = "http://localhost:3000";
 
-export const publicSiteRoutes = ["/", "/quote", "/portfolio", "/servicios", "/contacto"] as const;
+export const publicSiteRoutes = [
+  "/",
+  "/quote",
+  "/portfolio",
+  "/tienda",
+  "/servicios",
+  "/contacto",
+] as const;
 
 export function getSiteUrl(value = process.env.NEXT_PUBLIC_SITE_URL): URL {
   try {

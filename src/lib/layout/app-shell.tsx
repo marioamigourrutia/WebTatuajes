@@ -6,6 +6,7 @@ const navItems = [
   { href: "/", label: "Inicio" },
   { href: "/servicios", label: "Servicios" },
   { href: "/portfolio", label: "Portafolio" },
+  { href: "/tienda", label: "Tienda" },
   { href: "/contacto", label: "Contacto" },
   { href: "/quote", label: "Cotizar" },
 ];
@@ -54,6 +55,12 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           <p>Estudio profesional de tatuajes · Cotizaciones privadas y atención por agenda.</p>
           <div className="flex flex-wrap items-center gap-3">
             <p>Diseños personalizados, evaluación responsable y comunicación clara.</p>
+            <Link
+              className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
+              href="/tienda"
+            >
+              Obras disponibles
+            </Link>
             <Link
               className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
               href="/admin"

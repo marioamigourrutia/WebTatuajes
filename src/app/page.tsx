@@ -127,6 +127,32 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="py-10">
+        <div className="grid gap-6 rounded-3xl border border-stone-700 bg-stone-950/70 p-6 md:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
+              Obras disponibles
+            </p>
+            <h2 className="mt-3 text-3xl font-black text-stone-50">
+              Flash y piezas listas para consultar.
+            </h2>
+          </div>
+          <div className="space-y-4 text-stone-300">
+            <p className="leading-7">
+              Revisa obras disponibles y envía una solicitud breve. El sistema guarda el interés y
+              prepara un mensaje de WhatsApp; la coordinación se confirma manualmente con el
+              estudio.
+            </p>
+            <a
+              className="inline-flex rounded-full border border-amber-300/50 px-6 py-3 font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950"
+              href="/tienda"
+            >
+              Ver obras disponibles
+            </a>
+          </div>
+        </div>
+      </section>
+
       <section className="grid gap-6 py-10 md:grid-cols-[0.8fr_1.2fr]">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
