@@ -85,6 +85,17 @@ export type PublicCalendarDate = {
   status: PublicCalendarDateStatus;
 };
 
+export type AdminCalendarDateStatus =
+  | "AVAILABLE"
+  | "PENDING_CONFIRMATION"
+  | "CONFIRMED"
+  | "BLOCKED_BY_ADMIN";
+
+export type AdminCalendarDate = {
+  date: string;
+  status: AdminCalendarDateStatus;
+};
+
 export const maxPublicCalendarRangeDays = 62;
 
 export function isValidLocalCalendarDate(value: string): boolean {
@@ -129,6 +140,22 @@ export function mapCalendarStatusToPublicStatus(status: unknown): PublicCalendar
 
   if (status === "BLOCKED_BY_ADMIN") {
     return "UNAVAILABLE";
+  }
+
+  return "AVAILABLE";
+}
+
+export function mapCalendarStatusToAdminStatus(status: unknown): AdminCalendarDateStatus {
+  if (status === "PENDING_CONFIRMATION" || status === "DEPOSIT_PENDING") {
+    return "PENDING_CONFIRMATION";
+  }
+
+  if (status === "DEPOSIT_VERIFIED" || status === "CONFIRMED") {
+    return "CONFIRMED";
+  }
+
+  if (status === "BLOCKED_BY_ADMIN") {
+    return "BLOCKED_BY_ADMIN";
   }
 
   return "AVAILABLE";
@@ -225,6 +252,44 @@ export async function listPublicCalendarAvailability(
   };
 }
 
+export async function listAdminCalendarMonth(firestore: FirestoreLike, input: { month?: unknown }) {
+  const validation = validatePublicCalendarRange({ month: input.month });
+
+  if (!validation.ok) return validation;
+
+  const calendarDates = firestore.collection("calendar_dates");
+
+  if (!calendarDates.where) {
+    return { ok: false as const, status: 503, error: "Calendario no disponible." };
+  }
+
+  const snapshot = await calendarDates
+    .where("date", ">=", validation.start)
+    .where("date", "<=", validation.end)
+    .get();
+  const statusByDate = new Map<string, AdminCalendarDateStatus>();
+
+  for (const document of snapshot.docs ?? []) {
+    const data = document.data?.() ?? {};
+    const date =
+      typeof data.date === "string" && isValidLocalCalendarDate(data.date)
+        ? data.date
+        : document.id;
+
+    if (isValidLocalCalendarDate(date)) {
+      statusByDate.set(date, mapCalendarStatusToAdminStatus(data.status));
+    }
+  }
+
+  return {
+    ok: true as const,
+    dates: Array.from({ length: validation.days }, (_, index): AdminCalendarDate => {
+      const date = addUtcDays(validation.start, index);
+      return { date, status: statusByDate.get(date) ?? "AVAILABLE" };
+    }),
+  };
+}
+
 export async function blockAdminCalendarDate(
   firestore: FirestoreLike,
   localDate: unknown,
@@ -308,6 +373,45 @@ export async function unblockAdminCalendarDate(firestore: FirestoreLike, localDa
 
     return { ok: true as const, date, calendarDateStatus: "RELEASED" as const };
   });
+}
+
+export async function bulkUpdateAdminCalendarDates(
+  firestore: FirestoreLike,
+  input: { action: unknown; dates: unknown; adminUid?: unknown },
+) {
+  const action = input.action === "block" || input.action === "unblock" ? input.action : null;
+  const dates = Array.isArray(input.dates)
+    ? [...new Set(input.dates.filter((date): date is string => typeof date === "string"))].slice(
+        0,
+        31,
+      )
+    : [];
+
+  if (!action) {
+    return { ok: false as const, status: 400, error: "Acción de calendario no permitida." };
+  }
+
+  if (dates.length === 0 || dates.some((date) => !isValidLocalCalendarDate(date))) {
+    return { ok: false as const, status: 400, error: "Selecciona fechas válidas." };
+  }
+
+  const updated: string[] = [];
+  const skipped: { date: string; error: string }[] = [];
+
+  for (const date of dates) {
+    const result =
+      action === "block"
+        ? await blockAdminCalendarDate(firestore, date, input.adminUid)
+        : await unblockAdminCalendarDate(firestore, date);
+
+    if (result.ok) {
+      updated.push(result.date);
+    } else {
+      skipped.push({ date, error: result.error });
+    }
+  }
+
+  return { ok: true as const, action, updated, skipped };
 }
 
 export function getDateUnavailableError() {

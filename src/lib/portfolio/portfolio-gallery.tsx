@@ -65,16 +65,21 @@ export function PortfolioGallery({ items }: PortfolioGalleryProps) {
             key={item.id}
           >
             <div
-              className="flex h-56 items-end bg-cover bg-center p-5"
-              style={
-                item.imageUrl
-                  ? {
-                      backgroundImage: `linear-gradient(180deg, rgba(12,10,9,0.1), rgba(12,10,9,0.85)), url(${item.imageUrl})`,
-                    }
-                  : { background: item.gradient }
-              }
+              className="relative flex h-56 items-end overflow-hidden p-5"
+              style={item.imageUrl ? undefined : { background: item.gradient }}
             >
-              <div className="rounded-2xl bg-stone-950/80 px-4 py-3 backdrop-blur">
+              {item.imageUrl ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    alt={item.title}
+                    className="absolute inset-0 h-full w-full object-cover"
+                    src={item.imageUrl}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-b from-stone-950/10 to-stone-950/85" />
+                </>
+              ) : null}
+              <div className="relative z-10 rounded-2xl bg-stone-950/80 px-4 py-3 backdrop-blur">
                 <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-300">
                   {item.style}
                 </p>

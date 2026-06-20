@@ -2,19 +2,28 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 import { getServerAuthStatusFromIdToken } from "@/lib/auth/server";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
-import { blockAdminCalendarDate, unblockAdminCalendarDate } from "@/lib/calendar/reservation";
+import {
+  blockAdminCalendarDate,
+  bulkUpdateAdminCalendarDates,
+  listAdminCalendarMonth,
+  unblockAdminCalendarDate,
+} from "@/lib/calendar/reservation";
 
 vi.mock("@/lib/auth/bearer", () => ({ getBearerToken: vi.fn(() => "id-token") }));
 vi.mock("@/lib/auth/server", () => ({ getServerAuthStatusFromIdToken: vi.fn() }));
 vi.mock("@/lib/firebase/admin", () => ({ getFirebaseAdminFirestore: vi.fn() }));
 vi.mock("@/lib/calendar/reservation", () => ({
   blockAdminCalendarDate: vi.fn(),
+  bulkUpdateAdminCalendarDates: vi.fn(),
+  listAdminCalendarMonth: vi.fn(),
   unblockAdminCalendarDate: vi.fn(),
 }));
 
 const getServerAuthStatusFromIdTokenMock = vi.mocked(getServerAuthStatusFromIdToken);
 const getFirebaseAdminFirestoreMock = vi.mocked(getFirebaseAdminFirestore);
 const blockAdminCalendarDateMock = vi.mocked(blockAdminCalendarDate);
+const bulkUpdateAdminCalendarDatesMock = vi.mocked(bulkUpdateAdminCalendarDates);
+const listAdminCalendarMonthMock = vi.mocked(listAdminCalendarMonth);
 const unblockAdminCalendarDateMock = vi.mocked(unblockAdminCalendarDate);
 
 function request(body: unknown) {
@@ -43,6 +52,16 @@ describe("admin calendar route", () => {
       date: "2026-07-15",
       calendarDateStatus: "RELEASED",
     });
+    listAdminCalendarMonthMock.mockResolvedValue({
+      ok: true,
+      dates: [{ date: "2026-07-15", status: "AVAILABLE" }],
+    });
+    bulkUpdateAdminCalendarDatesMock.mockResolvedValue({
+      ok: true,
+      action: "block",
+      updated: ["2026-07-15"],
+      skipped: [],
+    });
   });
 
   it("requires server-side admin role before blocking dates", async () => {
@@ -70,5 +89,29 @@ describe("admin calendar route", () => {
 
     expect(response.status).toBe(403);
     expect(unblockAdminCalendarDateMock).not.toHaveBeenCalled();
+  });
+
+  it("lists admin month statuses without client PII", async () => {
+    const response = await POST(request({ action: "list", month: "2026-07" }));
+
+    await expect(response.json()).resolves.toEqual({
+      dates: [{ date: "2026-07-15", status: "AVAILABLE" }],
+    });
+    expect(listAdminCalendarMonthMock).toHaveBeenCalledWith(expect.anything(), {
+      month: "2026-07",
+    });
+  });
+
+  it("supports bulk blocking through the admin route", async () => {
+    const response = await POST(
+      request({ action: "bulkBlock", dates: ["2026-07-15", "2026-07-16"] }),
+    );
+
+    await expect(response.json()).resolves.toEqual({ updated: ["2026-07-15"], skipped: [] });
+    expect(bulkUpdateAdminCalendarDatesMock).toHaveBeenCalledWith(expect.anything(), {
+      action: "block",
+      dates: ["2026-07-15", "2026-07-16"],
+      adminUid: "admin-a",
+    });
   });
 });

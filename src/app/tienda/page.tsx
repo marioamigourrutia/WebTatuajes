@@ -30,7 +30,11 @@ export default function ShopPage() {
           >
             {product.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img alt="" className="h-48 w-full object-cover" src={product.imageUrl} />
+              <img
+                alt={product.title}
+                className="h-48 w-full object-cover"
+                src={product.imageUrl}
+              />
             ) : (
               <div className="flex h-48 items-center justify-center bg-[radial-gradient(circle_at_top,#78350f,#0c0a09_60%)] text-sm font-semibold uppercase tracking-[0.25em] text-amber-100/80">
                 Sin imagen

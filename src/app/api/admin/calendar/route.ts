@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { getBearerToken } from "@/lib/auth/bearer";
 import { getServerAuthStatusFromIdToken } from "@/lib/auth/server";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
-import { blockAdminCalendarDate, unblockAdminCalendarDate } from "@/lib/calendar/reservation";
+import {
+  blockAdminCalendarDate,
+  bulkUpdateAdminCalendarDates,
+  listAdminCalendarMonth,
+  unblockAdminCalendarDate,
+} from "@/lib/calendar/reservation";
 
 export async function POST(request: Request) {
   const authStatus = await getServerAuthStatusFromIdToken(getBearerToken(request));
@@ -34,6 +39,30 @@ export async function POST(request: Request) {
 
   const data = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const action = typeof data.action === "string" ? data.action : "";
+  if (action === "list") {
+    const result = await listAdminCalendarMonth(firestore, { month: data.month });
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+
+    return NextResponse.json({ dates: result.dates });
+  }
+
+  if (action === "bulkBlock" || action === "bulkUnblock") {
+    const result = await bulkUpdateAdminCalendarDates(firestore, {
+      action: action === "bulkBlock" ? "block" : "unblock",
+      dates: data.dates,
+      adminUid: authStatus.profile?.uid,
+    });
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+
+    return NextResponse.json({ updated: result.updated, skipped: result.skipped });
+  }
+
   const result =
     action === "block"
       ? await blockAdminCalendarDate(firestore, data.date, authStatus.profile?.uid)

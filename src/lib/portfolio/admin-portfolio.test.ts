@@ -77,8 +77,40 @@ describe("admin portfolio helpers", () => {
         description: "Descripción corta",
         tags: ["floral", "negro"],
         published: true,
+        externalImageUrl: null,
       },
     });
+  });
+
+  it("accepts safe external image URLs for Spark-compatible portfolio items", () => {
+    const result = validatePortfolioItemInput({
+      title: "Flor ornamental",
+      style: "Blackwork",
+      bodyArea: "Antebrazo",
+      description: "Descripción corta",
+      externalImageUrl: " https://cdn.example.test/flor.webp#private ",
+      published: "true",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { externalImageUrl: "https://cdn.example.test/flor.webp" },
+    });
+  });
+
+  it("rejects unsafe external image URLs", () => {
+    const result = validatePortfolioItemInput({
+      title: "Flor ornamental",
+      style: "Blackwork",
+      bodyArea: "Antebrazo",
+      description: "Descripción corta",
+      externalImageUrl: "javascript:alert(1)",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.externalImageUrl).toEqual(expect.any(String));
+    }
   });
 
   it("rejects missing required fields", () => {
@@ -114,6 +146,7 @@ describe("admin portfolio helpers", () => {
         description: "Descripción",
         tags: ["línea fina"],
         published: true,
+        externalImageUrl: "https://cdn.example.test/pieza.webp",
       }),
     ).toEqual({
       artist_id: "admin",
@@ -123,6 +156,7 @@ describe("admin portfolio helpers", () => {
       description: "Descripción",
       tags: ["línea fina"],
       published: true,
+      external_image_url: "https://cdn.example.test/pieza.webp",
     });
   });
 

@@ -23,4 +23,12 @@ describe("shop catalog", () => {
       hidden: "Oculto",
     });
   });
+
+  it("keeps only safe http/https external image URLs in public products", () => {
+    const products = getPublicShopProducts();
+
+    expect(
+      products.every((product) => !product.imageUrl || /^https?:\/\//.test(product.imageUrl)),
+    ).toBe(true);
+  });
 });

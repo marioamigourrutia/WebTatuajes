@@ -1,4 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
+import { validateOptionalExternalImageUrl } from "@/lib/images/external-image-url";
 import { isFirebaseAdminBackendConfigured } from "../config/firebase-admin";
 import { getFirebaseAdminFirestore, getFirebaseAdminStorageBucket } from "../firebase/admin";
 import { mapFirestorePortfolioItem, type FirestorePortfolioItem } from "./portfolio";
@@ -19,6 +20,7 @@ export type PortfolioItemInput = {
   description: string;
   tags: string[];
   published: boolean;
+  externalImageUrl: string | null;
 };
 
 export type PortfolioImageFile = {
@@ -87,6 +89,7 @@ export function validatePortfolioItemInput(input: unknown) {
   const bodyArea = cleanString(data.bodyArea);
   const description = cleanLongText(data.description);
   const tags = parseTags(data.tags);
+  const externalImageUrlValidation = validateOptionalExternalImageUrl(data.externalImageUrl);
   const errors: Record<string, string> = {};
 
   if (!title) errors.title = "Ingresa un título.";
@@ -105,6 +108,9 @@ export function validatePortfolioItemInput(input: unknown) {
   if (tags.some((tag) => tag.length > maxLengths.tag)) {
     errors.tags = "Cada etiqueta debe tener 40 caracteres o menos.";
   }
+  if (!externalImageUrlValidation.ok) {
+    errors.externalImageUrl = externalImageUrlValidation.error;
+  }
 
   if (Object.keys(errors).length > 0) {
     return { ok: false as const, errors };
@@ -119,6 +125,7 @@ export function validatePortfolioItemInput(input: unknown) {
       description,
       tags,
       published: data.published === true || data.published === "true",
+      externalImageUrl: externalImageUrlValidation.ok ? externalImageUrlValidation.value : null,
     } satisfies PortfolioItemInput,
   };
 }
@@ -170,6 +177,7 @@ export function mapPortfolioItemToFirestore(input: PortfolioItemInput) {
     description: input.description,
     tags: input.tags,
     published: input.published,
+    external_image_url: input.externalImageUrl,
   };
 }
 
@@ -189,6 +197,14 @@ export async function createPortfolioItemFromFormData(
   if (!validation.ok) return { ok: false as const, status: 400, errors: validation.errors };
   if (!imageValidation.ok)
     return { ok: false as const, status: 400, errors: imageValidation.errors };
+
+  if (validation.ok && imageValidation.value && validation.value.externalImageUrl) {
+    return {
+      ok: false as const,
+      status: 400,
+      errors: { image: "Usa una carga de archivo o una URL pública, no ambas." },
+    };
+  }
 
   if (!firestore) {
     return {

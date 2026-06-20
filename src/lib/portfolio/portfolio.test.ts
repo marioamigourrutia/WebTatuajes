@@ -136,6 +136,32 @@ describe("portfolio helpers", () => {
     expect(JSON.stringify(publicItem)).not.toContain("private-original.webp");
   });
 
+  it("uses only safe external image URLs from Firestore portfolio items", () => {
+    const safeItem = mapFirestorePortfolioItem({
+      id: "admin-item-1",
+      data: () => ({
+        title: "Dragón fine line",
+        style: "Línea fina",
+        body_area: "Brazo",
+        description: "Pieza creada desde admin.",
+        tags: ["dragón"],
+        published: true,
+        external_image_url: "https://cdn.example.test/dragon.webp#private",
+      }),
+    });
+    const unsafeItem = mapFirestorePortfolioItem({
+      id: "admin-item-2",
+      data: () => ({
+        title: "URL insegura",
+        published: true,
+        external_image_url: "javascript:alert(1)",
+      }),
+    });
+
+    expect(safeItem.imageUrl).toBe("https://cdn.example.test/dragon.webp");
+    expect(unsafeItem.imageUrl).toBeNull();
+  });
+
   it("combines static and firestore items without exposing drafts", () => {
     const baseItem = items[0] as PortfolioItem;
 

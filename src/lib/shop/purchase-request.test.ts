@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createPurchaseRequest,
+  isPurchaseRequestStatus,
   listRecentPurchaseRequests,
   mapPurchaseRequestToFirestore,
+  purchaseRequestStatusLabels,
+  updatePurchaseRequestStatus,
   validatePurchaseRequestInput,
 } from "./purchase-request";
 
@@ -102,6 +105,18 @@ describe("purchase request validation", () => {
       });
     }
   });
+
+  it("defines dynamic admin purchase statuses with Chilean Spanish labels", () => {
+    expect(isPurchaseRequestStatus("reserved")).toBe(true);
+    expect(isPurchaseRequestStatus("paid")).toBe(false);
+    expect(purchaseRequestStatusLabels).toMatchObject({
+      pending: "Pendiente",
+      contacted: "Contactado",
+      reserved: "Reservado",
+      sold: "Vendido",
+      discarded: "Descartado",
+    });
+  });
 });
 
 describe("purchase request persistence", () => {
@@ -170,4 +185,105 @@ describe("purchase request persistence", () => {
       }),
     ]);
   });
+
+  it("updates purchase request status after validating id and status", async () => {
+    const update = vi.fn();
+    const firestore = {
+      collection: vi.fn(() => ({
+        doc: vi.fn(() => ({
+          get: vi.fn().mockResolvedValue({ exists: true, data: () => ({ status: "contacted" }) }),
+          update,
+        })),
+      })),
+    };
+
+    await expect(
+      updatePurchaseRequestStatus(firestore as never, "purchase-1", "reserved"),
+    ).resolves.toMatchObject({ ok: true, purchaseRequestId: "purchase-1", status: "reserved" });
+    expect(update).toHaveBeenCalledWith({ status: "reserved", updated_at: expect.anything() });
+  });
+
+  it("rejects unsafe purchase request status transitions", async () => {
+    const firestore = { collection: vi.fn() };
+
+    await expect(
+      updatePurchaseRequestStatus(firestore as never, "purchase-1", "paid"),
+    ).resolves.toMatchObject({ ok: false, status: 400 });
+  });
+
+  it.each([
+    ["sold", "pending"],
+    ["discarded", "reserved"],
+    ["pending", "sold"],
+  ])("rejects invalid transition from %s to %s", async (currentStatus, targetStatus) => {
+    const update = vi.fn();
+    const firestore = {
+      collection: vi.fn(() => ({
+        doc: vi.fn(() => ({
+          get: vi.fn().mockResolvedValue({ exists: true, data: () => ({ status: currentStatus }) }),
+          update,
+        })),
+      })),
+    };
+
+    await expect(
+      updatePurchaseRequestStatus(firestore as never, "purchase-1", targetStatus),
+    ).resolves.toMatchObject({
+      ok: false,
+      status: 400,
+      error: "Transición de estado de compra inválida.",
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it.each(["pending", "contacted", "discarded"])(
+    "allows safe legacy initial status %s when current status is missing",
+    async (targetStatus) => {
+      const update = vi.fn();
+      const firestore = {
+        collection: vi.fn(() => ({
+          doc: vi.fn(() => ({
+            get: vi.fn().mockResolvedValue({ exists: true, data: () => ({}) }),
+            update,
+          })),
+        })),
+      };
+
+      await expect(
+        updatePurchaseRequestStatus(firestore as never, "purchase-1", targetStatus),
+      ).resolves.toMatchObject({ ok: true, status: targetStatus });
+    },
+  );
+
+  it.each([
+    [undefined, "reserved"],
+    [undefined, "sold"],
+    ["unknown", "reserved"],
+    ["unknown", "sold"],
+  ])(
+    "rejects legacy current status %s jumping directly to %s",
+    async (currentStatus, targetStatus) => {
+      const update = vi.fn();
+      const firestore = {
+        collection: vi.fn(() => ({
+          doc: vi.fn(() => ({
+            get: vi.fn().mockResolvedValue({
+              exists: true,
+              data: () => (currentStatus === undefined ? {} : { status: currentStatus }),
+            }),
+            update,
+          })),
+        })),
+      };
+
+      await expect(
+        updatePurchaseRequestStatus(firestore as never, "purchase-1", targetStatus),
+      ).resolves.toMatchObject({
+        ok: false,
+        status: 400,
+        error: "Transición de estado de compra inválida.",
+      });
+      expect(update).not.toHaveBeenCalled();
+    },
+  );
 });

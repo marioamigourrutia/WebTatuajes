@@ -6,6 +6,10 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { AdminPortfolioPanel } from "@/lib/portfolio/admin-portfolio-panel";
 import { buildQuoteMailtoUrl, buildQuoteWhatsAppUrl } from "@/lib/quotes/contact-links";
 import { formatClpPrice } from "@/lib/shop/catalog";
+import {
+  purchaseRequestStatusLabels,
+  purchaseRequestStatuses,
+} from "@/lib/shop/purchase-request-status";
 
 type AdminStatusResponse = {
   authenticated: boolean;
@@ -69,6 +73,17 @@ type RecentPurchaseRequest = {
   whatsappUrl: string | null;
 };
 
+type AdminCalendarDateStatus =
+  | "AVAILABLE"
+  | "PENDING_CONFIRMATION"
+  | "CONFIRMED"
+  | "BLOCKED_BY_ADMIN";
+
+type AdminCalendarDate = {
+  date: string;
+  status: AdminCalendarDateStatus;
+};
+
 type DepositDraft = {
   amountClp: string;
   method: string;
@@ -122,6 +137,28 @@ function formatCalendarDateStatus(value: string | null) {
   return value ? (labels[value] ?? value) : "sin bloqueo de calendario";
 }
 
+const adminCalendarStatusLabels: Record<AdminCalendarDateStatus, string> = {
+  AVAILABLE: "Disponible",
+  PENDING_CONFIRMATION: "Pendiente",
+  CONFIRMED: "Confirmada",
+  BLOCKED_BY_ADMIN: "Bloqueada por admin",
+};
+
+const adminCalendarStatusClasses: Record<AdminCalendarDateStatus, string> = {
+  AVAILABLE: "border-emerald-400/40 bg-emerald-400/10 text-emerald-100",
+  PENDING_CONFIRMATION: "border-amber-300/50 bg-amber-300/10 text-amber-100",
+  CONFIRMED: "border-sky-300/50 bg-sky-300/10 text-sky-100",
+  BLOCKED_BY_ADMIN: "border-red-300/50 bg-red-300/10 text-red-100",
+};
+
+function getCurrentLocalMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function formatCalendarDay(date: string) {
+  return String(Number(date.slice(8, 10)));
+}
+
 function getEmptyDepositDraft(): DepositDraft {
   return { amountClp: "", method: "transferencia", paidAt: "", reference: "", internalNote: "" };
 }
@@ -162,7 +199,11 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
   const [savingNoteQuoteId, setSavingNoteQuoteId] = useState<string | null>(null);
   const [savingDepositQuoteId, setSavingDepositQuoteId] = useState<string | null>(null);
   const [calendarDateDraft, setCalendarDateDraft] = useState("");
+  const [calendarMonth, setCalendarMonth] = useState(getCurrentLocalMonth());
+  const [calendarDates, setCalendarDates] = useState<AdminCalendarDate[]>([]);
+  const [selectedCalendarDates, setSelectedCalendarDates] = useState<string[]>([]);
   const [updatingCalendarDate, setUpdatingCalendarDate] = useState(false);
+  const [updatingPurchaseRequestId, setUpdatingPurchaseRequestId] = useState<string | null>(null);
   const [confirmingReservationQuoteId, setConfirmingReservationQuoteId] = useState<string | null>(
     null,
   );
@@ -507,6 +548,132 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
     }
   }
 
+  async function updatePurchaseRequestStatus(request: RecentPurchaseRequest, status: string) {
+    if (!user) {
+      setError("Inicia sesión antes de cambiar el estado de compra.");
+      return;
+    }
+
+    setUpdatingPurchaseRequestId(request.id);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/admin/purchase-requests/status", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ purchaseRequestId: request.id, status }),
+      });
+      const body = (await response.json()) as { error?: string; status?: string };
+
+      if (!response.ok || !body.status) {
+        setError(body.error ?? "No se pudo actualizar el estado de compra.");
+        return;
+      }
+
+      setPurchaseRequests((currentRequests) =>
+        currentRequests.map((currentRequest) =>
+          currentRequest.id === request.id
+            ? { ...currentRequest, status: body.status ?? currentRequest.status }
+            : currentRequest,
+        ),
+      );
+      setNotice("Estado de compra actualizado desde ruta server-side con rol admin validado.");
+    } catch {
+      setError("No se pudo conectar con la ruta server-side de compras.");
+    } finally {
+      setUpdatingPurchaseRequestId(null);
+    }
+  }
+
+  async function loadAdminCalendarMonth(month = calendarMonth) {
+    if (!user) return;
+
+    setUpdatingCalendarDate(true);
+    setError(null);
+
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/admin/calendar", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "list", month }),
+      });
+      const body = (await response.json()) as { dates?: AdminCalendarDate[]; error?: string };
+
+      if (!response.ok) {
+        setError(body.error ?? "No se pudo cargar el calendario admin.");
+        setCalendarDates([]);
+        return;
+      }
+
+      setCalendarDates(body.dates ?? []);
+      setSelectedCalendarDates([]);
+    } catch {
+      setError("No se pudo conectar con la ruta server-side de calendario.");
+      setCalendarDates([]);
+    } finally {
+      setUpdatingCalendarDate(false);
+    }
+  }
+
+  function toggleSelectedCalendarDate(date: string) {
+    setSelectedCalendarDates((currentDates) =>
+      currentDates.includes(date)
+        ? currentDates.filter((currentDate) => currentDate !== date)
+        : [...currentDates, date].sort(),
+    );
+  }
+
+  async function bulkUpdateAdminCalendarDates(action: "bulkBlock" | "bulkUnblock") {
+    if (!user) {
+      setError("Inicia sesión antes de modificar el calendario.");
+      return;
+    }
+
+    setUpdatingCalendarDate(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/admin/calendar", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action, dates: selectedCalendarDates }),
+      });
+      const body = (await response.json()) as {
+        error?: string;
+        updated?: string[];
+        skipped?: { date: string; error: string }[];
+      };
+
+      if (!response.ok) {
+        setError(body.error ?? "No se pudo actualizar el calendario.");
+        return;
+      }
+
+      setNotice(
+        `${body.updated?.length ?? 0} fecha(s) actualizada(s). ${body.skipped?.length ?? 0} fecha(s) protegida(s) no se modificaron.`,
+      );
+      await loadAdminCalendarMonth(calendarMonth);
+    } catch {
+      setError("No se pudo conectar con la ruta server-side de calendario.");
+    } finally {
+      setUpdatingCalendarDate(false);
+    }
+  }
+
   async function updateAdminCalendarDate(action: "block" | "unblock") {
     if (!user) {
       setError("Inicia sesión antes de modificar el calendario.");
@@ -543,6 +710,7 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
           ? `Fecha ${body.date} marcada como no disponible.`
           : `Fecha ${body.date} liberada si estaba bloqueada manualmente.`,
       );
+      await loadAdminCalendarMonth(calendarMonth);
     } catch {
       setError("No se pudo conectar con la ruta server-side de calendario.");
     } finally {
@@ -633,7 +801,12 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
                       </div>
                       <div className="text-sm text-stone-400 sm:text-right">
                         <p>{formatDate(request.createdAt)}</p>
-                        <p>Estado: {request.status}</p>
+                        <p>
+                          Estado:{" "}
+                          {purchaseRequestStatusLabels[
+                            request.status as keyof typeof purchaseRequestStatusLabels
+                          ] ?? request.status}
+                        </p>
                       </div>
                     </div>
                     <div className="mt-3 text-sm text-stone-300">
@@ -656,6 +829,28 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
                         Abrir WhatsApp
                       </a>
                     ) : null}
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <label className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                        Estado de compra
+                      </label>
+                      <select
+                        className="rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={updatingPurchaseRequestId === request.id}
+                        onChange={(event) =>
+                          updatePurchaseRequestStatus(request, event.target.value)
+                        }
+                        value={request.status}
+                      >
+                        {purchaseRequestStatuses.map((statusOption) => (
+                          <option key={statusOption} value={statusOption}>
+                            {purchaseRequestStatusLabels[statusOption]}
+                          </option>
+                        ))}
+                      </select>
+                      {updatingPurchaseRequestId === request.id ? (
+                        <span className="text-sm text-stone-400">Actualizando…</span>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -694,6 +889,91 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
               >
                 Liberar bloqueo admin
               </button>
+            </div>
+            <div className="space-y-3 rounded-2xl border border-stone-800 bg-stone-950/70 p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <label className="grid gap-1 text-sm font-semibold text-stone-200">
+                  Mes del calendario
+                  <input
+                    className="rounded-xl border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={updatingCalendarDate}
+                    onChange={(event) => setCalendarMonth(event.target.value)}
+                    type="month"
+                    value={calendarMonth}
+                  />
+                </label>
+                <button
+                  className="rounded-full border border-stone-500 px-4 py-2 text-sm font-semibold text-stone-100 transition hover:bg-stone-100 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={!calendarMonth || updatingCalendarDate}
+                  onClick={() => loadAdminCalendarMonth(calendarMonth)}
+                  type="button"
+                >
+                  {updatingCalendarDate ? "Cargando…" : "Cargar mes"}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs text-stone-300">
+                {Object.entries(adminCalendarStatusLabels).map(([statusKey, label]) => (
+                  <span
+                    className={`rounded-full border px-3 py-1 ${adminCalendarStatusClasses[statusKey as AdminCalendarDateStatus]}`}
+                    key={statusKey}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+              {calendarDates.length > 0 ? (
+                <div className="grid grid-cols-7 gap-2">
+                  {calendarDates.map((calendarDate) => {
+                    const selected = selectedCalendarDates.includes(calendarDate.date);
+
+                    return (
+                      <button
+                        className={`min-h-20 rounded-2xl border p-2 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-60 ${adminCalendarStatusClasses[calendarDate.status]} ${selected ? "ring-2 ring-amber-200" : ""}`}
+                        disabled={updatingCalendarDate}
+                        key={calendarDate.date}
+                        onClick={() => toggleSelectedCalendarDate(calendarDate.date)}
+                        type="button"
+                      >
+                        <span className="block text-lg font-black">
+                          {formatCalendarDay(calendarDate.date)}
+                        </span>
+                        <span className="mt-1 block leading-4">
+                          {adminCalendarStatusLabels[calendarDate.status]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="rounded-xl border border-stone-800 p-3 text-sm text-stone-400">
+                  Carga un mes para seleccionar varias fechas y bloquearlas o liberarlas en lote.
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-stone-400">
+                  {selectedCalendarDates.length} fecha(s) seleccionada(s)
+                </span>
+                <button
+                  className="rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={selectedCalendarDates.length === 0 || updatingCalendarDate}
+                  onClick={() => bulkUpdateAdminCalendarDates("bulkBlock")}
+                  type="button"
+                >
+                  Bloquear selección
+                </button>
+                <button
+                  className="rounded-full border border-stone-500 px-4 py-2 text-sm font-semibold text-stone-100 transition hover:bg-stone-100 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={selectedCalendarDates.length === 0 || updatingCalendarDate}
+                  onClick={() => bulkUpdateAdminCalendarDates("bulkUnblock")}
+                  type="button"
+                >
+                  Liberar bloqueos seleccionados
+                </button>
+              </div>
+              <p className="text-xs leading-5 text-stone-500">
+                La vista no muestra datos personales. Las fechas pendientes o confirmadas por
+                cotización quedan protegidas y no se sobrescriben con bloqueos manuales.
+              </p>
             </div>
           </section>
 

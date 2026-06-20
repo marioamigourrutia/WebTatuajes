@@ -292,6 +292,20 @@ export function AdminPortfolioPanel({ enabled }: { enabled: boolean }) {
             type="file"
           />
         </label>
+        <label className="grid gap-1 text-sm font-semibold text-stone-200">
+          URL pública de imagen opcional
+          <input
+            className="rounded-xl border border-stone-700 bg-stone-900 px-3 py-2 text-stone-100"
+            inputMode="url"
+            name="externalImageUrl"
+            placeholder="https://..."
+            type="url"
+          />
+          <span className="text-xs font-normal leading-5 text-stone-400">
+            En plan Spark usa una URL pública de obra o referencia artística. No pegues fotos
+            privadas del cuerpo ni enlaces con acceso restringido.
+          </span>
+        </label>
         <label className="flex items-center gap-2 text-sm text-stone-200">
           <input className="h-4 w-4" name="published" type="checkbox" />
           Publicar en `/portfolio`

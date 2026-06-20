@@ -2,8 +2,15 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import { appConfig } from "@/lib/config/app";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
+import { isPurchaseRequestStatus, type PurchaseRequestStatus } from "./purchase-request-status";
 import { buildPurchaseWhatsAppUrl } from "./contact-links";
 import { getPurchasableProductById, type ShopProduct } from "./catalog";
+export {
+  isPurchaseRequestStatus,
+  purchaseRequestStatusLabels,
+  purchaseRequestStatuses,
+  type PurchaseRequestStatus,
+} from "./purchase-request-status";
 
 export type PurchaseRequestInput = {
   productId: string;
@@ -39,6 +46,23 @@ const maxLengths = {
 const phoneAllowedCharactersPattern = /^[\d\s+()-]+$/;
 const phoneDigitRange = { min: 8, max: 15 };
 
+const purchaseRequestStatusTransitions: Record<
+  PurchaseRequestStatus,
+  readonly PurchaseRequestStatus[]
+> = {
+  pending: ["contacted", "discarded"],
+  contacted: ["reserved", "discarded"],
+  reserved: ["sold", "contacted", "discarded"],
+  sold: [],
+  discarded: [],
+};
+
+const safeLegacyInitialPurchaseRequestStatuses: readonly PurchaseRequestStatus[] = [
+  "pending",
+  "contacted",
+  "discarded",
+];
+
 function cleanString(value: unknown): string {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
 }
@@ -59,6 +83,18 @@ function isValidPurchasePhone(value: string): boolean {
     digitCount >= phoneDigitRange.min &&
     digitCount <= phoneDigitRange.max
   );
+}
+
+function canUpdatePurchaseRequestStatus(
+  currentStatus: unknown,
+  targetStatus: PurchaseRequestStatus,
+): boolean {
+  if (!isPurchaseRequestStatus(currentStatus)) {
+    // Legacy records may have a missing/unknown status. Only allow safe non-sale bootstrap states.
+    return safeLegacyInitialPurchaseRequestStatuses.includes(targetStatus);
+  }
+
+  return purchaseRequestStatusTransitions[currentStatus].includes(targetStatus);
 }
 
 function serializeCreatedAt(value: unknown): string | null {
@@ -227,7 +263,10 @@ export async function listRecentPurchaseRequests(firestore: FirestoreLike, limit
       productCode,
       productTitle,
       priceClp,
-      status: cleanString(data.status) || "pending",
+      status: (() => {
+        const status = cleanString(data.status);
+        return isPurchaseRequestStatus(status) ? status : "pending";
+      })(),
       whatsappUrl: buildPurchaseWhatsAppUrl({
         studioPhone: appConfig.whatsappPhone,
         requestCode: purchaseCode,
@@ -238,4 +277,41 @@ export async function listRecentPurchaseRequests(firestore: FirestoreLike, limit
       }),
     };
   });
+}
+
+export async function updatePurchaseRequestStatus(
+  firestore: FirestoreLike,
+  purchaseRequestId: unknown,
+  status: unknown,
+) {
+  const cleanPurchaseRequestId = cleanString(purchaseRequestId);
+
+  if (!/^[A-Za-z0-9_-]{6,160}$/.test(cleanPurchaseRequestId)) {
+    return { ok: false as const, status: 400, error: "ID de solicitud de compra inválido." };
+  }
+
+  if (!isPurchaseRequestStatus(status)) {
+    return { ok: false as const, status: 400, error: "Estado de compra inválido." };
+  }
+
+  const reference = firestore.collection("purchase_requests").doc(cleanPurchaseRequestId);
+  const snapshot = await reference.get?.();
+
+  if (!snapshot?.exists) {
+    return { ok: false as const, status: 404, error: "La solicitud de compra no existe." };
+  }
+
+  const currentStatus = snapshot.data?.()?.status;
+
+  if (!canUpdatePurchaseRequestStatus(currentStatus, status)) {
+    return {
+      ok: false as const,
+      status: 400,
+      error: "Transición de estado de compra inválida.",
+    };
+  }
+
+  await reference.update?.({ status, updated_at: FieldValue.serverTimestamp() });
+
+  return { ok: true as const, purchaseRequestId: cleanPurchaseRequestId, status };
 }

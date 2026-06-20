@@ -1,3 +1,5 @@
+import { sanitizeExternalImageUrl } from "@/lib/images/external-image-url";
+
 export const productStatuses = ["available", "reserved", "sold", "hidden"] as const;
 
 export type ProductStatus = (typeof productStatuses)[number];
@@ -58,7 +60,12 @@ export const shopProducts: readonly ShopProduct[] = [
 ];
 
 export function getPublicShopProducts() {
-  return shopProducts.filter((product) => product.status !== "hidden");
+  return shopProducts
+    .filter((product) => product.status !== "hidden")
+    .map((product) => ({
+      ...product,
+      imageUrl: sanitizeExternalImageUrl(product.imageUrl) ?? undefined,
+    }));
 }
 
 export function getPurchasableProductById(productId: string) {
