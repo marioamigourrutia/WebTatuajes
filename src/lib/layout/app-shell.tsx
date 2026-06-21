@@ -24,7 +24,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300"
             href="/"
           >
-            WebTatuajes
+            {appConfig.studioName}
           </Link>
           <nav aria-label="Navegación principal" className="flex flex-wrap items-center gap-3">
             {navItems.map((item) => (
@@ -52,7 +52,10 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       {children}
       <footer className="border-t border-stone-800/80 bg-stone-950/70">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6 py-5 text-sm text-stone-400 sm:px-10 md:flex-row md:items-center md:justify-between">
-          <p>Estudio profesional de tatuajes · Cotizaciones privadas y atención por agenda.</p>
+          <p>
+            {appConfig.studioName} · {appConfig.artistName} · Cotizaciones privadas y atención por
+            agenda.
+          </p>
           <div className="flex flex-wrap items-center gap-3">
             <p>Diseños personalizados, evaluación responsable y comunicación clara.</p>
             <Link
