@@ -195,6 +195,7 @@ export function mapFirestorePortfolioItem(document: {
 }): FirestorePortfolioItem {
   const data = document.data();
   const imagePath = cleanString(data.image_path) || null;
+  const providerImageUrl = sanitizeExternalImageUrl(data.image_url);
   const externalImageUrl = sanitizeExternalImageUrl(data.external_image_url);
 
   return {
@@ -207,7 +208,8 @@ export function mapFirestorePortfolioItem(document: {
     published: data.published === true,
     featured: false,
     gradient: fallbackGradient,
-    imageUrl: portfolioImageUrl(document.id, imagePath ?? "") ?? externalImageUrl,
+    imageUrl:
+      providerImageUrl ?? portfolioImageUrl(document.id, imagePath ?? "") ?? externalImageUrl,
     imagePath,
     imageMimeType: cleanString(data.image_mime_type) || null,
     imageSizeBytes: typeof data.image_size_bytes === "number" ? data.image_size_bytes : null,

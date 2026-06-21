@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { activeCalendarDateStatuses, calendarDateStatuses } from "../calendar/reservation";
 import {
   clientQuoteStatusLookupError,
@@ -39,6 +39,43 @@ const validInput = {
   privacyTermsConsent: "on",
   marketingOptIn: "on",
 };
+
+const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+function createPngFile(name: string) {
+  return new File([pngBytes], name, { type: "image/png" });
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  delete process.env.IMAGE_UPLOAD_PROVIDER;
+  delete process.env.CLOUDINARY_CLOUD_NAME;
+  delete process.env.CLOUDINARY_API_KEY;
+  delete process.env.CLOUDINARY_API_SECRET;
+});
+
+function enableMockCloudinaryUpload() {
+  process.env.IMAGE_UPLOAD_PROVIDER = "cloudinary";
+  process.env.CLOUDINARY_CLOUD_NAME = "demo";
+  process.env.CLOUDINARY_API_KEY = "key";
+  process.env.CLOUDINARY_API_SECRET = "secret";
+  let index = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      index += 1;
+      return {
+        ok: true,
+        json: async () => ({
+          public_id: `webtatuajes/quote-references/ref-${index}`,
+          secure_url: `https://res.cloudinary.com/demo/image/upload/ref-${index}.png`,
+          width: 800,
+          height: 600,
+        }),
+      };
+    }),
+  );
+}
 
 function mockQuotesCollection(add = vi.fn().mockResolvedValue({ id: "quote-123" })) {
   return {
@@ -280,7 +317,7 @@ describe("quote request validation", () => {
   });
 
   it("validates optional reference image constraints", () => {
-    const validFile = new File(["image"], "reference.png", { type: "image/png" });
+    const validFile = createPngFile("reference.png");
     const invalidFile = new File(["text"], "reference.txt", { type: "text/plain" });
     const oversizedFile = new File(
       [new Uint8Array(referenceImageConstraints.maxSizeBytes + 1)],
@@ -643,6 +680,7 @@ describe("quote request firestore helpers", () => {
   });
 
   it("uploads reference images and writes image metadata server-side", async () => {
+    enableMockCloudinaryUpload();
     const addQuote = vi.fn().mockResolvedValue({ id: "quote-123", delete: vi.fn() });
     const addImage = vi.fn().mockResolvedValue({ id: "image-123" });
     const quoteReference = { id: "quote-123", delete: vi.fn() };
@@ -659,9 +697,7 @@ describe("quote request firestore helpers", () => {
       if (name === "quote_images") return { add: addImage };
       throw new Error(`Unexpected collection ${name}`);
     });
-    const save = vi.fn().mockResolvedValue(undefined);
-    const file = vi.fn().mockReturnValue({ save, delete: vi.fn() });
-    const imageFile = new File(["image"], "flower.png", { type: "image/png" });
+    const imageFile = createPngFile("flower.png");
 
     await expect(
       createQuoteRequestWithReferenceImages(
@@ -675,22 +711,17 @@ describe("quote request firestore helpers", () => {
           },
         ],
         { collection, runTransaction } as never,
-        { file } as never,
       ),
     ).resolves.toMatchObject({ ok: true, id: "quote-123", quoteCode: expect.any(String) });
 
-    expect(file).toHaveBeenCalledWith(
-      expect.stringMatching(/^quote-images\/anonymous\/quote-123\//),
-    );
-    expect(save).toHaveBeenCalledWith(
-      expect.any(Buffer),
-      expect.objectContaining({ contentType: "image/png" }),
-    );
     expect(addImage).toHaveBeenCalledWith(
       expect.objectContaining({
         customer_id: "anonymous",
         quote_id: "quote-123",
-        original_filename: "flower.png",
+        provider: "cloudinary",
+        provider_id: "webtatuajes/quote-references/ref-1",
+        secure_url: "https://res.cloudinary.com/demo/image/upload/ref-1.png",
+        original_filename: "Referencia 1",
         mime_type: "image/png",
         size_bytes: imageFile.size,
       }),
@@ -698,6 +729,7 @@ describe("quote request firestore helpers", () => {
   });
 
   it("cleans up uploaded files, image metadata, and quote when an image operation fails", async () => {
+    enableMockCloudinaryUpload();
     const deleteQuote = vi.fn().mockResolvedValue(undefined);
     const addQuote = vi.fn().mockResolvedValue({ id: "quote-123", delete: deleteQuote });
     const doc = vi.fn((id?: string) => ({ id: id ?? "quote-123", delete: deleteQuote }));
@@ -722,10 +754,7 @@ describe("quote request firestore helpers", () => {
       if (name === "quote_images") return { add: addImage };
       throw new Error(`Unexpected collection ${name}`);
     });
-    const deleteFile = vi.fn().mockResolvedValue(undefined);
-    const save = vi.fn().mockResolvedValue(undefined);
-    const file = vi.fn().mockReturnValue({ save, delete: deleteFile });
-    const imageFile = new File(["image"], "flower.png", { type: "image/png" });
+    const imageFile = createPngFile("flower.png");
 
     await expect(
       createQuoteRequestWithReferenceImages(
@@ -745,11 +774,9 @@ describe("quote request firestore helpers", () => {
           },
         ],
         { collection, runTransaction } as never,
-        { file } as never,
       ),
     ).rejects.toThrow("metadata failed");
 
-    expect(deleteFile).toHaveBeenCalledTimes(2);
     expect(deleteImage).toHaveBeenCalledTimes(1);
     expect(deleteQuote).toHaveBeenCalledTimes(1);
   });
@@ -773,7 +800,7 @@ describe("quote request firestore helpers", () => {
   it("rejects uploaded files when quote file uploads are disabled", async () => {
     const formData = new FormData();
     Object.entries(validInput).forEach(([key, value]) => formData.set(key, String(value)));
-    formData.append("referenceImages", new File(["image"], "reference.png", { type: "image/png" }));
+    formData.append("referenceImages", createPngFile("reference.png"));
     const collection = vi.fn();
     const file = vi.fn();
 
@@ -781,10 +808,10 @@ describe("quote request firestore helpers", () => {
       createQuoteRequestFromFormData(formData, { collection } as never, { file } as never, false),
     ).resolves.toEqual({
       ok: false,
-      status: 400,
+      status: 503,
       errors: {
         referenceImages:
-          "La carga de imágenes no está disponible en este entorno. Agrega enlaces de referencia o envía imágenes por WhatsApp/Instagram después de enviar la cotización.",
+          "La carga de imágenes requiere configurar un proveedor externo de imágenes. Agrega enlaces de referencia o coordina el envío por WhatsApp mientras se configura.",
       },
     });
     expect(collection).not.toHaveBeenCalled();

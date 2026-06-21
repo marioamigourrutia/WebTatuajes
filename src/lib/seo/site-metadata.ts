@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { MetadataRoute } from "next";
+import { appConfig } from "@/lib/config/app";
 
 const LOCAL_SITE_URL = "http://localhost:3000";
 
@@ -21,9 +22,8 @@ export function getSiteUrl(value = process.env.NEXT_PUBLIC_SITE_URL): URL {
 }
 
 export const siteMetadata = {
-  title: "WebTatuajes",
-  description:
-    "Estudio profesional de tatuajes en Chile: portafolio, servicios, cuidados y cotizaciones privadas para proyectos personalizados.",
+  title: appConfig.studioName,
+  description: `${appConfig.studioName}, estudio de tatuajes de ${appConfig.artistName} en Chile: portafolio, servicios, cuidados y cotizaciones privadas para proyectos personalizados.`,
   locale: "es_CL",
 } as const;
 

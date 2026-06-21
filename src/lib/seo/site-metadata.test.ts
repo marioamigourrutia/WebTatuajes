@@ -40,8 +40,8 @@ describe("site metadata", () => {
 
     expect(metadata.metadataBase?.toString()).toBe("https://example.cl/");
     expect(metadata.title).toEqual({
-      default: "WebTatuajes — Estudio profesional de tatuajes",
-      template: "%s — WebTatuajes",
+      default: "HuespedTattooStudio — Estudio profesional de tatuajes",
+      template: "%s — HuespedTattooStudio",
     });
     expect(metadata.openGraph).toEqual(
       expect.objectContaining({ locale: "es_CL", type: "website", url: "/" }),

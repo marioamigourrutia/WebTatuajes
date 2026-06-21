@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { AdminStatusPanel } from "@/lib/auth/admin-status-panel";
 import { isFirebaseAdminBackendConfigured } from "@/lib/config/firebase-admin";
+import { isExternalImageUploadConfigured } from "@/lib/images/upload-provider";
 
 const adminSessionCookieName = "webtatuajes_admin_session";
 
@@ -40,7 +41,10 @@ export default async function AdminPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col px-6 py-10">
-      <AdminStatusPanel initialStatus={initialStatus} />
+      <AdminStatusPanel
+        imageUploadsEnabled={isExternalImageUploadConfigured()}
+        initialStatus={initialStatus}
+      />
     </main>
   );
 }

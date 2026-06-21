@@ -7,7 +7,6 @@ type QuoteFormErrors = Record<string, string>;
 const fieldClass =
   "mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-3 py-2 text-stone-100";
 const labelClass = "text-xs font-semibold uppercase tracking-[0.2em] text-stone-400";
-const quoteFileUploadsEnabled = process.env.NEXT_PUBLIC_QUOTE_FILE_UPLOADS_ENABLED === "true";
 const maxReferenceImageCount = 3;
 const maxReferenceImageSizeBytes = 5 * 1024 * 1024;
 const unavailablePublicStatuses = new Set(["PENDING_CONFIRMATION", "RESERVED", "UNAVAILABLE"]);
@@ -162,7 +161,7 @@ function PreferredDateCalendar({ error }: { error?: string }) {
   );
 }
 
-export function QuoteRequestForm() {
+export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEnabled?: boolean }) {
   const [errors, setErrors] = useState<QuoteFormErrors>({});
   const [createdQuoteCode, setCreatedQuoteCode] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -199,7 +198,7 @@ export function QuoteRequestForm() {
     setCreatedQuoteCode(null);
 
     const formData = new FormData(form);
-    const imageErrors = quoteFileUploadsEnabled
+    const imageErrors = fileUploadsEnabled
       ? validateReferenceImages(
           form.querySelector<HTMLInputElement>('input[name="referenceImages"]')?.files ?? null,
         )
@@ -340,7 +339,7 @@ export function QuoteRequestForm() {
           ))}
       </label>
 
-      {quoteFileUploadsEnabled ? (
+      {fileUploadsEnabled ? (
         <label className="block">
           <span className={labelClass}>Imágenes de referencia opcionales</span>
           <input
@@ -351,7 +350,9 @@ export function QuoteRequestForm() {
             type="file"
           />
           <span className="mt-1 block text-xs text-stone-500">
-            Hasta 3 imágenes JPG, PNG, WEBP o GIF. Máximo 5 MB cada una.
+            Hasta 3 imágenes JPG, PNG, WEBP o GIF para referencias no sensibles o inspiración.
+            Máximo 5 MB cada una. Si necesitas compartir fotos corporales sensibles, envíalas más
+            adelante por el canal privado acordado hasta que habilitemos almacenamiento privado.
           </span>
           {errors.referenceImages ? (
             <span className="text-sm text-red-300">{errors.referenceImages}</span>
@@ -366,9 +367,9 @@ export function QuoteRequestForm() {
         </label>
       ) : (
         <div className="rounded-2xl border border-amber-300/30 bg-amber-950/20 p-4 text-sm leading-6 text-amber-100">
-          La carga directa de imágenes no está disponible por ahora. Puedes agregar enlaces públicos
-          de inspiración y coordinar el envío de referencias privadas directamente con el estudio
-          después de enviar la cotización.
+          La carga directa de imágenes requiere un proveedor externo configurado. Puedes agregar
+          enlaces públicos de inspiración o coordinar el envío de referencias privadas directamente
+          con HuespedTattooStudio después de enviar la cotización.
         </div>
       )}
 
@@ -387,8 +388,10 @@ export function QuoteRequestForm() {
         <label className="flex gap-3 text-sm leading-6 text-stone-300">
           <input className="mt-1" name="imageHandlingConsent" required type="checkbox" />
           <span>
-            Entiendo que las imágenes o enlaces enviados son voluntarios y se manejarán de forma
-            privada para evaluar la cotización.
+            Entiendo que las imágenes o enlaces enviados son voluntarios, deben ser referencias no
+            sensibles o de inspiración, y pueden quedar disponibles mediante un enlace externo no
+            listado. Para fotos corporales sensibles, las enviaré después por el canal privado
+            acordado.
           </span>
         </label>
         {errors.imageHandlingConsent ? (

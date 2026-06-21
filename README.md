@@ -6,7 +6,7 @@ Plataforma web profesional para un estudio de tatuajes en Chile. La aplicación 
 
 - Fase 1: documentación base creada en `docs/`.
 - Fase 2: base técnica inicial creada y verificada con linting, TypeScript estricto, Vitest y build.
-- Firebase es la dirección backend oficial: Auth, Firestore, Storage, Admin SDK server-only y Security Rules.
+- Firebase es la dirección backend oficial para Auth, Firestore, Admin SDK server-only y Security Rules. Las cargas nuevas de imágenes no usan Firebase Storage en modo Spark: se preparan para un proveedor externo como Cloudinary.
 - Cualquier requisito previo de Supabase/PostgreSQL/RLS debe traducirse a equivalentes Firebase; no reintroducir Supabase salvo decisión explícita nueva.
 - Hay un flujo local mínimo con Firebase Auth Emulator para login/logout, seed controlado de admin local y validación server-side de rol en `/admin`.
 - Hay un primer flujo de negocio local: formulario público de cotización en `/quote`, escritura server-side con Firebase Admin SDK, dashboard admin validado en servidor, cambio de estado, detalle completo, enlaces de contacto y nota interna de solicitudes.
@@ -14,7 +14,7 @@ Plataforma web profesional para un estudio de tatuajes en Chile. La aplicación 
 - Hay una página pública estática en `/servicios` con servicios, expectativas de reserva, higiene, cuidados posteriores, FAQ y CTA hacia cotización.
 - Hay una página pública estática en `/contacto` con contacto, ubicación por reserva, higiene, soporte posterior y CTA hacia cotización.
 - Hay metadata base, `robots.txt` y `sitemap.xml` para descubrimiento público inicial en Vercel; incluye `/`, `/quote`, `/portfolio`, `/servicios` y `/contacto`.
-- El flujo de cotización soporta modo Firebase Spark sin Storage para producción/preview: las imágenes directas quedan desactivadas por defecto y se usan enlaces de referencia seguros.
+- El flujo de cotización y el portafolio admin soportan modo Firebase Spark sin Storage: si no hay proveedor externo de imágenes configurado, se usan enlaces de referencia/URL pública; si se configura Cloudinary, el servidor sube imágenes y guarda solo metadata más URL segura.
 
 ## Requisitos
 
@@ -85,15 +85,15 @@ npm run dev:local
 
 6. Abre `http://localhost:3000/portfolio` para revisar la galería pública MVP y sus filtros. Desde una pieza, usa **Cotizar una idea similar** para ir al flujo de cotización.
 
-7. Abre `http://localhost:3000/quote`, carga una solicitud de cotización y agrega enlaces de referencia si corresponde. En modo Spark (`NEXT_PUBLIC_QUOTE_FILE_UPLOADS_ENABLED=false`) no se muestran cargas de imagen; si habilitas Storage local con `NEXT_PUBLIC_QUOTE_FILE_UPLOADS_ENABLED=true`, puedes adjuntar hasta 3 imágenes JPG/PNG/WEBP/GIF de máximo 5 MB cada una. Envíala. El resultado esperado es un mensaje de éxito con el ID local de la solicitud.
+7. Abre `http://localhost:3000/quote`, carga una solicitud de cotización y agrega enlaces de referencia si corresponde. En modo Spark sin proveedor externo no se muestran cargas de imagen; si configuras `IMAGE_UPLOAD_PROVIDER=cloudinary` con credenciales server-only, puedes adjuntar hasta 3 imágenes JPG/PNG/WEBP/GIF de máximo 5 MB cada una. Envíala. El resultado esperado es un mensaje de éxito con el ID local de la solicitud.
 
 8. Abre `http://localhost:3000/admin`, inicia sesión con esas credenciales y presiona **Validar rol en servidor**. El login crea una cookie httpOnly de sesión admin solo después de validar el ID token y el rol `admin` en servidor. El resultado esperado es `Autenticado: sí`, `Admin server-side: sí`, `Rol servidor: admin`, el formulario de portafolio admin y la solicitud reciente en la lista admin.
 
 Si el login muestra que no se pudo iniciar sesión con credenciales locales, normalmente falta uno de estos pasos: emuladores activos en Terminal A o `npm run admin:seed-local` ejecutado después de levantar emuladores. Estas credenciales no existen en producción.
 
-9. En **Portafolio administrable**, crea un ítem con título, estilo, zona del cuerpo, descripción corta, etiquetas separadas por coma y, opcionalmente, una imagen JPG/PNG/WEBP/GIF de máximo 5 MB. Marca **Publicar en `/portfolio`** si quieres verlo públicamente. El resultado esperado es `Ítem de portafolio creado desde ruta server-side con rol admin validado.` y el ítem en **Ítems recientes**.
+9. En **Portafolio administrable**, crea un ítem con título, estilo, zona del cuerpo, descripción corta, etiquetas separadas por coma y, opcionalmente, una URL pública de imagen. Si Cloudinary está configurado, también aparece carga de archivo JPG/PNG/WEBP/GIF de máximo 5 MB. Marca **Publicar en `/portfolio`** si quieres verlo públicamente. El resultado esperado es `Ítem de portafolio creado desde ruta server-side con rol admin validado.` y el ítem en **Ítems recientes**.
 
-10. Vuelve a `http://localhost:3000/portfolio`. El resultado esperado es ver los ítems estáticos más los ítems Firestore con `published=true`. Si adjuntaste imagen, se sirve desde `/api/portfolio/images?itemId=...`, que verifica que el documento esté publicado antes de leer Storage con Admin SDK.
+10. Vuelve a `http://localhost:3000/portfolio`. El resultado esperado es ver los ítems estáticos más los ítems Firestore con `published=true`. En modo Spark, las imágenes nuevas se muestran desde una URL pública validada o desde la `secure_url` del proveedor externo configurado; la ruta `/api/portfolio/images?itemId=...` queda solo para datos legacy o un modo futuro con Firebase Storage habilitado.
 
 11. Prueba desmarcar/marcar **Publicado** desde el dashboard admin. El resultado esperado es `Publicación actualizada desde ruta server-side con rol admin validado.` y que `/portfolio` oculte/muestre el ítem según el flag.
 
@@ -105,11 +105,11 @@ Si el login muestra que no se pudo iniciar sesión con credenciales locales, nor
 
 15. Escribe una **Nota interna** y presiona **Guardar nota**. El resultado esperado es el mensaje `Nota interna guardada desde ruta server-side con rol admin validado.` y la nota persistida para el dashboard admin.
 
-El formulario público no abre escrituras cliente en Firestore Rules: la creación pasa por `/api/quotes` y usa Admin SDK server-side. En modo Spark/no Storage, las referencias visuales se guardan como URLs `http://`/`https://` sanitizadas en el documento de cotización; no se guardan base64 ni blobs en Firestore. Las imágenes de referencia directas solo se suben desde servidor a Firebase Storage cuando `NEXT_PUBLIC_QUOTE_FILE_UPLOADS_ENABLED=true`; el cliente público no recibe permisos amplios de escritura directa. El listado de `/admin`, el cambio de estado y el guardado de nota interna pasan por rutas server-side que vuelven a validar ID token y rol admin; no confían en estado de rol del cliente.
+El formulario público no abre escrituras cliente en Firestore Rules: la creación pasa por `/api/quotes` y usa Admin SDK server-side. En modo Spark/no Storage, las referencias visuales se guardan como URLs `http://`/`https://` sanitizadas en el documento de cotización; no se guardan base64 ni blobs en Firestore. Las imágenes de referencia directas solo se suben desde servidor a un proveedor externo cuando `IMAGE_UPLOAD_PROVIDER=cloudinary` y las credenciales server-only están configuradas; en Firestore se guarda metadata, `secure_url` y `provider_id`, nunca secretos ni binarios. El listado de `/admin`, el cambio de estado y el guardado de nota interna pasan por rutas server-side que vuelven a validar ID token y rol admin; no confían en estado de rol del cliente.
 
-El portafolio administrable tampoco abre escrituras públicas/cliente para crear contenido: `/api/admin/portfolio` y `/api/admin/portfolio/published` vuelven a validar ID token y rol admin server-side antes de escribir en `portfolio_items`. Además, `/api/admin/session` crea/limpia una cookie httpOnly de sesión admin para navegación privada futura, pero solo después de validar server-side el ID token y el rol `admin`; las rutas de mutación existentes siguen revalidando bearer ID token y rol admin. Las imágenes admin se guardan en `portfolio-admin/{itemId}/...`, fuera de rutas públicas de Storage, y el sitio público las lee mediante `/api/portfolio/images?itemId=...` solo cuando el documento está publicado.
+El portafolio administrable tampoco abre escrituras públicas/cliente para crear contenido: `/api/admin/portfolio` y `/api/admin/portfolio/published` vuelven a validar ID token y rol admin server-side antes de escribir en `portfolio_items`. Además, `/api/admin/session` crea/limpia una cookie httpOnly de sesión admin para navegación privada futura, pero solo después de validar server-side el ID token y el rol `admin`; las rutas de mutación existentes siguen revalidando bearer ID token y rol admin. En modo Spark/no Storage, las imágenes admin usan URLs y metadata de un proveedor externo como Cloudinary; una ruta privada de Firebase Storage quedaría reservada solo para un modo futuro opcional con Storage habilitado.
 
-Las previews de imágenes del panel admin no exponen URLs públicas ni URLs raw del Storage Emulator. El cliente admin obtiene blobs mediante `/api/admin/quotes/images?imageId=...`, enviando el ID token en `Authorization`; la ruta vuelve a validar rol admin server-side, lee metadata en `quote_images` y sirve bytes desde Firebase Admin Storage con `Cache-Control: no-store`.
+Las previews de imágenes del panel admin no exponen secretos del proveedor. Para imágenes externas nuevas se usa la URL segura del proveedor; para datos legacy de Storage local, el cliente admin obtiene blobs mediante `/api/admin/quotes/images?imageId=...`, enviando el ID token en `Authorization`.
 
 El seed local se niega a correr si detecta `NODE_ENV=production`, un `FIREBASE_SERVICE_ACCOUNT_JSON` real, un project id distinto de `demo-webtatuajes` o hosts que no sean los emuladores locales. No asigna roles contra producción.
 
@@ -133,13 +133,15 @@ npm run admin:seed-local # crea admin@example.test en emuladores locales
 | Variable                                     | Uso                                                                                                                                                               |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_SITE_URL`                       | URL pública canónica del sitio para metadata y sitemap. En local puede usar `http://localhost:3000`; en Vercel debe apuntar al dominio público final.             |
+| `NEXT_PUBLIC_STUDIO_NAME`                    | Nombre público del estudio. Por defecto `HuespedTattooStudio`.                                                                                                    |
+| `NEXT_PUBLIC_ARTIST_NAME`                    | Nombre público del artista. Por defecto `Mario Amigo Urrutia`.                                                                                                    |
 | `NEXT_PUBLIC_FIREBASE_API_KEY`               | API key pública del proyecto Firebase.                                                                                                                            |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`           | Auth domain público de Firebase.                                                                                                                                  |
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID`            | ID público del proyecto Firebase.                                                                                                                                 |
 | `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`        | Bucket público configurado en Firebase.                                                                                                                           |
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`   | Sender ID público de Firebase.                                                                                                                                    |
 | `NEXT_PUBLIC_FIREBASE_APP_ID`                | App ID público de Firebase.                                                                                                                                       |
-| `NEXT_PUBLIC_QUOTE_FILE_UPLOADS_ENABLED`     | Activa cargas directas de imágenes para cotizaciones solo cuando hay Storage configurado. Por defecto `false` para previews/producción Spark sin Storage.         |
+| `NEXT_PUBLIC_QUOTE_FILE_UPLOADS_ENABLED`     | Legacy: ya no habilita Storage. La UI y el servidor usan `IMAGE_UPLOAD_PROVIDER` para decidir carga de imágenes.                                                  |
 | `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_ENABLED` | Opt-in explícito para conectar Firebase Auth cliente al emulador; ignorado en producción.                                                                         |
 | `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL`     | URL del Auth Emulator para cliente local, por defecto `http://127.0.0.1:9099`.                                                                                    |
 | `FIREBASE_PROJECT_ID`                        | Project id server-side para emuladores/Admin SDK local.                                                                                                           |
@@ -154,6 +156,21 @@ npm run admin:seed-local # crea admin@example.test en emuladores locales
 | `NEXT_PUBLIC_WHATSAPP_MESSAGE`               | Mensaje prellenado de WhatsApp.                                                                                                                                   |
 | `NEXT_PUBLIC_APP_LOCALE`                     | Locale de la app, por defecto `es-CL`.                                                                                                                            |
 | `NEXT_PUBLIC_APP_TIME_ZONE`                  | Zona horaria, por defecto `America/Santiago`.                                                                                                                     |
+| `IMAGE_UPLOAD_PROVIDER`                      | Proveedor externo de imágenes: `disabled` o `cloudinary`. Mantener `disabled` si no hay credenciales server-only.                                                 |
+| `IMAGE_UPLOAD_MAX_SIZE_BYTES`                | Tamaño máximo server-side por imagen. Por defecto `5242880` (5 MB).                                                                                               |
+| `CLOUDINARY_CLOUD_NAME`                      | Cloud name de Cloudinary, server-side. No es secreto, pero se mantiene junto a configuración del proveedor.                                                       |
+| `CLOUDINARY_API_KEY`                         | API key server-side de Cloudinary. No exponer en cliente.                                                                                                         |
+| `CLOUDINARY_API_SECRET`                      | API secret server-side de Cloudinary. Nunca commitear ni usar con prefijo `NEXT_PUBLIC_`.                                                                         |
+| `CLOUDINARY_UPLOAD_FOLDER`                   | Carpeta base para uploads, por defecto `webtatuajes`.                                                                                                             |
+
+### Cargas de imágenes sin Firebase Storage
+
+Para mantener compatibilidad con Firebase Spark, las cargas nuevas de imágenes usan un proveedor externo. Con Cloudinary:
+
+1. Crea un cloud en Cloudinary.
+2. En Vercel, configura `IMAGE_UPLOAD_PROVIDER=cloudinary`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` y opcionalmente `CLOUDINARY_UPLOAD_FOLDER`.
+3. No uses prefijo `NEXT_PUBLIC_` para secretos de Cloudinary.
+4. El servidor valida MIME/tamaño, genera un `public_id` aleatorio y guarda solo metadata, URL segura y provider id en Firestore.
 
 ## Firebase y Vercel
 

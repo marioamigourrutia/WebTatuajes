@@ -1,6 +1,10 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import {
+  isExternalImageUploadConfigured,
+  uploadImageToExternalProvider,
+} from "@/lib/images/upload-provider";
+import {
   CalendarDateUnavailableError,
   createQuoteWithOptionalDateReservation,
   getDateUnavailableError,
@@ -156,7 +160,7 @@ export const referenceImageConstraints = {
 } as const;
 
 export function areQuoteFileUploadsEnabled() {
-  return process.env.NEXT_PUBLIC_QUOTE_FILE_UPLOADS_ENABLED === "true";
+  return isExternalImageUploadConfigured();
 }
 
 function cleanString(value: unknown): string {
@@ -362,16 +366,6 @@ function hasArrayBuffer(value: unknown): value is { arrayBuffer: () => Promise<A
 
 function getFileName(file: File): string {
   return cleanString(file.name).replace(/[\\/]/g, "_") || "reference-image";
-}
-
-function getFileExtension(fileName: string, mimeType: string): string {
-  const extension = fileName.split(".").pop()?.toLowerCase();
-
-  if (extension && /^[a-z0-9]{1,8}$/.test(extension)) {
-    return extension;
-  }
-
-  return mimeType.split("/")[1] ?? "image";
 }
 
 function isAllowedReferenceImageMimeType(value: string): boolean {
@@ -610,9 +604,10 @@ export async function createQuoteRequest(input: unknown, firestore = getFirebase
 export async function createQuoteRequestFromFormData(
   formData: FormData,
   firestore = getFirebaseAdminFirestore(),
-  storageBucket = getFirebaseAdminStorageBucket(),
+  _storageBucket = getFirebaseAdminStorageBucket(),
   fileUploadsEnabled = areQuoteFileUploadsEnabled(),
 ) {
+  void _storageBucket;
   const body = Object.fromEntries(
     Array.from(formData.entries()).filter(([, value]) => !(value instanceof File)),
   );
@@ -627,10 +622,10 @@ export async function createQuoteRequestFromFormData(
   if (!fileUploadsEnabled && imageValidation.value.length > 0) {
     return {
       ok: false as const,
-      status: 400,
+      status: 503,
       errors: {
         referenceImages:
-          "La carga de imágenes no está disponible en este entorno. Agrega enlaces de referencia o envía imágenes por WhatsApp/Instagram después de enviar la cotización.",
+          "La carga de imágenes requiere configurar un proveedor externo de imágenes. Agrega enlaces de referencia o coordina el envío por WhatsApp mientras se configura.",
       },
     };
   }
@@ -639,28 +634,16 @@ export async function createQuoteRequestFromFormData(
     return createQuoteRequest(body, firestore);
   }
 
-  if (!storageBucket) {
-    return {
-      ok: false as const,
-      status: 503,
-      errors: { form: "Firebase Storage no está configurado." },
-    };
-  }
-
-  return createQuoteRequestWithReferenceImages(
-    body,
-    imageValidation.value,
-    firestore,
-    storageBucket,
-  );
+  return createQuoteRequestWithReferenceImages(body, imageValidation.value, firestore);
 }
 
 export async function createQuoteRequestWithReferenceImages(
   input: unknown,
   referenceImages: QuoteReferenceImageInput[],
   firestore = getFirebaseAdminFirestore(),
-  storageBucket: StorageBucketLike | null = getFirebaseAdminStorageBucket(),
+  _storageBucket: StorageBucketLike | null = getFirebaseAdminStorageBucket(),
 ) {
+  void _storageBucket;
   const validation = validateQuoteRequestInput(input);
 
   if (!validation.ok) {
@@ -677,14 +660,6 @@ export async function createQuoteRequestWithReferenceImages(
 
   if (referenceImages.length === 0) {
     return createQuoteRequest(input, firestore);
-  }
-
-  if (!storageBucket) {
-    return {
-      ok: false as const,
-      status: 503,
-      errors: { form: "Firebase Storage no está configurado." },
-    };
   }
 
   const quoteCode = await generateUniqueQuoteCode(firestore);
@@ -714,33 +689,26 @@ export async function createQuoteRequestWithReferenceImages(
     throw error;
   }
 
-  const uploadedPaths: string[] = [];
   const createdImageReferences: { delete: () => Promise<unknown> }[] = [];
-  const createdAt = Date.now();
   const operations = referenceImages.map(async (image, index) => {
-    const extension = getFileExtension(image.originalFilename, image.mimeType);
-    const storagePath = `quote-images/anonymous/${quoteId}/${createdAt}-${index}.${extension}`;
-    const buffer = Buffer.from(await image.file.arrayBuffer());
-
-    await storageBucket.file(storagePath).save(buffer, {
-      contentType: image.mimeType,
-      metadata: {
-        metadata: {
-          customer_id: "anonymous",
-          quote_id: quoteId,
-          original_filename: image.originalFilename,
-        },
-      },
-    });
-    uploadedPaths.push(storagePath);
+    const upload = await uploadImageToExternalProvider(image.file, "quote-reference");
+    if (!upload.ok) {
+      throw Object.assign(new Error(Object.values(upload.errors)[0] ?? "Image upload failed"), {
+        uploadResult: upload,
+      });
+    }
 
     const imageReference = await firestore.collection("quote_images").add({
       customer_id: "anonymous",
       quote_id: quoteId,
-      storage_path: storagePath,
-      original_filename: image.originalFilename,
-      mime_type: image.mimeType,
-      size_bytes: image.sizeBytes,
+      provider: upload.image.provider,
+      provider_id: upload.image.providerId,
+      secure_url: upload.image.secureUrl,
+      original_filename: `Referencia ${index + 1}`,
+      mime_type: upload.image.mimeType,
+      size_bytes: upload.image.sizeBytes,
+      width: upload.image.width,
+      height: upload.image.height,
       created_at: FieldValue.serverTimestamp(),
       updated_at: FieldValue.serverTimestamp(),
     });
@@ -754,11 +722,15 @@ export async function createQuoteRequestWithReferenceImages(
 
   if (rejectedResult) {
     await Promise.allSettled([
-      ...uploadedPaths.map((path) => storageBucket.file(path).delete()),
       ...createdImageReferences.map((reference) => reference.delete()),
       firestore.collection("quotes").doc(quoteId).delete(),
       releasePendingCalendarDateForQuote(firestore, quoteId, validation.value.preferredTattooDate),
     ]);
+    const uploadResult = (rejectedResult.reason as { uploadResult?: unknown })?.uploadResult;
+    if (uploadResult && typeof uploadResult === "object" && "status" in uploadResult) {
+      const typed = uploadResult as { status: number; errors: Record<string, string> };
+      return { ok: false as const, status: typed.status, errors: typed.errors };
+    }
     throw rejectedResult.reason;
   }
 
@@ -823,19 +795,30 @@ function buildReferenceImageAccessUrl(imageId: string): string | null {
     : null;
 }
 
+function sanitizeProviderImageUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function isValidQuoteImageStoragePath(value: string): boolean {
   return /^quote-images\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(value);
 }
 
 function serializeQuoteImage(document: { id: string; data: () => Record<string, unknown> }) {
   const data = document.data();
+  const secureUrl = sanitizeProviderImageUrl(data.secure_url);
 
   return {
     id: document.id,
     originalFilename: cleanString(data.original_filename) || "Referencia",
     mimeType: cleanString(data.mime_type),
     sizeBytes: typeof data.size_bytes === "number" ? data.size_bytes : 0,
-    accessUrl: buildReferenceImageAccessUrl(document.id),
+    accessUrl: secureUrl ?? buildReferenceImageAccessUrl(document.id),
   } satisfies QuoteReferenceImage;
 }
 

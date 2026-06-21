@@ -33,11 +33,12 @@ export default function HomePage() {
           </p>
           <div className="space-y-5">
             <h1 className="max-w-4xl text-5xl font-black leading-tight text-stone-50 sm:text-7xl">
-              Tatuajes con diseño, criterio y una experiencia segura.
+              {appConfig.studioName}: tatuajes con diseño, criterio y una experiencia segura.
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-stone-300">
-              Convertimos ideas en piezas pensadas para tu cuerpo, tu ritmo y tu historia. El primer
-              contacto parte con una cotización clara, privada y revisada por el estudio.
+              Mario Amigo Urrutia convierte ideas en piezas pensadas para tu cuerpo, tu ritmo y tu
+              historia. El primer contacto parte con una cotización clara, privada y revisada por el
+              estudio.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">

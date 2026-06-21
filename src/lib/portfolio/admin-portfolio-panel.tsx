@@ -26,7 +26,13 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-export function AdminPortfolioPanel({ enabled }: { enabled: boolean }) {
+export function AdminPortfolioPanel({
+  enabled,
+  fileUploadsEnabled,
+}: {
+  enabled: boolean;
+  fileUploadsEnabled: boolean;
+}) {
   const { user } = useAuth();
   const [items, setItems] = useState<AdminPortfolioItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +88,9 @@ export function AdminPortfolioPanel({ enabled }: { enabled: boolean }) {
   }, [enabled, user]);
 
   useEffect(() => {
+    const directImageEntries = items.flatMap((item) =>
+      item.imageUrl?.startsWith("https://") ? [[item.id, item.imageUrl] as const] : [],
+    );
     const imageRequests = items
       .filter((item) => item.imagePath)
       .map((item) => ({
@@ -90,7 +99,9 @@ export function AdminPortfolioPanel({ enabled }: { enabled: boolean }) {
       }));
 
     if (!enabled || !user || imageRequests.length === 0) {
-      void Promise.resolve().then(() => setImagePreviewUrls({}));
+      void Promise.resolve().then(() =>
+        setImagePreviewUrls(Object.fromEntries(directImageEntries)),
+      );
       return;
     }
 
@@ -105,7 +116,7 @@ export function AdminPortfolioPanel({ enabled }: { enabled: boolean }) {
 
     async function loadImagePreviews() {
       try {
-        setImagePreviewUrls({});
+        setImagePreviewUrls(Object.fromEntries(directImageEntries));
         const idToken = await currentUser.getIdToken();
         const loadedEntries = await Promise.all(
           imageRequests.map(async (image) => {
@@ -126,12 +137,12 @@ export function AdminPortfolioPanel({ enabled }: { enabled: boolean }) {
         if (cancelled) {
           revokeObjectUrls();
         } else {
-          setImagePreviewUrls(Object.fromEntries(loadedEntries));
+          setImagePreviewUrls(Object.fromEntries([...directImageEntries, ...loadedEntries]));
         }
       } catch {
         revokeObjectUrls();
         if (!cancelled) {
-          setImagePreviewUrls({});
+          setImagePreviewUrls(Object.fromEntries(directImageEntries));
         }
       }
     }
@@ -283,15 +294,25 @@ export function AdminPortfolioPanel({ enabled }: { enabled: boolean }) {
             required
           />
         </label>
-        <label className="text-sm font-semibold text-stone-200">
-          Imagen principal opcional
-          <input
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="mt-2 block w-full text-sm text-stone-300"
-            name="image"
-            type="file"
-          />
-        </label>
+        {fileUploadsEnabled ? (
+          <label className="text-sm font-semibold text-stone-200">
+            Imagen principal opcional
+            <input
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="mt-2 block w-full text-sm text-stone-300"
+              name="image"
+              type="file"
+            />
+            <span className="mt-1 block text-xs font-normal leading-5 text-stone-400">
+              Sube JPG, PNG, WEBP o GIF mediante el proveedor externo configurado.
+            </span>
+          </label>
+        ) : (
+          <div className="rounded-xl border border-amber-300/30 bg-amber-950/20 p-3 text-sm leading-6 text-amber-100">
+            La carga de archivos requiere configurar un proveedor externo de imágenes. Puedes usar
+            una URL pública mientras se configura Cloudinary.
+          </div>
+        )}
         <label className="grid gap-1 text-sm font-semibold text-stone-200">
           URL pública de imagen opcional
           <input

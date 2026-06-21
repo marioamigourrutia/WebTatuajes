@@ -1,7 +1,8 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { validateOptionalExternalImageUrl } from "@/lib/images/external-image-url";
+import { uploadImageToExternalProvider } from "@/lib/images/upload-provider";
 import { isFirebaseAdminBackendConfigured } from "../config/firebase-admin";
-import { getFirebaseAdminFirestore, getFirebaseAdminStorageBucket } from "../firebase/admin";
+import { getFirebaseAdminFirestore } from "../firebase/admin";
 import { mapFirestorePortfolioItem, type FirestorePortfolioItem } from "./portfolio";
 
 type FirestoreLike = NonNullable<ReturnType<typeof getFirebaseAdminFirestore>>;
@@ -70,16 +71,6 @@ function hasArrayBuffer(value: unknown): value is { arrayBuffer: () => Promise<A
 
 function getFileName(file: File): string {
   return cleanString(file.name).replace(/[\\/]/g, "_") || "portfolio-image";
-}
-
-function getFileExtension(fileName: string, mimeType: string): string {
-  const extension = fileName.split(".").pop()?.toLowerCase();
-
-  if (extension && /^[a-z0-9]{1,8}$/.test(extension)) {
-    return extension;
-  }
-
-  return mimeType.split("/")[1] ?? "image";
 }
 
 export function validatePortfolioItemInput(input: unknown) {
@@ -184,7 +175,6 @@ export function mapPortfolioItemToFirestore(input: PortfolioItemInput) {
 export async function createPortfolioItemFromFormData(
   formData: FormData,
   firestore = getFirebaseAdminFirestore(),
-  storageBucket = getFirebaseAdminStorageBucket(),
 ) {
   const body = Object.fromEntries(
     Array.from(formData.entries()).filter(([, value]) => !(value instanceof File)),
@@ -214,60 +204,32 @@ export async function createPortfolioItemFromFormData(
     };
   }
 
-  if (imageValidation.value && !storageBucket) {
-    return {
-      ok: false as const,
-      status: 503,
-      errors: { form: "Firebase Storage no está configurado." },
+  const reference = firestore.collection("portfolio_items").doc();
+  let imageMetadata = {};
+
+  if (imageValidation.value) {
+    const upload = await uploadImageToExternalProvider(imageValidation.value.file, "portfolio");
+    if (!upload.ok) {
+      return { ok: false as const, status: upload.status, errors: upload.errors };
+    }
+
+    imageMetadata = {
+      image_url: upload.image.secureUrl,
+      image_provider: upload.image.provider,
+      image_provider_id: upload.image.providerId,
+      image_mime_type: upload.image.mimeType,
+      image_size_bytes: upload.image.sizeBytes,
+      image_width: upload.image.width,
+      image_height: upload.image.height,
     };
   }
 
-  const reference = firestore.collection("portfolio_items").doc();
-  let imageMetadata = {};
-  let uploadedPath: string | null = null;
-
-  try {
-    if (imageValidation.value && storageBucket) {
-      const extension = getFileExtension(
-        imageValidation.value.originalFilename,
-        imageValidation.value.mimeType,
-      );
-      uploadedPath = `portfolio-admin/${reference.id}/main.${extension}`;
-      const buffer = Buffer.from(await imageValidation.value.file.arrayBuffer());
-
-      await storageBucket.file(uploadedPath).save(buffer, {
-        contentType: imageValidation.value.mimeType,
-        metadata: {
-          metadata: {
-            portfolio_item_id: reference.id,
-            original_filename: imageValidation.value.originalFilename,
-          },
-        },
-      });
-
-      imageMetadata = {
-        image_path: uploadedPath,
-        image_original_filename: imageValidation.value.originalFilename,
-        image_mime_type: imageValidation.value.mimeType,
-        image_size_bytes: imageValidation.value.sizeBytes,
-      };
-    }
-
-    await reference.set({
-      ...mapPortfolioItemToFirestore(validation.value),
-      ...imageMetadata,
-      created_at: FieldValue.serverTimestamp(),
-      updated_at: FieldValue.serverTimestamp(),
-    });
-  } catch (error) {
-    if (uploadedPath && storageBucket) {
-      await storageBucket
-        .file(uploadedPath)
-        .delete()
-        .catch(() => undefined);
-    }
-    throw error;
-  }
+  await reference.set({
+    ...mapPortfolioItemToFirestore(validation.value),
+    ...imageMetadata,
+    created_at: FieldValue.serverTimestamp(),
+    updated_at: FieldValue.serverTimestamp(),
+  });
 
   return { ok: true as const, id: reference.id };
 }

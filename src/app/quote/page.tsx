@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { isExternalImageUploadConfigured } from "@/lib/images/upload-provider";
 import { QuoteRequestForm } from "@/lib/quotes/quote-request-form";
 
 export const metadata: Metadata = {
@@ -20,7 +21,7 @@ export default function QuotePage() {
           evaluar viabilidad y próximos pasos. No necesitas iniciar sesión para enviar la solicitud.
         </p>
       </section>
-      <QuoteRequestForm />
+      <QuoteRequestForm fileUploadsEnabled={isExternalImageUploadConfigured()} />
     </main>
   );
 }

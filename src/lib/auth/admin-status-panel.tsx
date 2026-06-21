@@ -187,7 +187,13 @@ function formatFileSize(sizeBytes: number) {
   return `${(sizeBytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatusResponse }) {
+export function AdminStatusPanel({
+  initialStatus,
+  imageUploadsEnabled = false,
+}: {
+  initialStatus: AdminStatusResponse;
+  imageUploadsEnabled?: boolean;
+}) {
   const { user } = useAuth();
   const [status, setStatus] = useState<AdminStatusResponse | null>(initialStatus);
   const [quotes, setQuotes] = useState<RecentQuoteRequest[]>([]);
@@ -212,14 +218,21 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
   const [imagePreviewUrls, setImagePreviewUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    const directImageEntries = quotes.flatMap((quote) =>
+      quote.referenceImages.flatMap((image) =>
+        image.accessUrl?.startsWith("https://") ? [[image.id, image.accessUrl] as const] : [],
+      ),
+    );
     const imageRequests = quotes.flatMap((quote) =>
       quote.referenceImages
-        .filter((image) => image.accessUrl)
+        .filter((image) => image.accessUrl && !image.accessUrl.startsWith("https://"))
         .map((image) => ({ id: image.id, accessUrl: image.accessUrl as string })),
     );
 
     if (!user || imageRequests.length === 0) {
-      void Promise.resolve().then(() => setImagePreviewUrls({}));
+      void Promise.resolve().then(() =>
+        setImagePreviewUrls(Object.fromEntries(directImageEntries)),
+      );
       return;
     }
 
@@ -229,7 +242,7 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
 
     async function loadImagePreviews() {
       try {
-        setImagePreviewUrls({});
+        setImagePreviewUrls(Object.fromEntries(directImageEntries));
         const idToken = await currentUser.getIdToken();
         const loadedEntries = await Promise.all(
           imageRequests.map(async (image) => {
@@ -250,11 +263,11 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
         if (cancelled) {
           objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
         } else {
-          setImagePreviewUrls(Object.fromEntries(loadedEntries));
+          setImagePreviewUrls(Object.fromEntries([...directImageEntries, ...loadedEntries]));
         }
       } catch {
         if (!cancelled) {
-          setImagePreviewUrls({});
+          setImagePreviewUrls(Object.fromEntries(directImageEntries));
         }
       }
     }
@@ -769,7 +782,7 @@ export function AdminStatusPanel({ initialStatus }: { initialStatus: AdminStatus
 
       {status?.admin ? (
         <div className="space-y-5">
-          <AdminPortfolioPanel enabled={status.admin} />
+          <AdminPortfolioPanel enabled={status.admin} fileUploadsEnabled={imageUploadsEnabled} />
 
           <section className="space-y-3 rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
             <div>
