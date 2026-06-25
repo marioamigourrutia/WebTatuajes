@@ -14,7 +14,7 @@ Plataforma web profesional para un estudio de tatuajes en Chile. La aplicación 
 - Hay una página pública estática en `/servicios` con servicios, expectativas de reserva, higiene, cuidados posteriores, FAQ y CTA hacia cotización.
 - Hay una página pública estática en `/contacto` con contacto, ubicación por reserva, higiene, soporte posterior y CTA hacia cotización.
 - Hay metadata base, `robots.txt` y `sitemap.xml` para descubrimiento público inicial en Vercel; incluye `/`, `/quote`, `/portfolio`, `/servicios` y `/contacto`.
-- El flujo de cotización y el portafolio admin soportan modo Firebase Spark sin Storage: si no hay proveedor externo de imágenes configurado, se usan enlaces de referencia/URL pública; si se configura Supabase Storage, el servidor sube imágenes y guarda solo metadata más URL pública.
+- El flujo de cotización y el portafolio admin soportan modo Firebase Spark sin Storage: si no hay proveedor externo de imágenes configurado, se usan enlaces de referencia/URL pública; si se configura Supabase Storage, el servidor sube imágenes y guarda metadata. Las imágenes de cotización pueden vivir en bucket privado y se sirven al admin con URLs firmadas de corta duración.
 
 ## Requisitos
 
@@ -105,11 +105,11 @@ Si el login muestra que no se pudo iniciar sesión con credenciales locales, nor
 
 15. Escribe una **Nota interna** y presiona **Guardar nota**. El resultado esperado es el mensaje `Nota interna guardada desde ruta server-side con rol admin validado.` y la nota persistida para el dashboard admin.
 
-El formulario público no abre escrituras cliente en Firestore Rules: la creación pasa por `/api/quotes` y usa Admin SDK server-side. En modo Spark/no Storage, las referencias visuales se guardan como URLs `http://`/`https://` sanitizadas en el documento de cotización; no se guardan base64 ni blobs en Firestore. Las imágenes de referencia directas solo se suben desde servidor a Supabase Storage cuando `IMAGE_UPLOAD_PROVIDER=supabase` y las credenciales server-only están configuradas; en Firestore se guarda metadata, `secure_url` y `provider_id`, nunca secretos ni binarios. El listado de `/admin`, el cambio de estado y el guardado de nota interna pasan por rutas server-side que vuelven a validar ID token y rol admin; no confían en estado de rol del cliente.
+El formulario público no abre escrituras cliente en Firestore Rules: la creación pasa por `/api/quotes` y usa Admin SDK server-side. En modo Spark/no Storage, las referencias visuales se guardan como URLs `http://`/`https://` sanitizadas en el documento de cotización; no se guardan base64 ni blobs en Firestore. Las imágenes de referencia directas solo se suben desde servidor a Supabase Storage cuando `IMAGE_UPLOAD_PROVIDER=supabase` y las credenciales server-only están configuradas; en Firestore se guarda metadata y `provider_id`, nunca secretos ni binarios. Para cotizaciones, el admin accede por `/api/admin/quotes/images?imageId=...`, que revalida rol admin y genera una URL firmada temporal si el objeto está en Supabase. El listado de `/admin`, el cambio de estado y el guardado de nota interna pasan por rutas server-side que vuelven a validar ID token y rol admin; no confían en estado de rol del cliente.
 
 El portafolio administrable tampoco abre escrituras públicas/cliente para crear contenido: `/api/admin/portfolio` y `/api/admin/portfolio/published` vuelven a validar ID token y rol admin server-side antes de escribir en `portfolio_items`. Además, `/api/admin/session` crea/limpia una cookie httpOnly de sesión admin para navegación privada futura, pero solo después de validar server-side el ID token y el rol `admin`; las rutas de mutación existentes siguen revalidando bearer ID token y rol admin. En modo Spark/no Storage, las imágenes admin usan URLs y metadata de Supabase Storage; una ruta privada de Firebase Storage queda reservada solo para un modo futuro opcional con Storage habilitado.
 
-Las previews de imágenes del panel admin no exponen secretos del proveedor. Para imágenes externas nuevas se usa la URL segura del proveedor; para datos legacy de Storage local, el cliente admin obtiene blobs mediante `/api/admin/quotes/images?imageId=...`, enviando el ID token en `Authorization`.
+Las previews de imágenes del panel admin no exponen secretos del proveedor. Para imágenes de cotización en Supabase se usa una ruta interna autenticada que redirige a una URL firmada de corta duración; para Cloudinary legacy se mantiene la URL segura existente; para datos legacy de Storage local, el cliente admin obtiene blobs mediante `/api/admin/quotes/images?imageId=...`, enviando el ID token en `Authorization`.
 
 El seed local se niega a correr si detecta `NODE_ENV=production`, un `FIREBASE_SERVICE_ACCOUNT_JSON` real, un project id distinto de `demo-webtatuajes` o hosts que no sean los emuladores locales. No asigna roles contra producción.
 
@@ -160,7 +160,9 @@ npm run admin:seed-local # crea admin@example.test en emuladores locales
 | `IMAGE_UPLOAD_MAX_SIZE_BYTES`                | Tamaño máximo server-side por imagen. Por defecto `5242880` (5 MB).                                                                                               |
 | `SUPABASE_URL`                               | URL del proyecto Supabase, server-side. No usar prefijo `NEXT_PUBLIC_` para este flujo de carga.                                                                  |
 | `SUPABASE_SERVICE_ROLE_KEY`                  | Service role key server-only para subir a Storage. Nunca commitear ni exponer al cliente.                                                                         |
-| `SUPABASE_STORAGE_BUCKET`                    | Bucket público de Supabase Storage donde se guardan imágenes.                                                                                                     |
+| `SUPABASE_STORAGE_BUCKET`                    | Bucket de Supabase Storage para imágenes públicas/portfolio. Puede seguir siendo público para no romper el portafolio existente.                                  |
+| `SUPABASE_QUOTE_STORAGE_BUCKET`              | Bucket privado opcional para imágenes de cotización/clientes. Si está vacío, usa `SUPABASE_STORAGE_BUCKET` por compatibilidad.                                    |
+| `SUPABASE_SIGNED_URL_TTL_SECONDS`            | Duración de URLs firmadas para vistas admin de imágenes privadas de cotización. Por defecto `300`.                                                                |
 | `SUPABASE_UPLOAD_FOLDER`                     | Carpeta base opcional para uploads, por defecto `webtatuajes`.                                                                                                    |
 | `CLOUDINARY_CLOUD_NAME`                      | Legacy Cloudinary, server-side. Mantener vacío salvo que se siga usando compatibilidad previa.                                                                    |
 | `CLOUDINARY_API_KEY`                         | Legacy Cloudinary API key server-side. No exponer en cliente.                                                                                                     |
@@ -171,10 +173,13 @@ npm run admin:seed-local # crea admin@example.test en emuladores locales
 
 Para mantener compatibilidad con Firebase Spark, las cargas nuevas de imágenes usan Supabase Storage desde servidor:
 
-1. En Supabase, crea un proyecto y un bucket público para imágenes, por ejemplo `webtatuajes-images`.
-2. En Vercel, configura `IMAGE_UPLOAD_PROVIDER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET` y opcionalmente `SUPABASE_UPLOAD_FOLDER`.
-3. No uses prefijo `NEXT_PUBLIC_` para `SUPABASE_SERVICE_ROLE_KEY`; debe existir solo en el entorno server-side de Vercel.
-4. El servidor valida tipo declarado, magic bytes y tamaño, genera una ruta aleatoria no identificable y guarda solo metadata, URL pública y provider id en Firestore.
+1. En Supabase, crea un proyecto y un bucket para imágenes públicas de portafolio, por ejemplo `webtatuajes-images`.
+2. Para imágenes de cotización/clientes, crea idealmente un bucket privado separado, por ejemplo `webtatuajes-quote-images`, y configúralo en `SUPABASE_QUOTE_STORAGE_BUCKET`. Si lo dejas vacío se usa `SUPABASE_STORAGE_BUCKET` por compatibilidad.
+3. En Vercel, configura `IMAGE_UPLOAD_PROVIDER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, opcionalmente `SUPABASE_QUOTE_STORAGE_BUCKET`, `SUPABASE_SIGNED_URL_TTL_SECONDS` y `SUPABASE_UPLOAD_FOLDER`.
+4. No uses prefijo `NEXT_PUBLIC_` para `SUPABASE_SERVICE_ROLE_KEY`; debe existir solo en el entorno server-side de Vercel.
+5. El servidor valida tipo declarado, magic bytes y tamaño, genera una ruta aleatoria no identificable y guarda solo metadata y provider id en Firestore. Las cotizaciones no necesitan URL pública permanente; el admin recibe una URL firmada temporal después de validar autenticación.
+
+Este slice no agrega redimensionado, stripping de EXIF ni procesamiento con Sharp; queda como siguiente mejora de privacidad/performance.
 
 Cloudinary queda solo como compatibilidad legacy si ya existen credenciales previas; la guía nueva debe usar Supabase Storage.
 

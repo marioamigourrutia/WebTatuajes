@@ -7,7 +7,7 @@ export type ImageUploadProvider = (typeof imageUploadProviders)[number];
 export type UploadedImageMetadata = {
   provider: "supabase" | "cloudinary";
   providerId: string;
-  secureUrl: string;
+  secureUrl: string | null;
   mimeType: string;
   sizeBytes: number;
   width: number | null;
@@ -54,12 +54,20 @@ function parseMaxSizeBytes(value = process.env.IMAGE_UPLOAD_MAX_SIZE_BYTES): num
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : defaultImageUploadMaxSizeBytes;
 }
 
+function parseSignedUrlTtlSeconds(value = process.env.SUPABASE_SIGNED_URL_TTL_SECONDS): number {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 300;
+}
+
 export function getImageUploadConfig() {
   const provider = parseProvider();
   const supabaseUrl = cleanString(process.env.SUPABASE_URL);
   const supabaseServiceRoleKey = cleanString(process.env.SUPABASE_SERVICE_ROLE_KEY);
   const supabaseBucket = cleanFolderSegment(process.env.SUPABASE_STORAGE_BUCKET ?? "");
+  const supabaseQuoteBucket =
+    cleanFolderSegment(process.env.SUPABASE_QUOTE_STORAGE_BUCKET ?? "") || supabaseBucket;
   const supabaseFolder = cleanFolderSegment(process.env.SUPABASE_UPLOAD_FOLDER ?? "webtatuajes");
+  const supabaseSignedUrlTtlSeconds = parseSignedUrlTtlSeconds();
   const cloudName = cleanString(process.env.CLOUDINARY_CLOUD_NAME);
   const apiKey = cleanString(process.env.CLOUDINARY_API_KEY);
   const apiSecret = cleanString(process.env.CLOUDINARY_API_SECRET);
@@ -75,7 +83,9 @@ export function getImageUploadConfig() {
     supabaseUrl,
     supabaseServiceRoleKey,
     supabaseBucket,
+    supabaseQuoteBucket,
     supabaseFolder,
+    supabaseSignedUrlTtlSeconds,
     cloudName,
     apiKey,
     apiSecret,
@@ -155,6 +165,13 @@ function getPurposeFolder(purpose: ImageUploadPurpose) {
   return purpose === "portfolio" ? "portfolio" : "quote-references";
 }
 
+function getSupabaseBucketForPurpose(
+  purpose: ImageUploadPurpose,
+  config: ReturnType<typeof getImageUploadConfig>,
+) {
+  return purpose === "quote-reference" ? config.supabaseQuoteBucket : config.supabaseBucket;
+}
+
 function signCloudinaryParams(params: Record<string, string>, apiSecret: string) {
   const payload = Object.entries(params)
     .filter(([, value]) => value !== "")
@@ -184,11 +201,12 @@ async function uploadImageToSupabaseStorage(
   config: ReturnType<typeof getImageUploadConfig>,
 ) {
   const objectPath = getRandomObjectPath(config.supabaseFolder, purpose, mimeType);
+  const bucket = getSupabaseBucketForPurpose(purpose, config);
   const supabase = createClient(config.supabaseUrl, config.supabaseServiceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const upload = await supabase.storage
-    .from(config.supabaseBucket)
+    .from(bucket)
     .upload(objectPath, new Blob([await file.arrayBuffer()], { type: mimeType }), {
       contentType: mimeType,
       upsert: false,
@@ -202,10 +220,12 @@ async function uploadImageToSupabaseStorage(
     };
   }
 
-  const publicUrl = supabase.storage.from(config.supabaseBucket).getPublicUrl(objectPath)
-    .data.publicUrl;
+  const publicUrl =
+    purpose === "quote-reference"
+      ? null
+      : supabase.storage.from(bucket).getPublicUrl(objectPath).data.publicUrl;
 
-  if (!publicUrl) {
+  if (purpose !== "quote-reference" && !publicUrl) {
     return {
       ok: false as const,
       status: 502,
@@ -225,6 +245,31 @@ async function uploadImageToSupabaseStorage(
       height: null,
     },
   };
+}
+
+export async function createSupabaseStorageSignedUrl(
+  objectPath: string,
+  bucket = getImageUploadConfig().supabaseQuoteBucket,
+  config = getImageUploadConfig(),
+) {
+  const cleanObjectPath = cleanString(objectPath);
+
+  if (!config.supabaseUrl || !config.supabaseServiceRoleKey || !bucket || !cleanObjectPath) {
+    return { ok: false as const, status: 503, error: "Supabase Storage no está configurado." };
+  }
+
+  const supabase = createClient(config.supabaseUrl, config.supabaseServiceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(cleanObjectPath, config.supabaseSignedUrlTtlSeconds);
+
+  if (error || !data?.signedUrl) {
+    return { ok: false as const, status: 404, error: "No se pudo crear una URL temporal." };
+  }
+
+  return { ok: true as const, signedUrl: data.signedUrl };
 }
 
 export async function uploadImageToExternalProvider(

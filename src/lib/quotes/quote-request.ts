@@ -1,6 +1,8 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import {
+  createSupabaseStorageSignedUrl,
+  getImageUploadConfig,
   isExternalImageUploadConfigured,
   uploadImageToExternalProvider,
 } from "@/lib/images/upload-provider";
@@ -55,9 +57,11 @@ export type QuoteReferenceImage = {
 };
 
 export type AdminQuoteReferenceImageFile = {
+  provider: "firebase" | "supabase";
   storagePath: string;
   originalFilename: string;
   mimeType: string;
+  bucket?: string;
 };
 
 export type QuoteRequestValidationResult =
@@ -795,6 +799,10 @@ function buildReferenceImageAccessUrl(imageId: string): string | null {
     : null;
 }
 
+function isSupabaseQuoteImage(data: Record<string, unknown>) {
+  return cleanString(data.provider) === "supabase" && Boolean(cleanString(data.provider_id));
+}
+
 function sanitizeProviderImageUrl(value: unknown): string | null {
   if (typeof value !== "string") return null;
   try {
@@ -812,14 +820,24 @@ function isValidQuoteImageStoragePath(value: string): boolean {
 function serializeQuoteImage(document: { id: string; data: () => Record<string, unknown> }) {
   const data = document.data();
   const secureUrl = sanitizeProviderImageUrl(data.secure_url);
+  const internalAccessUrl = buildReferenceImageAccessUrl(document.id);
 
   return {
     id: document.id,
     originalFilename: cleanString(data.original_filename) || "Referencia",
     mimeType: cleanString(data.mime_type),
     sizeBytes: typeof data.size_bytes === "number" ? data.size_bytes : 0,
-    accessUrl: secureUrl ?? buildReferenceImageAccessUrl(document.id),
+    accessUrl: isSupabaseQuoteImage(data) ? internalAccessUrl : (secureUrl ?? internalAccessUrl),
   } satisfies QuoteReferenceImage;
+}
+
+function isValidSupabaseProviderPath(value: string): boolean {
+  return (
+    value.length <= 500 &&
+    !value.startsWith("/") &&
+    !value.includes("..") &&
+    /^[A-Za-z0-9][A-Za-z0-9._\-\/]+$/.test(value)
+  );
 }
 
 export async function getAdminQuoteReferenceImageFile(
@@ -850,6 +868,8 @@ export async function getAdminQuoteReferenceImageFile(
 
   const data = snapshot.data() ?? {};
   const storagePath = cleanString(data.storage_path);
+  const provider = cleanString(data.provider);
+  const providerId = cleanString(data.provider_id);
   const mimeType = cleanString(data.mime_type);
   const originalFilename = cleanString(data.original_filename) || "reference-image";
   const imageQuoteId = cleanString(data.quote_id);
@@ -858,19 +878,48 @@ export async function getAdminQuoteReferenceImageFile(
     return { ok: false as const, status: 404, error: "La imagen no existe." };
   }
 
-  if (
-    !storagePath ||
-    !isValidQuoteImageStoragePath(storagePath) ||
-    !mimeType ||
-    !isAllowedReferenceImageMimeType(mimeType)
-  ) {
+  if (!mimeType || !isAllowedReferenceImageMimeType(mimeType)) {
+    return { ok: false as const, status: 422, error: "La metadata de imagen es inválida." };
+  }
+
+  if (provider === "supabase") {
+    if (!providerId || !isValidSupabaseProviderPath(providerId)) {
+      return { ok: false as const, status: 422, error: "La metadata de imagen es inválida." };
+    }
+
+    return {
+      ok: true as const,
+      file: {
+        provider: "supabase",
+        storagePath: providerId,
+        originalFilename,
+        mimeType,
+        bucket: getImageUploadConfig().supabaseQuoteBucket,
+      } satisfies AdminQuoteReferenceImageFile,
+    };
+  }
+
+  if (!storagePath || !isValidQuoteImageStoragePath(storagePath)) {
     return { ok: false as const, status: 422, error: "La metadata de imagen es inválida." };
   }
 
   return {
     ok: true as const,
-    file: { storagePath, originalFilename, mimeType } satisfies AdminQuoteReferenceImageFile,
+    file: {
+      provider: "firebase",
+      storagePath,
+      originalFilename,
+      mimeType,
+    } satisfies AdminQuoteReferenceImageFile,
   };
+}
+
+export async function createAdminQuoteReferenceImageSignedUrl(file: AdminQuoteReferenceImageFile) {
+  if (file.provider !== "supabase") {
+    return { ok: false as const, status: 422, error: "La imagen no usa Supabase Storage." };
+  }
+
+  return createSupabaseStorageSignedUrl(file.storagePath, file.bucket);
 }
 
 async function listReferenceImagesByQuoteId(firestore: FirestoreLike, quoteIds: string[]) {

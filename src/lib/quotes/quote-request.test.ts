@@ -27,10 +27,11 @@ import {
 const supabaseMocks = vi.hoisted(() => {
   const upload = vi.fn();
   const getPublicUrl = vi.fn();
-  const from = vi.fn(() => ({ upload, getPublicUrl }));
+  const createSignedUrl = vi.fn();
+  const from = vi.fn(() => ({ upload, getPublicUrl, createSignedUrl }));
   const createClient = vi.fn(() => ({ storage: { from } }));
 
-  return { createClient, from, getPublicUrl, upload };
+  return { createClient, createSignedUrl, from, getPublicUrl, upload };
 });
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -68,6 +69,8 @@ afterEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   delete process.env.SUPABASE_STORAGE_BUCKET;
+  delete process.env.SUPABASE_QUOTE_STORAGE_BUCKET;
+  delete process.env.SUPABASE_SIGNED_URL_TTL_SECONDS;
   delete process.env.SUPABASE_UPLOAD_FOLDER;
   vi.clearAllMocks();
 });
@@ -733,9 +736,7 @@ describe("quote request firestore helpers", () => {
         quote_id: "quote-123",
         provider: "supabase",
         provider_id: expect.stringMatching(/^webtatuajes\/quote-references\/[a-f0-9]{32}\.png$/),
-        secure_url: expect.stringMatching(
-          /^https:\/\/project\.supabase\.co\/storage\/v1\/object\/public\/tattoo-images\/webtatuajes\/quote-references\/[a-f0-9]{32}\.png$/,
-        ),
+        secure_url: null,
         original_filename: "Referencia 1",
         mime_type: "image/png",
         size_bytes: imageFile.size,
@@ -948,6 +949,60 @@ describe("quote request firestore helpers", () => {
     expect(where).toHaveBeenCalledWith("quote_id", "==", "quote-1");
   });
 
+  it("serializes Supabase quote images through the authenticated admin image route", async () => {
+    const getQuotes = vi.fn().mockResolvedValue({
+      docs: [
+        {
+          id: "quote-1",
+          data: () => ({
+            created_at: new Date("2026-06-18T10:00:00.000Z"),
+            customer_name: "Ana Cliente",
+            customer_email: "ana@example.test",
+            preferred_contact_method: "email",
+            status: "pending",
+          }),
+        },
+      ],
+    });
+    const limit = vi.fn().mockReturnValue({ get: getQuotes });
+    const orderBy = vi.fn().mockReturnValue({ limit });
+    const getImages = vi.fn().mockResolvedValue({
+      docs: [
+        {
+          id: "image-1",
+          data: () => ({
+            provider: "supabase",
+            provider_id: "webtatuajes/quote-references/ref.png",
+            secure_url:
+              "https://project.supabase.co/storage/v1/object/public/tattoo-images/webtatuajes/quote-references/ref.png",
+            original_filename: "reference.png",
+            mime_type: "image/png",
+            size_bytes: 128,
+          }),
+        },
+      ],
+    });
+    const where = vi.fn().mockReturnValue({ get: getImages });
+    const collection = vi.fn((name: string) => {
+      if (name === "quotes") return { orderBy };
+      if (name === "quote_images") return { where };
+      throw new Error(`Unexpected collection ${name}`);
+    });
+
+    const result = await listRecentQuoteRequests({ collection } as never, 5);
+
+    expect(result[0]?.referenceImages).toEqual([
+      {
+        id: "image-1",
+        accessUrl: "/api/admin/quotes/images?imageId=image-1",
+        originalFilename: "reference.png",
+        mimeType: "image/png",
+        sizeBytes: 128,
+      },
+    ]);
+    expect(JSON.stringify(result)).not.toContain("storage/v1/object/public");
+  });
+
   it("validates image IDs before reading quote image metadata", async () => {
     const doc = vi.fn();
     const collection = vi.fn().mockReturnValue({ doc });
@@ -978,6 +1033,7 @@ describe("quote request firestore helpers", () => {
     ).resolves.toEqual({
       ok: true,
       file: {
+        provider: "firebase",
         storagePath: "quote-images/anonymous/quote-123/reference.png",
         originalFilename: "reference.png",
         mimeType: "image/png",
@@ -985,6 +1041,36 @@ describe("quote request firestore helpers", () => {
     });
     expect(collection).toHaveBeenCalledWith("quote_images");
     expect(doc).toHaveBeenCalledWith("image-123");
+  });
+
+  it("reads Supabase quote image metadata for signed admin access", async () => {
+    process.env.SUPABASE_STORAGE_BUCKET = "tattoo-images";
+    process.env.SUPABASE_QUOTE_STORAGE_BUCKET = "private-quote-images";
+    const get = vi.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({
+        quote_id: "quote-123",
+        provider: "supabase",
+        provider_id: "webtatuajes/quote-references/ref.png",
+        original_filename: "reference.png",
+        mime_type: "image/png",
+      }),
+    });
+    const doc = vi.fn().mockReturnValue({ get });
+    const collection = vi.fn().mockReturnValue({ doc });
+
+    await expect(
+      getAdminQuoteReferenceImageFile({ collection } as never, "image-123", "quote-123"),
+    ).resolves.toEqual({
+      ok: true,
+      file: {
+        provider: "supabase",
+        storagePath: "webtatuajes/quote-references/ref.png",
+        originalFilename: "reference.png",
+        mimeType: "image/png",
+        bucket: "private-quote-images",
+      },
+    });
   });
 
   it("rejects image metadata with an unsafe storage path", async () => {

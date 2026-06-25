@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   defaultImageUploadMaxSizeBytes,
+  createSupabaseStorageSignedUrl,
   getImageUploadConfig,
   isExternalImageUploadConfigured,
   uploadImageToExternalProvider,
@@ -11,10 +12,11 @@ import {
 const supabaseMocks = vi.hoisted(() => {
   const upload = vi.fn();
   const getPublicUrl = vi.fn();
-  const from = vi.fn(() => ({ upload, getPublicUrl }));
+  const createSignedUrl = vi.fn();
+  const from = vi.fn(() => ({ upload, getPublicUrl, createSignedUrl }));
   const createClient = vi.fn(() => ({ storage: { from } }));
 
-  return { createClient, from, getPublicUrl, upload };
+  return { createClient, createSignedUrl, from, getPublicUrl, upload };
 });
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -34,6 +36,8 @@ function resetEnv() {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   delete process.env.SUPABASE_STORAGE_BUCKET;
+  delete process.env.SUPABASE_QUOTE_STORAGE_BUCKET;
+  delete process.env.SUPABASE_SIGNED_URL_TTL_SECONDS;
   delete process.env.SUPABASE_UPLOAD_FOLDER;
   delete process.env.IMAGE_UPLOAD_MAX_SIZE_BYTES;
 }
@@ -62,13 +66,17 @@ describe("upload provider config", () => {
     process.env.SUPABASE_URL = "https://project.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
     process.env.SUPABASE_STORAGE_BUCKET = "tattoo-images";
+    process.env.SUPABASE_QUOTE_STORAGE_BUCKET = "quote-images";
     process.env.SUPABASE_UPLOAD_FOLDER = "Tattoo Studio/Private";
+    process.env.SUPABASE_SIGNED_URL_TTL_SECONDS = "120";
 
     expect(getImageUploadConfig()).toMatchObject({
       provider: "supabase",
       configured: true,
       supabaseBucket: "tattoo-images",
+      supabaseQuoteBucket: "quote-images",
       supabaseFolder: "tattoo-studio/private",
+      supabaseSignedUrlTtlSeconds: 120,
     });
     expect(isExternalImageUploadConfigured()).toBe(true);
   });
@@ -160,6 +168,60 @@ describe("upload provider config", () => {
     const objectPath = supabaseMocks.upload.mock.calls[0]?.[0] as string;
     expect(objectPath).toMatch(/^webtatuajes\/portfolio\/[a-f0-9]{32}\.png$/);
     expect(objectPath).not.toContain("client-original-name");
+  });
+
+  it("uploads quote references to Supabase without requiring a permanent public URL", async () => {
+    resetEnv();
+    process.env.IMAGE_UPLOAD_PROVIDER = "supabase";
+    process.env.SUPABASE_URL = "https://project.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    process.env.SUPABASE_STORAGE_BUCKET = "tattoo-images";
+    process.env.SUPABASE_QUOTE_STORAGE_BUCKET = "private-quote-images";
+    process.env.SUPABASE_UPLOAD_FOLDER = "webtatuajes";
+    supabaseMocks.upload.mockResolvedValue({ data: { path: "stored" }, error: null });
+
+    const result = await uploadImageToExternalProvider(
+      new File([pngBytes], "client-original-name.png", { type: "image/png" }),
+      "quote-reference",
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      image: {
+        provider: "supabase",
+        providerId: expect.stringMatching(/^webtatuajes\/quote-references\/[a-f0-9]{32}\.png$/),
+        secureUrl: null,
+      },
+    });
+    expect(supabaseMocks.from).toHaveBeenCalledWith("private-quote-images");
+    expect(supabaseMocks.getPublicUrl).not.toHaveBeenCalled();
+  });
+
+  it("creates short-lived Supabase signed URLs for private quote objects", async () => {
+    resetEnv();
+    process.env.IMAGE_UPLOAD_PROVIDER = "supabase";
+    process.env.SUPABASE_URL = "https://project.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    process.env.SUPABASE_STORAGE_BUCKET = "tattoo-images";
+    process.env.SUPABASE_QUOTE_STORAGE_BUCKET = "private-quote-images";
+    process.env.SUPABASE_SIGNED_URL_TTL_SECONDS = "60";
+    supabaseMocks.createSignedUrl.mockResolvedValue({
+      data: { signedUrl: "https://project.supabase.co/signed/ref.png?token=short" },
+      error: null,
+    });
+
+    await expect(
+      createSupabaseStorageSignedUrl("webtatuajes/quote-references/ref.png"),
+    ).resolves.toEqual({
+      ok: true,
+      signedUrl: "https://project.supabase.co/signed/ref.png?token=short",
+    });
+
+    expect(supabaseMocks.from).toHaveBeenCalledWith("private-quote-images");
+    expect(supabaseMocks.createSignedUrl).toHaveBeenCalledWith(
+      "webtatuajes/quote-references/ref.png",
+      60,
+    );
   });
 
   it("uses a random Cloudinary public id without the original filename", async () => {
