@@ -53,7 +53,7 @@ export function PurchaseRequestForm({ products }: { products: readonly ShopProdu
 
   return (
     <form
-      className="grid gap-5 rounded-3xl border border-stone-700 bg-stone-950/70 p-6"
+      className="grid gap-5 rounded-[2rem] border border-amber-100/10 bg-stone-950/75 p-6 shadow-2xl shadow-black/25 sm:p-8"
       onSubmit={submitPurchaseRequest}
     >
       <div>
@@ -93,7 +93,7 @@ export function PurchaseRequestForm({ products }: { products: readonly ShopProdu
       <label className="grid gap-2 text-sm font-semibold text-stone-100">
         Obra
         <select
-          className="rounded-2xl border border-stone-700 bg-stone-900 px-4 py-3 text-stone-100"
+          className="rounded-2xl border border-stone-700 bg-stone-900/90 px-4 py-3 text-stone-100 transition focus:border-amber-300"
           name="productId"
           required
         >
@@ -112,7 +112,7 @@ export function PurchaseRequestForm({ products }: { products: readonly ShopProdu
         <label className="grid gap-2 text-sm font-semibold text-stone-100">
           Nombre
           <input
-            className="rounded-2xl border border-stone-700 bg-stone-900 px-4 py-3 text-stone-100"
+            className="rounded-2xl border border-stone-700 bg-stone-900/90 px-4 py-3 text-stone-100 transition focus:border-amber-300"
             name="customerName"
             required
           />
@@ -123,7 +123,7 @@ export function PurchaseRequestForm({ products }: { products: readonly ShopProdu
         <label className="grid gap-2 text-sm font-semibold text-stone-100">
           Teléfono
           <input
-            className="rounded-2xl border border-stone-700 bg-stone-900 px-4 py-3 text-stone-100"
+            className="rounded-2xl border border-stone-700 bg-stone-900/90 px-4 py-3 text-stone-100 transition focus:border-amber-300"
             name="phone"
             required
           />
@@ -134,7 +134,7 @@ export function PurchaseRequestForm({ products }: { products: readonly ShopProdu
       <label className="grid gap-2 text-sm font-semibold text-stone-100">
         Email opcional
         <input
-          className="rounded-2xl border border-stone-700 bg-stone-900 px-4 py-3 text-stone-100"
+          className="rounded-2xl border border-stone-700 bg-stone-900/90 px-4 py-3 text-stone-100 transition focus:border-amber-300"
           name="email"
           type="email"
         />

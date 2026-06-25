@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 type QuoteFormErrors = Record<string, string>;
 
 const fieldClass =
-  "mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-3 py-2 text-stone-100";
+  "mt-1 w-full rounded-2xl border border-stone-700 bg-stone-900/90 px-4 py-3 text-stone-100 transition placeholder:text-stone-600 focus:border-amber-300";
 const labelClass = "text-xs font-semibold uppercase tracking-[0.2em] text-stone-400";
 const maxReferenceImageCount = 3;
 const maxReferenceImageSizeBytes = 5 * 1024 * 1024;
@@ -99,7 +99,7 @@ function PreferredDateCalendar({ error }: { error?: string }) {
   }, [month, selectedDate]);
 
   return (
-    <div className="rounded-2xl border border-stone-800 bg-stone-900/50 p-4">
+    <div className="rounded-3xl border border-stone-800 bg-stone-900/50 p-4 shadow-inner shadow-black/20">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <span className={labelClass}>Fecha preferida para tatuarte</span>
@@ -107,14 +107,14 @@ function PreferredDateCalendar({ error }: { error?: string }) {
         </div>
         <div className="flex gap-2">
           <button
-            className="rounded-full border border-stone-700 px-3 py-1 text-sm text-stone-200"
+            className="rounded-full border border-stone-700 px-3 py-1 text-sm text-stone-200 transition hover:border-amber-300/50"
             onClick={() => setMonth(addMonths(month, -1))}
             type="button"
           >
             Mes anterior
           </button>
           <button
-            className="rounded-full border border-stone-700 px-3 py-1 text-sm text-stone-200"
+            className="rounded-full border border-stone-700 px-3 py-1 text-sm text-stone-200 transition hover:border-amber-300/50"
             onClick={() => setMonth(addMonths(month, 1))}
             type="button"
           >
@@ -233,7 +233,7 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
 
   return (
     <form
-      className="space-y-5 rounded-3xl border border-stone-700 bg-stone-950/70 p-6"
+      className="space-y-5 rounded-[2rem] border border-amber-100/10 bg-stone-950/75 p-6 shadow-2xl shadow-black/25 sm:p-8"
       onSubmit={handleSubmit}
     >
       <div>
@@ -366,14 +366,14 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
             ))}
         </label>
       ) : (
-        <div className="rounded-2xl border border-amber-300/30 bg-amber-950/20 p-4 text-sm leading-6 text-amber-100">
+        <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">
           La carga directa de imágenes requiere un proveedor externo configurado. Puedes agregar
           enlaces públicos de inspiración o coordinar el envío de referencias privadas directamente
           con HuespedTattooStudio después de enviar la cotización.
         </div>
       )}
 
-      <fieldset className="space-y-3 rounded-2xl border border-stone-800 bg-stone-900/50 p-4">
+      <fieldset className="space-y-3 rounded-3xl border border-stone-800 bg-stone-900/50 p-4">
         <legend className={labelClass}>Autorizaciones</legend>
         <label className="flex gap-3 text-sm leading-6 text-stone-300">
           <input className="mt-1" name="dataProcessingConsent" required type="checkbox" />
@@ -434,7 +434,7 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
       ) : null}
 
       <button
-        className="rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/30 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={submitting}
         type="submit"
       >

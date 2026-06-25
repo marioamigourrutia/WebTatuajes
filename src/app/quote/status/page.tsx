@@ -50,11 +50,14 @@ export default async function QuoteStatusPage({
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-10 sm:px-10">
-      <section className="rounded-3xl border border-stone-700 bg-stone-950/70 p-6">
+      <section className="relative overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/60 p-6 shadow-2xl shadow-black/25 sm:p-8">
+        <div className="pointer-events-none absolute right-0 top-0 h-48 w-48 rounded-full bg-amber-300/10 blur-3xl" />
         <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
           Estado de cotización
         </p>
-        <h1 className="mt-3 text-4xl font-black text-stone-50">Consulta privada de tu solicitud</h1>
+        <h1 className="mt-3 text-5xl font-black leading-tight text-stone-50 sm:text-6xl">
+          Consulta privada de tu solicitud
+        </h1>
         <p className="mt-3 text-sm leading-6 text-stone-400">
           Ingresa el código de cotización y el email usado en la solicitud para revisar el estado
           general. Esta página no muestra datos personales, notas internas, imágenes ni detalles
@@ -65,7 +68,7 @@ export default async function QuoteStatusPage({
           <label className="block">
             <span className="sr-only">Código de cotización</span>
             <input
-              className="w-full rounded-xl border border-stone-700 bg-stone-900 px-3 py-2 font-mono text-stone-100"
+              className="w-full rounded-2xl border border-stone-700 bg-stone-900/90 px-4 py-3 font-mono text-stone-100 transition focus:border-amber-300"
               defaultValue={code}
               name="code"
               placeholder="COT-2026-ABCDE"
@@ -75,7 +78,7 @@ export default async function QuoteStatusPage({
           <label className="block">
             <span className="sr-only">Email de la solicitud</span>
             <input
-              className="w-full rounded-xl border border-stone-700 bg-stone-900 px-3 py-2 text-stone-100"
+              className="w-full rounded-2xl border border-stone-700 bg-stone-900/90 px-4 py-3 text-stone-100 transition focus:border-amber-300"
               defaultValue={email}
               name="email"
               placeholder="tu@email.cl"
@@ -84,7 +87,7 @@ export default async function QuoteStatusPage({
             />
           </label>
           <button
-            className="rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950"
+            className="rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/30 transition hover:bg-amber-200"
             type="submit"
           >
             Consultar
@@ -104,7 +107,7 @@ export default async function QuoteStatusPage({
         ) : null}
 
         {quote ? (
-          <article className="mt-6 space-y-4 rounded-2xl border border-stone-800 bg-stone-900/70 p-5 text-stone-200">
+          <article className="mt-6 space-y-4 rounded-3xl border border-amber-100/10 bg-stone-900/70 p-5 text-stone-200 shadow-xl shadow-black/20">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
                 Código

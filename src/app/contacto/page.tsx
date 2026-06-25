@@ -15,9 +15,10 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
-      <section className="space-y-6 py-12">
+      <section className="relative space-y-6 overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/55 p-6 py-12 shadow-2xl shadow-black/25 sm:p-8 sm:py-14">
+        <div className="pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full bg-amber-300/10 blur-3xl" />
         <p className="text-sm font-semibold uppercase tracking-[0.35em] text-amber-300">
-          Contacto y ubicación
+          Contacto y ubicación · WhatsApp +56 9 7761 6917
         </p>
         <h1 className="max-w-4xl text-5xl font-black leading-tight text-stone-50 sm:text-7xl">
           Coordinemos tu próxima pieza con información clara.
@@ -35,7 +36,7 @@ export default function ContactPage() {
             Solicitar cotización
           </a>
           <a
-            className="rounded-full border border-stone-500 px-6 py-3 text-center font-semibold text-stone-100 transition hover:border-stone-200"
+            className="rounded-full border border-amber-300/40 bg-stone-950/40 px-6 py-3 text-center font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950"
             href="/servicios"
           >
             Revisar servicios
@@ -54,7 +55,7 @@ export default function ContactPage() {
         </div>
         {contactHighlights.map((item) => (
           <article
-            className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5"
+            className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5 shadow-xl shadow-black/15 transition hover:border-amber-300/40"
             key={item.title}
           >
             <h3 className="text-xl font-black text-stone-50">{item.title}</h3>
@@ -105,7 +106,7 @@ export default function ContactPage() {
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {contactLinks.map((link) => (
             <a
-              className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5 transition hover:border-amber-300/60"
+              className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5 shadow-xl shadow-black/15 transition hover:-translate-y-0.5 hover:border-amber-300/60"
               href={link.href}
               key={link.href}
             >

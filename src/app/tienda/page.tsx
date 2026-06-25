@@ -13,9 +13,14 @@ export default function ShopPage() {
 
   return (
     <main className="mx-auto grid w-full max-w-6xl gap-8 px-6 py-10 sm:px-10">
-      <section className="rounded-3xl border border-stone-700 bg-stone-950/70 p-6">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">Tienda</p>
-        <h1 className="mt-3 text-4xl font-black text-stone-50">Obras disponibles</h1>
+      <section className="relative overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/55 p-6 shadow-2xl shadow-black/25 sm:p-8">
+        <div className="pointer-events-none absolute right-0 top-0 h-48 w-48 rounded-full bg-amber-300/10 blur-3xl" />
+        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
+          Tienda · obras originales
+        </p>
+        <h1 className="mt-3 text-5xl font-black leading-tight text-stone-50 sm:text-6xl">
+          Obras disponibles
+        </h1>
         <p className="mt-3 max-w-2xl leading-7 text-stone-300">
           Piezas y flashes disponibles para solicitar. La compra se coordina por contacto directo:
           no hay pagos automáticos ni reservas sin confirmación del estudio.
@@ -25,18 +30,18 @@ export default function ShopPage() {
       <section aria-label="Catálogo de obras" className="grid gap-4 md:grid-cols-3">
         {products.map((product) => (
           <article
-            className="flex flex-col overflow-hidden rounded-3xl border border-stone-800 bg-stone-950/70"
+            className="group flex flex-col overflow-hidden rounded-3xl border border-stone-800 bg-stone-950/70 shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-amber-300/40"
             key={product.id}
           >
             {product.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 alt={product.title}
-                className="h-48 w-full object-cover"
+                className="h-48 w-full object-cover transition duration-500 group-hover:scale-105"
                 src={product.imageUrl}
               />
             ) : (
-              <div className="flex h-48 items-center justify-center bg-[radial-gradient(circle_at_top,#78350f,#0c0a09_60%)] text-sm font-semibold uppercase tracking-[0.25em] text-amber-100/80">
+              <div className="flex h-48 items-center justify-center bg-[radial-gradient(circle_at_top,#78350f,#0c0a09_60%)] text-sm font-semibold uppercase tracking-[0.25em] text-amber-100/80 transition duration-500 group-hover:scale-105">
                 Sin imagen
               </div>
             )}
@@ -45,7 +50,7 @@ export default function ShopPage() {
                 <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-300">
                   {product.code}
                 </p>
-                <span className="rounded-full border border-stone-700 px-3 py-1 text-xs text-stone-200">
+                <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs text-amber-100">
                   {productStatusLabels[product.status]}
                 </span>
               </div>

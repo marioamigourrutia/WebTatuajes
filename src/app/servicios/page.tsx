@@ -16,7 +16,8 @@ export const metadata: Metadata = {
 export default function ServicesPage() {
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
-      <section className="space-y-6 py-12">
+      <section className="relative space-y-6 overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/55 p-6 py-12 shadow-2xl shadow-black/25 sm:p-8 sm:py-14">
+        <div className="pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full bg-amber-300/10 blur-3xl" />
         <p className="text-sm font-semibold uppercase tracking-[0.35em] text-amber-300">
           Servicios y cuidados
         </p>
@@ -36,7 +37,7 @@ export default function ServicesPage() {
             Solicitar cotización
           </a>
           <a
-            className="rounded-full border border-stone-500 px-6 py-3 text-center font-semibold text-stone-100 transition hover:border-stone-200"
+            className="rounded-full border border-amber-300/40 bg-stone-950/40 px-6 py-3 text-center font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950"
             href="/portfolio"
           >
             Ver portafolio
@@ -56,7 +57,7 @@ export default function ServicesPage() {
         <div className="grid gap-4">
           {tattooServices.map((service) => (
             <article
-              className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5"
+              className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5 shadow-xl shadow-black/15 transition hover:border-amber-300/40"
               key={service.title}
             >
               <h3 className="text-xl font-black text-stone-50">{service.title}</h3>
@@ -103,7 +104,7 @@ export default function ServicesPage() {
           <ol className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {aftercareSteps.map((step, index) => (
               <li
-                className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4 text-stone-300"
+                className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4 text-stone-300 transition hover:border-amber-300/30"
                 key={step}
               >
                 <span className="text-sm font-bold text-amber-300">0{index + 1}</span>
