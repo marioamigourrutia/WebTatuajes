@@ -6,15 +6,25 @@ const purchaseInput = {
   customerName: "Ana Cliente",
   customerPhone: "+56 9 1234 5678",
   customerEmail: "ana@example.test",
-  product: { code: "OBR-001", title: "Peonía en línea fina", priceClp: 85000 },
+  product: {
+    code: "OBR-001",
+    title: "Peonía en línea fina",
+    description:
+      "Diseño disponible para brazo o pierna. Se ajusta tamaño y ubicación antes de reservar.",
+    priceClp: 85000,
+  },
 };
 
 describe("purchase contact links", () => {
   it("builds a clear WhatsApp message without sending automatically", () => {
     const message = buildPurchaseWhatsAppMessage(purchaseInput);
 
-    expect(message).toContain("Peonía en línea fina (OBR-001)");
+    expect(message).toContain("Obra: Peonía en línea fina");
+    expect(message).toContain("Código de obra: OBR-001");
+    expect(message).toContain("Precio referencial: $85.000");
+    expect(message).toContain("Se ajusta tamaño y ubicación antes de reservar");
     expect(message).toContain("Código de solicitud: COM-2026-ABCDE");
+    expect(message).toContain("coordinar disponibilidad, ubicación final, tamaño y próximos pasos");
     expect(message).toContain("Entiendo que este mensaje no confirma reserva ni pago");
   });
 

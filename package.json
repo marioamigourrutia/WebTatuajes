@@ -21,6 +21,7 @@
     "admin:seed-local": "node --env-file=.env.local scripts/seed-local-admin.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
     "firebase": "^12.14.0",
     "firebase-admin": "^13.10.0",
     "next": "latest",

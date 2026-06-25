@@ -24,6 +24,19 @@ import {
   validateQuoteRequestInput,
 } from "./quote-request";
 
+const supabaseMocks = vi.hoisted(() => {
+  const upload = vi.fn();
+  const getPublicUrl = vi.fn();
+  const from = vi.fn(() => ({ upload, getPublicUrl }));
+  const createClient = vi.fn(() => ({ storage: { from } }));
+
+  return { createClient, from, getPublicUrl, upload };
+});
+
+vi.mock("@supabase/supabase-js", () => ({
+  createClient: supabaseMocks.createClient,
+}));
+
 const validInput = {
   customerName: "  Ana Cliente  ",
   email: "ANA@EXAMPLE.TEST",
@@ -52,29 +65,29 @@ afterEach(() => {
   delete process.env.CLOUDINARY_CLOUD_NAME;
   delete process.env.CLOUDINARY_API_KEY;
   delete process.env.CLOUDINARY_API_SECRET;
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  delete process.env.SUPABASE_STORAGE_BUCKET;
+  delete process.env.SUPABASE_UPLOAD_FOLDER;
+  vi.clearAllMocks();
 });
 
-function enableMockCloudinaryUpload() {
-  process.env.IMAGE_UPLOAD_PROVIDER = "cloudinary";
-  process.env.CLOUDINARY_CLOUD_NAME = "demo";
-  process.env.CLOUDINARY_API_KEY = "key";
-  process.env.CLOUDINARY_API_SECRET = "secret";
+function enableMockSupabaseUpload() {
+  process.env.IMAGE_UPLOAD_PROVIDER = "supabase";
+  process.env.SUPABASE_URL = "https://project.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+  process.env.SUPABASE_STORAGE_BUCKET = "tattoo-images";
+  process.env.SUPABASE_UPLOAD_FOLDER = "webtatuajes";
   let index = 0;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => {
-      index += 1;
-      return {
-        ok: true,
-        json: async () => ({
-          public_id: `webtatuajes/quote-references/ref-${index}`,
-          secure_url: `https://res.cloudinary.com/demo/image/upload/ref-${index}.png`,
-          width: 800,
-          height: 600,
-        }),
-      };
-    }),
-  );
+  supabaseMocks.upload.mockImplementation(async () => {
+    index += 1;
+    return { data: { path: `webtatuajes/quote-references/ref-${index}.png` }, error: null };
+  });
+  supabaseMocks.getPublicUrl.mockImplementation((path: string) => ({
+    data: {
+      publicUrl: `https://project.supabase.co/storage/v1/object/public/tattoo-images/${path}`,
+    },
+  }));
 }
 
 function mockQuotesCollection(add = vi.fn().mockResolvedValue({ id: "quote-123" })) {
@@ -680,7 +693,7 @@ describe("quote request firestore helpers", () => {
   });
 
   it("uploads reference images and writes image metadata server-side", async () => {
-    enableMockCloudinaryUpload();
+    enableMockSupabaseUpload();
     const addQuote = vi.fn().mockResolvedValue({ id: "quote-123", delete: vi.fn() });
     const addImage = vi.fn().mockResolvedValue({ id: "image-123" });
     const quoteReference = { id: "quote-123", delete: vi.fn() };
@@ -718,9 +731,11 @@ describe("quote request firestore helpers", () => {
       expect.objectContaining({
         customer_id: "anonymous",
         quote_id: "quote-123",
-        provider: "cloudinary",
-        provider_id: "webtatuajes/quote-references/ref-1",
-        secure_url: "https://res.cloudinary.com/demo/image/upload/ref-1.png",
+        provider: "supabase",
+        provider_id: expect.stringMatching(/^webtatuajes\/quote-references\/[a-f0-9]{32}\.png$/),
+        secure_url: expect.stringMatching(
+          /^https:\/\/project\.supabase\.co\/storage\/v1\/object\/public\/tattoo-images\/webtatuajes\/quote-references\/[a-f0-9]{32}\.png$/,
+        ),
         original_filename: "Referencia 1",
         mime_type: "image/png",
         size_bytes: imageFile.size,
@@ -729,7 +744,7 @@ describe("quote request firestore helpers", () => {
   });
 
   it("cleans up uploaded files, image metadata, and quote when an image operation fails", async () => {
-    enableMockCloudinaryUpload();
+    enableMockSupabaseUpload();
     const deleteQuote = vi.fn().mockResolvedValue(undefined);
     const addQuote = vi.fn().mockResolvedValue({ id: "quote-123", delete: deleteQuote });
     const doc = vi.fn((id?: string) => ({ id: id ?? "quote-123", delete: deleteQuote }));

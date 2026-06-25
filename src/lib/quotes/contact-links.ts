@@ -26,6 +26,6 @@ export function buildQuoteWhatsAppUrl(quote: QuoteContactInput): string | null {
 
   return buildWhatsAppUrl({
     phone: quote.phone,
-    message: `Hola ${quote.customerName}, te contactamos por tu solicitud de cotización ${quote.quoteCode ?? quote.id} para ${quote.bodyPlacement} (${quote.approximateSize}).`,
+    message: `Hola ${quote.customerName}, te contactamos por tu solicitud de cotización ${quote.quoteCode ?? quote.id} para ${quote.bodyPlacement} (${quote.approximateSize}). Queremos coordinar referencias, disponibilidad y próximos pasos contigo.`,
   });
 }

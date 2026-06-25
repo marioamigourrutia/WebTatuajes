@@ -8,6 +8,19 @@ import {
   validateUploadImageContent,
 } from "./upload-provider";
 
+const supabaseMocks = vi.hoisted(() => {
+  const upload = vi.fn();
+  const getPublicUrl = vi.fn();
+  const from = vi.fn(() => ({ upload, getPublicUrl }));
+  const createClient = vi.fn(() => ({ storage: { from } }));
+
+  return { createClient, from, getPublicUrl, upload };
+});
+
+vi.mock("@supabase/supabase-js", () => ({
+  createClient: supabaseMocks.createClient,
+}));
+
 const originalEnv = { ...process.env };
 const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
@@ -18,12 +31,17 @@ function resetEnv() {
   delete process.env.CLOUDINARY_API_KEY;
   delete process.env.CLOUDINARY_API_SECRET;
   delete process.env.CLOUDINARY_UPLOAD_FOLDER;
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  delete process.env.SUPABASE_STORAGE_BUCKET;
+  delete process.env.SUPABASE_UPLOAD_FOLDER;
   delete process.env.IMAGE_UPLOAD_MAX_SIZE_BYTES;
 }
 
 describe("upload provider config", () => {
   afterEach(() => {
     resetEnv();
+    vi.clearAllMocks();
     vi.restoreAllMocks();
   });
 
@@ -36,6 +54,23 @@ describe("upload provider config", () => {
       maxSizeBytes: defaultImageUploadMaxSizeBytes,
     });
     expect(isExternalImageUploadConfigured()).toBe(false);
+  });
+
+  it("detects Supabase Storage only when server credentials and bucket are present", () => {
+    resetEnv();
+    process.env.IMAGE_UPLOAD_PROVIDER = "supabase";
+    process.env.SUPABASE_URL = "https://project.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    process.env.SUPABASE_STORAGE_BUCKET = "tattoo-images";
+    process.env.SUPABASE_UPLOAD_FOLDER = "Tattoo Studio/Private";
+
+    expect(getImageUploadConfig()).toMatchObject({
+      provider: "supabase",
+      configured: true,
+      supabaseBucket: "tattoo-images",
+      supabaseFolder: "tattoo-studio/private",
+    });
+    expect(isExternalImageUploadConfigured()).toBe(true);
   });
 
   it("detects Cloudinary only when all server credentials are present", () => {
@@ -86,8 +121,45 @@ describe("upload provider config", () => {
     ).resolves.toMatchObject({
       ok: false,
       status: 503,
-      errors: { image: expect.stringContaining("proveedor externo") },
+      errors: { image: expect.stringContaining("Supabase Storage") },
     });
+  });
+
+  it("uploads to Supabase Storage with a random object path without the original filename", async () => {
+    resetEnv();
+    process.env.IMAGE_UPLOAD_PROVIDER = "supabase";
+    process.env.SUPABASE_URL = "https://project.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    process.env.SUPABASE_STORAGE_BUCKET = "tattoo-images";
+    process.env.SUPABASE_UPLOAD_FOLDER = "webtatuajes";
+    supabaseMocks.upload.mockResolvedValue({ data: { path: "stored" }, error: null });
+    supabaseMocks.getPublicUrl.mockReturnValue({
+      data: {
+        publicUrl: "https://project.supabase.co/storage/v1/object/public/tattoo-images/path.png",
+      },
+    });
+
+    const result = await uploadImageToExternalProvider(
+      new File([pngBytes], "client-original-name.png", { type: "image/png" }),
+      "portfolio",
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      image: {
+        provider: "supabase",
+        secureUrl: "https://project.supabase.co/storage/v1/object/public/tattoo-images/path.png",
+      },
+    });
+    expect(supabaseMocks.createClient).toHaveBeenCalledWith(
+      "https://project.supabase.co",
+      "service-role",
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    );
+    expect(supabaseMocks.from).toHaveBeenCalledWith("tattoo-images");
+    const objectPath = supabaseMocks.upload.mock.calls[0]?.[0] as string;
+    expect(objectPath).toMatch(/^webtatuajes\/portfolio\/[a-f0-9]{32}\.png$/);
+    expect(objectPath).not.toContain("client-original-name");
   });
 
   it("uses a random Cloudinary public id without the original filename", async () => {
@@ -120,12 +192,12 @@ describe("upload provider config", () => {
     expect(body.get("public_id")).not.toContain("client-original-name");
   });
 
-  it("rejects disguised image/png content before calling Cloudinary", async () => {
+  it("rejects disguised image/png content before calling Supabase", async () => {
     resetEnv();
-    process.env.IMAGE_UPLOAD_PROVIDER = "cloudinary";
-    process.env.CLOUDINARY_CLOUD_NAME = "demo";
-    process.env.CLOUDINARY_API_KEY = "key";
-    process.env.CLOUDINARY_API_SECRET = "secret";
+    process.env.IMAGE_UPLOAD_PROVIDER = "supabase";
+    process.env.SUPABASE_URL = "https://project.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    process.env.SUPABASE_STORAGE_BUCKET = "tattoo-images";
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -140,5 +212,6 @@ describe("upload provider config", () => {
       errors: { image: "Solo se permiten imágenes JPG, PNG, WEBP o GIF válidas." },
     });
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(supabaseMocks.upload).not.toHaveBeenCalled();
   });
 });

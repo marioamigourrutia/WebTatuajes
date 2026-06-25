@@ -1,10 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
 
-export const imageUploadProviders = ["cloudinary", "disabled"] as const;
+export const imageUploadProviders = ["supabase", "cloudinary", "disabled"] as const;
 export type ImageUploadProvider = (typeof imageUploadProviders)[number];
 
 export type UploadedImageMetadata = {
-  provider: "cloudinary";
+  provider: "supabase" | "cloudinary";
   providerId: string;
   secureUrl: string;
   mimeType: string;
@@ -28,7 +29,7 @@ type AllowedImageUploadMimeType = (typeof allowedImageUploadMimeTypes)[number];
 const invalidImageContentMessage = "Solo se permiten imágenes JPG, PNG, WEBP o GIF válidas.";
 
 const disabledMessage =
-  "La carga de imágenes requiere configurar un proveedor externo de imágenes. Puedes usar una URL pública mientras se configura Cloudinary.";
+  "La carga de imágenes requiere configurar Supabase Storage en servidor. Puedes usar una URL pública mientras se habilita el proveedor.";
 
 function cleanString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -44,7 +45,8 @@ function cleanFolderSegment(value: string): string {
 }
 
 function parseProvider(value = process.env.IMAGE_UPLOAD_PROVIDER): ImageUploadProvider {
-  return value === "cloudinary" ? "cloudinary" : "disabled";
+  if (value === "supabase" || value === "cloudinary") return value;
+  return "disabled";
 }
 
 function parseMaxSizeBytes(value = process.env.IMAGE_UPLOAD_MAX_SIZE_BYTES): number {
@@ -54,14 +56,32 @@ function parseMaxSizeBytes(value = process.env.IMAGE_UPLOAD_MAX_SIZE_BYTES): num
 
 export function getImageUploadConfig() {
   const provider = parseProvider();
+  const supabaseUrl = cleanString(process.env.SUPABASE_URL);
+  const supabaseServiceRoleKey = cleanString(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const supabaseBucket = cleanFolderSegment(process.env.SUPABASE_STORAGE_BUCKET ?? "");
+  const supabaseFolder = cleanFolderSegment(process.env.SUPABASE_UPLOAD_FOLDER ?? "webtatuajes");
   const cloudName = cleanString(process.env.CLOUDINARY_CLOUD_NAME);
   const apiKey = cleanString(process.env.CLOUDINARY_API_KEY);
   const apiSecret = cleanString(process.env.CLOUDINARY_API_SECRET);
   const folder = cleanFolderSegment(process.env.CLOUDINARY_UPLOAD_FOLDER ?? "webtatuajes");
   const maxSizeBytes = parseMaxSizeBytes();
-  const configured = provider === "cloudinary" && Boolean(cloudName && apiKey && apiSecret);
+  const configured =
+    (provider === "supabase" && Boolean(supabaseUrl && supabaseServiceRoleKey && supabaseBucket)) ||
+    (provider === "cloudinary" && Boolean(cloudName && apiKey && apiSecret));
 
-  return { provider, configured, cloudName, apiKey, apiSecret, folder, maxSizeBytes } as const;
+  return {
+    provider,
+    configured,
+    supabaseUrl,
+    supabaseServiceRoleKey,
+    supabaseBucket,
+    supabaseFolder,
+    cloudName,
+    apiKey,
+    apiSecret,
+    folder,
+    maxSizeBytes,
+  } as const;
 }
 
 export function isExternalImageUploadConfigured() {
@@ -145,6 +165,68 @@ function signCloudinaryParams(params: Record<string, string>, apiSecret: string)
   return createHash("sha1").update(`${payload}${apiSecret}`).digest("hex");
 }
 
+function getRandomObjectPath(folder: string, purpose: ImageUploadPurpose, mimeType: string) {
+  const extensions: Record<AllowedImageUploadMimeType, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+  };
+  const baseFolder = folder ? `${folder}/` : "";
+
+  return `${baseFolder}${getPurposeFolder(purpose)}/${randomBytes(16).toString("hex")}.${extensions[mimeType as AllowedImageUploadMimeType]}`;
+}
+
+async function uploadImageToSupabaseStorage(
+  file: File,
+  purpose: ImageUploadPurpose,
+  mimeType: AllowedImageUploadMimeType,
+  config: ReturnType<typeof getImageUploadConfig>,
+) {
+  const objectPath = getRandomObjectPath(config.supabaseFolder, purpose, mimeType);
+  const supabase = createClient(config.supabaseUrl, config.supabaseServiceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const upload = await supabase.storage
+    .from(config.supabaseBucket)
+    .upload(objectPath, new Blob([await file.arrayBuffer()], { type: mimeType }), {
+      contentType: mimeType,
+      upsert: false,
+    });
+
+  if (upload.error) {
+    return {
+      ok: false as const,
+      status: 502,
+      errors: { image: "No se pudo subir la imagen al proveedor externo." },
+    };
+  }
+
+  const publicUrl = supabase.storage.from(config.supabaseBucket).getPublicUrl(objectPath)
+    .data.publicUrl;
+
+  if (!publicUrl) {
+    return {
+      ok: false as const,
+      status: 502,
+      errors: { image: "No se pudo obtener la URL pública de la imagen." },
+    };
+  }
+
+  return {
+    ok: true as const,
+    image: {
+      provider: "supabase" as const,
+      providerId: objectPath,
+      secureUrl: publicUrl,
+      mimeType,
+      sizeBytes: file.size,
+      width: null,
+      height: null,
+    },
+  };
+}
+
 export async function uploadImageToExternalProvider(
   file: File,
   purpose: ImageUploadPurpose,
@@ -161,6 +243,10 @@ export async function uploadImageToExternalProvider(
 
   if (!config.configured) {
     return { ok: false, status: 503, errors: { image: disabledMessage } };
+  }
+
+  if (config.provider === "supabase") {
+    return uploadImageToSupabaseStorage(file, purpose, contentValidation.mimeType, config);
   }
 
   const folder = `${config.folder}/${getPurposeFolder(purpose)}`;
