@@ -8,6 +8,7 @@ export const publicSiteRoutes = [
   "/",
   "/quote",
   "/portfolio",
+  "/opiniones",
   "/tienda",
   "/servicios",
   "/contacto",

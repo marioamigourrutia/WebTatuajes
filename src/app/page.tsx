@@ -5,6 +5,7 @@ import { instagramMediaToPortfolioItems } from "@/lib/instagram/portfolio-adapte
 import { listPublicInstagramMedia } from "@/lib/instagram/instagram-media";
 import { getFeaturedPortfolioItems } from "@/lib/portfolio/portfolio";
 import { canUsePublicBackend } from "@/lib/portfolio/public-portfolio-backend";
+import { listPublishedReviews } from "@/lib/reviews/review";
 import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
 const services = [
@@ -39,8 +40,18 @@ async function getHomePortfolioItems() {
   }
 }
 
+async function getHomeReviews() {
+  try {
+    const firestore = getFirebaseAdminFirestore();
+    return firestore ? await listPublishedReviews(firestore, 3) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default async function HomePage() {
   const featuredPortfolioItems = await getHomePortfolioItems();
+  const reviews = await getHomeReviews();
   const whatsappUrl = hasWhatsAppConfig(appConfig.whatsappPhone)
     ? buildWhatsAppUrl({
         phone: appConfig.whatsappPhone,
@@ -114,6 +125,48 @@ export default async function HomePage() {
             </div>
           </dl>
         </aside>
+      </section>
+
+      <section className="py-10">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
+              Opiniones
+            </p>
+            <h2 className="mt-3 text-3xl font-black text-stone-50">
+              Experiencias moderadas y autorizadas.
+            </h2>
+          </div>
+          <a
+            className="rounded-full border border-amber-300/50 px-6 py-3 text-center font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950"
+            href="/opiniones"
+          >
+            Ver opiniones
+          </a>
+        </div>
+        <div className="mt-6 grid gap-5 md:grid-cols-3">
+          {reviews.length === 0 ? (
+            <p className="rounded-3xl border border-stone-800 bg-stone-950/70 p-6 text-stone-300 md:col-span-3">
+              Aún no hay opiniones publicadas.
+            </p>
+          ) : (
+            reviews.map((review) => (
+              <article
+                className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5"
+                key={review.id}
+              >
+                <p className="text-amber-300">
+                  {"★".repeat(review.rating)}
+                  {"☆".repeat(5 - review.rating)}
+                </p>
+                <p className="mt-3 line-clamp-4 text-sm leading-6 text-stone-300">
+                  {review.comment}
+                </p>
+                <p className="mt-4 font-semibold text-stone-100">{review.publicName}</p>
+              </article>
+            ))
+          )}
+        </div>
       </section>
 
       <section className="py-10">
