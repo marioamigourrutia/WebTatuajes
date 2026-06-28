@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { AdminInstagramMediaPanel } from "@/lib/instagram/admin-instagram-media-panel";
 import { AdminPortfolioPanel } from "@/lib/portfolio/admin-portfolio-panel";
 import { AdminReviewsPanel } from "@/lib/reviews/admin-reviews-panel";
+import { AdminSponsorsPanel } from "@/lib/sponsors/admin-sponsors-panel";
 import { buildQuoteMailtoUrl, buildQuoteWhatsAppUrl } from "@/lib/quotes/contact-links";
 import { formatClpPrice } from "@/lib/shop/catalog";
 import {
@@ -816,6 +817,7 @@ export function AdminStatusPanel({
         <div className="space-y-5">
           <AdminPortfolioPanel enabled={status.admin} fileUploadsEnabled={imageUploadsEnabled} />
           <AdminInstagramMediaPanel enabled={status.admin} />
+          <AdminSponsorsPanel enabled={status.admin} />
           <AdminReviewsPanel enabled={status.admin} />
 
           <section className="space-y-3 rounded-2xl border border-stone-800 bg-stone-900/70 p-4">

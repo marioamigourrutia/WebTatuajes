@@ -6,6 +6,8 @@ import { listPublicInstagramMedia } from "@/lib/instagram/instagram-media";
 import { getFeaturedPortfolioItems } from "@/lib/portfolio/portfolio";
 import { canUsePublicBackend } from "@/lib/portfolio/public-portfolio-backend";
 import { listPublishedReviews } from "@/lib/reviews/review";
+import { listPublicSponsors } from "@/lib/sponsors/admin-sponsors";
+import { PublicSponsorsSection } from "@/lib/sponsors/public-sponsors-section";
 import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
 const services = [
@@ -49,9 +51,19 @@ async function getHomeReviews() {
   }
 }
 
+async function getHomeSponsors() {
+  try {
+    const firestore = getFirebaseAdminFirestore();
+    return firestore ? await listPublicSponsors(firestore, 3) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default async function HomePage() {
   const featuredPortfolioItems = await getHomePortfolioItems();
   const reviews = await getHomeReviews();
+  const sponsors = await getHomeSponsors();
   const whatsappUrl = hasWhatsAppConfig(appConfig.whatsappPhone)
     ? buildWhatsAppUrl({
         phone: appConfig.whatsappPhone,
@@ -247,6 +259,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <PublicSponsorsSection sponsors={sponsors} />
 
       <section className="grid gap-6 py-10 md:grid-cols-[0.8fr_1.2fr]">
         <div>
