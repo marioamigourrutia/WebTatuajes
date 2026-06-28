@@ -60,3 +60,13 @@ export async function listPublicBackendPortfolioItems(): Promise<FirestorePortfo
 
   return listPublishedFirestorePortfolioItems();
 }
+
+export async function canUsePublicBackend(): Promise<boolean> {
+  const hasServiceAccount = getFirebaseAdminServiceAccount() !== null;
+  const hasReachableEmulator =
+    !hasServiceAccount &&
+    isFirebaseAdminEmulatorEnabled() &&
+    (await isFirestoreEmulatorReachable());
+
+  return hasServiceAccount || hasReachableEmulator;
+}

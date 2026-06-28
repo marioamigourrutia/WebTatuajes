@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
+import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
+import { instagramMediaToPortfolioItems } from "@/lib/instagram/portfolio-adapter";
+import { listPublicInstagramMedia } from "@/lib/instagram/instagram-media";
 import { PortfolioGallery } from "@/lib/portfolio/portfolio-gallery";
 import {
-  combinePortfolioItems,
+  getPortfolioItemsWithStaticFallback,
   getPublishedPortfolioItems,
   toPublicPortfolioItems,
 } from "@/lib/portfolio/portfolio";
-import { listPublicBackendPortfolioItems } from "@/lib/portfolio/public-portfolio-backend";
+import {
+  canUsePublicBackend,
+  listPublicBackendPortfolioItems,
+} from "@/lib/portfolio/public-portfolio-backend";
 
 export const metadata: Metadata = {
   title: "Portafolio",
@@ -17,10 +23,18 @@ export const dynamic = "force-dynamic";
 
 async function getPublicPortfolioItems() {
   try {
+    if (!(await canUsePublicBackend())) {
+      return toPublicPortfolioItems(getPublishedPortfolioItems());
+    }
+
+    const firestore = getFirebaseAdminFirestore();
+    const instagramItems = firestore
+      ? instagramMediaToPortfolioItems(await listPublicInstagramMedia(firestore))
+      : [];
     const firestoreItems = await listPublicBackendPortfolioItems();
 
     return toPublicPortfolioItems(
-      combinePortfolioItems(getPublishedPortfolioItems(), firestoreItems),
+      getPortfolioItemsWithStaticFallback([...instagramItems, ...firestoreItems]),
     );
   } catch {
     return toPublicPortfolioItems(getPublishedPortfolioItems());

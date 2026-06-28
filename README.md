@@ -11,6 +11,7 @@ Plataforma web profesional para un estudio de tatuajes en Chile. La aplicación 
 - Hay un flujo local mínimo con Firebase Auth Emulator para login/logout, seed controlado de admin local y validación server-side de rol en `/admin`.
 - Hay un primer flujo de negocio local: formulario público de cotización en `/quote`, escritura server-side con Firebase Admin SDK, dashboard admin validado en servidor, cambio de estado, detalle completo, enlaces de contacto y nota interna de solicitudes.
 - Hay un portafolio público MVP en `/portfolio` con datos estáticos tipados, filtros simples por estilo/etiqueta, placeholders visuales locales, CTA hacia cotización y un slice admin local para crear/listar/publicar ítems administrables con imagen opcional.
+- Hay una base de media Instagram oficial-API-ready en `instagram_media`: el admin puede crear media manual con URL pública/permalink, listar y cambiar flags; el endpoint de sync queda explícitamente deshabilitado con 501 hasta tener credenciales server-only reales.
 - Hay una página pública estática en `/servicios` con servicios, expectativas de reserva, higiene, cuidados posteriores, FAQ y CTA hacia cotización.
 - Hay una página pública estática en `/contacto` con contacto, ubicación por reserva, higiene, soporte posterior y CTA hacia cotización.
 - Hay metadata base, `robots.txt` y `sitemap.xml` para descubrimiento público inicial en Vercel; incluye `/`, `/quote`, `/portfolio`, `/servicios` y `/contacto`.
@@ -168,6 +169,18 @@ npm run admin:seed-local # crea admin@example.test en emuladores locales
 | `CLOUDINARY_API_KEY`                         | Legacy Cloudinary API key server-side. No exponer en cliente.                                                                                                                                               |
 | `CLOUDINARY_API_SECRET`                      | Legacy Cloudinary API secret server-side. Nunca commitear ni usar con prefijo `NEXT_PUBLIC_`.                                                                                                               |
 | `CLOUDINARY_UPLOAD_FOLDER`                   | Carpeta base legacy para uploads Cloudinary, por defecto `webtatuajes`.                                                                                                                                     |
+| `INSTAGRAM_IG_USER_ID`                       | ID de usuario profesional/creator de Instagram para la API oficial. Server-only.                                                                                                                            |
+| `INSTAGRAM_ACCESS_TOKEN`                     | Token server-only para consultar `/{ig-user-id}/media`. Nunca usar browser tokens, scraping ni prefijo `NEXT_PUBLIC_`.                                                                                      |
+| `INSTAGRAM_APP_ID`                           | App ID de Meta server-only para preparar integración oficial.                                                                                                                                               |
+| `INSTAGRAM_APP_SECRET`                       | App secret de Meta server-only. Nunca commitear ni exponer al cliente.                                                                                                                                      |
+
+### Instagram oficial y fallback manual
+
+La colección `instagram_media` guarda media manual o futura media sincronizada desde la API oficial con campos alineados a Meta: `id`/`external_id`, `media_type`, `media_url`, `permalink`, `thumbnail_url`, `timestamp` y `caption`, más flags administrativos (`hidden`, `featured`, `pinned`, `show_on_home`, `portfolio_only`, `order`) y `source` (`manual` o `instagram_api`).
+
+El endpoint admin `/api/admin/instagram-media/sync` valida rol admin, pero responde `501` si faltan credenciales oficiales. No finge éxito y no llama a Instagram sin `INSTAGRAM_IG_USER_ID`, `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_APP_ID` e `INSTAGRAM_APP_SECRET`. El endpoint oficial objetivo es `/{ig-user-id}/media` con access token.
+
+Mientras la integración no esté aprobada/configurada, el panel `/admin` permite crear media manual desde URLs públicas autorizadas y usarla en `/portfolio` y la home. Si no hay media dinámica disponible, el sitio conserva el portafolio estático como fallback.
 
 ### Cargas de imágenes sin Firebase Storage
 

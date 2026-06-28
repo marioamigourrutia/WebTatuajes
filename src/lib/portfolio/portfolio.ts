@@ -11,6 +11,8 @@ export type PortfolioItem = {
   featured: boolean;
   gradient: string;
   imageUrl?: string | null;
+  permalink?: string | null;
+  source?: "static" | "portfolio_admin" | "instagram_media";
 };
 
 export type FirestorePortfolioItem = PortfolioItem & {
@@ -225,6 +227,31 @@ export function combinePortfolioItems(
   return sortByTitle([...staticItems, ...firestoreItems].filter((item) => item.published));
 }
 
+export function getPortfolioItemsWithStaticFallback(
+  dynamicItems: PortfolioItem[],
+  staticItems: PortfolioItem[] = portfolioItems,
+): PortfolioItem[] {
+  const publishedDynamicItems = dynamicItems.filter((item) => item.published);
+  const publishedStaticItems = getPublishedPortfolioItems(staticItems);
+
+  if (publishedDynamicItems.length === 0) {
+    return publishedStaticItems;
+  }
+
+  const dynamicItemIds = new Set<string>();
+  const uniqueDynamicItems = publishedDynamicItems.filter((item) => {
+    if (dynamicItemIds.has(item.id)) {
+      return false;
+    }
+
+    dynamicItemIds.add(item.id);
+    return true;
+  });
+  const fallbackItems = publishedStaticItems.filter((item) => !dynamicItemIds.has(item.id));
+
+  return [...uniqueDynamicItems, ...fallbackItems];
+}
+
 export function toPublicPortfolioItem(item: PortfolioItem): PublicPortfolioItem {
   const publicItem: PublicPortfolioItem = {
     id: item.id,
@@ -240,6 +267,14 @@ export function toPublicPortfolioItem(item: PortfolioItem): PublicPortfolioItem 
 
   if (item.imageUrl !== undefined) {
     publicItem.imageUrl = item.imageUrl;
+  }
+
+  if (item.permalink !== undefined) {
+    publicItem.permalink = item.permalink;
+  }
+
+  if (item.source !== undefined) {
+    publicItem.source = item.source;
   }
 
   return publicItem;

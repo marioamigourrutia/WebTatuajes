@@ -1,6 +1,10 @@
 import { appConfig } from "@/lib/config/app";
 import { CommunityMemberForm } from "@/lib/community/member-form";
+import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
+import { instagramMediaToPortfolioItems } from "@/lib/instagram/portfolio-adapter";
+import { listPublicInstagramMedia } from "@/lib/instagram/instagram-media";
 import { getFeaturedPortfolioItems } from "@/lib/portfolio/portfolio";
+import { canUsePublicBackend } from "@/lib/portfolio/public-portfolio-backend";
 import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
 const services = [
@@ -16,8 +20,27 @@ const processSteps = [
   "Coordinamos contacto y agenda cuando el proyecto esté claro.",
 ];
 
-export default function HomePage() {
-  const featuredPortfolioItems = getFeaturedPortfolioItems(3);
+export const dynamic = "force-dynamic";
+
+async function getHomePortfolioItems() {
+  try {
+    if (!(await canUsePublicBackend())) return getFeaturedPortfolioItems(3);
+
+    const firestore = getFirebaseAdminFirestore();
+    const instagramItems = firestore
+      ? instagramMediaToPortfolioItems(await listPublicInstagramMedia(firestore, 12))
+          .filter((item) => item.featured)
+          .slice(0, 3)
+      : [];
+
+    return instagramItems.length > 0 ? instagramItems : getFeaturedPortfolioItems(3);
+  } catch {
+    return getFeaturedPortfolioItems(3);
+  }
+}
+
+export default async function HomePage() {
+  const featuredPortfolioItems = await getHomePortfolioItems();
   const whatsappUrl = hasWhatsAppConfig(appConfig.whatsappPhone)
     ? buildWhatsAppUrl({
         phone: appConfig.whatsappPhone,
@@ -122,9 +145,18 @@ export default function HomePage() {
               key={item.id}
             >
               <div
-                className="h-40 transition duration-500 group-hover:scale-105"
-                style={{ background: item.gradient }}
-              />
+                className="relative h-40 overflow-hidden transition duration-500 group-hover:scale-105"
+                style={item.imageUrl ? undefined : { background: item.gradient }}
+              >
+                {item.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    alt={item.title}
+                    className="h-full w-full object-cover"
+                    src={item.imageUrl}
+                  />
+                ) : null}
+              </div>
               <div className="space-y-3 p-5">
                 <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-300">
                   {item.style} · {item.bodyArea}

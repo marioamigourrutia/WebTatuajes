@@ -3,6 +3,7 @@ import {
   filterPortfolioItems,
   combinePortfolioItems,
   getFeaturedPortfolioItems,
+  getPortfolioItemsWithStaticFallback,
   getPortfolioStyles,
   getPortfolioTags,
   getPublishedPortfolioItems,
@@ -171,5 +172,33 @@ describe("portfolio helpers", () => {
         { ...baseItem, id: "firestore-live", title: "Admin publicado", published: true },
       ]).map((item) => item.id),
     ).toEqual(["firestore-live", "published-blackwork", "published-fine-line"]);
+  });
+
+  it("merges published dynamic media with static fallback items", () => {
+    const dynamicItem: PortfolioItem = {
+      ...(items[0] as PortfolioItem),
+      id: "instagram-live",
+      title: "Instagram publicado",
+      source: "instagram_media",
+    };
+
+    expect(
+      getPortfolioItemsWithStaticFallback([dynamicItem], items).map((item) => item.id),
+    ).toEqual(["instagram-live", "published-blackwork", "published-fine-line"]);
+  });
+
+  it("keeps the dynamic item when a static fallback item has the same stable id", () => {
+    const dynamicItem: PortfolioItem = {
+      ...(items[0] as PortfolioItem),
+      title: "Blackwork actualizado desde admin",
+      source: "portfolio_admin",
+    };
+
+    const mergedItems = getPortfolioItemsWithStaticFallback([dynamicItem], items);
+
+    expect(mergedItems.filter((item) => item.id === "published-blackwork")).toHaveLength(1);
+    expect(mergedItems.find((item) => item.id === "published-blackwork")?.title).toBe(
+      "Blackwork actualizado desde admin",
+    );
   });
 });
