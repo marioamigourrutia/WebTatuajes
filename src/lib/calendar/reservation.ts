@@ -74,22 +74,14 @@ export function buildCalendarDateDocumentId(localDate: string) {
   return localDate;
 }
 
-export type PublicCalendarDateStatus =
-  | "AVAILABLE"
-  | "PENDING_CONFIRMATION"
-  | "RESERVED"
-  | "UNAVAILABLE";
+export type PublicCalendarDateStatus = "AVAILABLE" | "PENDING_CONFIRMATION" | "OCCUPIED";
 
 export type PublicCalendarDate = {
   date: string;
   status: PublicCalendarDateStatus;
 };
 
-export type AdminCalendarDateStatus =
-  | "AVAILABLE"
-  | "PENDING_CONFIRMATION"
-  | "CONFIRMED"
-  | "BLOCKED_BY_ADMIN";
+export type AdminCalendarDateStatus = "AVAILABLE" | "PENDING_CONFIRMATION" | "OCCUPIED";
 
 export type AdminCalendarDate = {
   date: string;
@@ -134,12 +126,8 @@ export function mapCalendarStatusToPublicStatus(status: unknown): PublicCalendar
     return "PENDING_CONFIRMATION";
   }
 
-  if (status === "DEPOSIT_VERIFIED" || status === "CONFIRMED") {
-    return "RESERVED";
-  }
-
-  if (status === "BLOCKED_BY_ADMIN") {
-    return "UNAVAILABLE";
+  if (status === "DEPOSIT_VERIFIED" || status === "CONFIRMED" || status === "BLOCKED_BY_ADMIN") {
+    return "OCCUPIED";
   }
 
   return "AVAILABLE";
@@ -150,12 +138,8 @@ export function mapCalendarStatusToAdminStatus(status: unknown): AdminCalendarDa
     return "PENDING_CONFIRMATION";
   }
 
-  if (status === "DEPOSIT_VERIFIED" || status === "CONFIRMED") {
-    return "CONFIRMED";
-  }
-
-  if (status === "BLOCKED_BY_ADMIN") {
-    return "BLOCKED_BY_ADMIN";
+  if (status === "DEPOSIT_VERIFIED" || status === "CONFIRMED" || status === "BLOCKED_BY_ADMIN") {
+    return "OCCUPIED";
   }
 
   return "AVAILABLE";
@@ -352,13 +336,15 @@ export async function unblockAdminCalendarDate(firestore: FirestoreLike, localDa
     const snapshot = await transactionLike.get(reference);
     const data = snapshot.data?.() ?? {};
 
-    if (!snapshot.exists || data.status !== "BLOCKED_BY_ADMIN" || data.source !== "admin_block") {
+    if (!snapshot.exists || !isActiveCalendarDateStatus(data.status)) {
       return {
         ok: false as const,
         status: 409,
-        error: "Solo se pueden liberar fechas bloqueadas manualmente por admin.",
+        error: "No hay una fecha activa para liberar.",
       };
     }
+
+    const quoteId = typeof data.quote_id === "string" ? data.quote_id.trim() : "";
 
     transactionLike.set(
       reference,
@@ -370,6 +356,20 @@ export async function unblockAdminCalendarDate(firestore: FirestoreLike, localDa
       },
       { merge: true },
     );
+
+    if (quoteId) {
+      const quoteReference = firestore.collection("quotes").doc(quoteId);
+      const quoteUpdate = {
+        calendar_date_status: "RELEASED" satisfies CalendarDateStatus,
+        updated_at: FieldValue.serverTimestamp(),
+      };
+
+      if (transactionLike.update) {
+        transactionLike.update(quoteReference, quoteUpdate);
+      } else {
+        transactionLike.set(quoteReference, quoteUpdate, { merge: true });
+      }
+    }
 
     return { ok: true as const, date, calendarDateStatus: "RELEASED" as const };
   });

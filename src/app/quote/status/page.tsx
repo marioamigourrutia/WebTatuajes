@@ -13,12 +13,13 @@ const quoteStatusLabels: Record<string, string> = {
 };
 
 const calendarStatusLabels: Record<string, string> = {
-  PENDING_CONFIRMATION: "Fecha solicitada, pendiente de confirmación",
-  DEPOSIT_PENDING: "Abono pendiente",
-  DEPOSIT_VERIFIED: "Abono verificado",
-  CONFIRMED: "Reserva confirmada",
-  BLOCKED_BY_ADMIN: "No disponible",
-  RELEASED: "Fecha liberada",
+  PENDING_CONFIRMATION: "Por confirmar",
+  DEPOSIT_PENDING: "Por confirmar",
+  DEPOSIT_VERIFIED: "Ocupado",
+  CONFIRMED: "Ocupado",
+  BLOCKED_BY_ADMIN: "Ocupado",
+  CANCELLED: "Libre",
+  RELEASED: "Libre",
 };
 
 function formatPreferredDate(value: string | null) {
@@ -154,9 +155,9 @@ export default async function QuoteStatusPage({
               </p>
             ) : null}
             <p className="text-sm leading-6 text-stone-400">
-              La fecha queda confirmada solo cuando el estudio lo informa explícitamente y la
-              reserva aparece como confirmada. Si necesitas corregir datos, responde por el canal de
-              contacto que indicaste en la cotización.
+              La fecha queda confirmada solo cuando el estudio lo informa explícitamente. Si
+              necesitas corregir datos, responde por el canal de contacto que indicaste en la
+              cotización.
             </p>
           </article>
         ) : null}

@@ -54,7 +54,7 @@ describe("admin calendar route", () => {
     });
     listAdminCalendarMonthMock.mockResolvedValue({
       ok: true,
-      dates: [{ date: "2026-07-15", status: "AVAILABLE" }],
+      dates: [{ date: "2026-07-15", status: "OCCUPIED" }],
     });
     bulkUpdateAdminCalendarDatesMock.mockResolvedValue({
       ok: true,
@@ -95,7 +95,7 @@ describe("admin calendar route", () => {
     const response = await POST(request({ action: "list", month: "2026-07" }));
 
     await expect(response.json()).resolves.toEqual({
-      dates: [{ date: "2026-07-15", status: "AVAILABLE" }],
+      dates: [{ date: "2026-07-15", status: "OCCUPIED" }],
     });
     expect(listAdminCalendarMonthMock).toHaveBeenCalledWith(expect.anything(), {
       month: "2026-07",

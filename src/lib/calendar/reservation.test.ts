@@ -28,17 +28,27 @@ function mockAvailabilityFirestore(docs: { id: string; data: Record<string, unkn
 }
 
 function mockAdminCalendarFirestore(existingData: Record<string, unknown> | null) {
-  const reference = { id: "2026-07-15" };
-  const get = vi.fn().mockResolvedValue({
-    exists: existingData !== null,
-    data: () => existingData ?? {},
-  });
+  const references = new Map<string, Record<string, unknown> | null>([
+    ["calendar_dates/2026-07-15", existingData],
+    ["quotes/quote-1", { calendar_date_status: existingData?.status ?? null }],
+  ]);
   const set = vi.fn();
-  const doc = vi.fn(() => reference);
-  const collection = vi.fn(() => ({ doc }));
-  const runTransaction = vi.fn(async (callback) => callback({ get, set }));
+  const update = vi.fn();
+  const collection = vi.fn((collectionName: string) => ({
+    doc: vi.fn((id = "") => ({ id, path: `${collectionName}/${id}` })),
+  }));
+  const runTransaction = vi.fn(async (callback) =>
+    callback({
+      get: vi.fn(async (reference: { path: string }) => {
+        const data = references.get(reference.path) ?? null;
+        return { exists: data !== null, data: () => data ?? {} };
+      }),
+      set,
+      update,
+    }),
+  );
 
-  return { firestore: { collection, runTransaction }, get, set };
+  return { firestore: { collection, runTransaction }, set, update };
 }
 
 describe("calendar availability", () => {
@@ -69,8 +79,8 @@ describe("calendar availability", () => {
       ok: true,
       dates: [
         { date: "2026-07-15", status: "PENDING_CONFIRMATION" },
-        { date: "2026-07-16", status: "RESERVED" },
-        { date: "2026-07-17", status: "UNAVAILABLE" },
+        { date: "2026-07-16", status: "OCCUPIED" },
+        { date: "2026-07-17", status: "OCCUPIED" },
         { date: "2026-07-18", status: "AVAILABLE" },
       ],
     });
@@ -89,8 +99,11 @@ describe("calendar availability", () => {
   });
 
   it("keeps public labels coarse", () => {
-    expect(mapCalendarStatusToPublicStatus("DEPOSIT_VERIFIED")).toBe("RESERVED");
+    expect(mapCalendarStatusToPublicStatus("DEPOSIT_VERIFIED")).toBe("OCCUPIED");
+    expect(mapCalendarStatusToPublicStatus("CONFIRMED")).toBe("OCCUPIED");
+    expect(mapCalendarStatusToPublicStatus("BLOCKED_BY_ADMIN")).toBe("OCCUPIED");
     expect(mapCalendarStatusToPublicStatus("RELEASED")).toBe("AVAILABLE");
+    expect(mapCalendarStatusToPublicStatus("CANCELLED")).toBe("AVAILABLE");
   });
 
   it("lists admin month statuses without exposing calendar PII", async () => {
@@ -107,15 +120,17 @@ describe("calendar availability", () => {
       ok: true,
       dates: expect.arrayContaining([
         { date: "2026-07-15", status: "PENDING_CONFIRMATION" },
-        { date: "2026-07-16", status: "CONFIRMED" },
-        { date: "2026-07-17", status: "BLOCKED_BY_ADMIN" },
+        { date: "2026-07-16", status: "OCCUPIED" },
+        { date: "2026-07-17", status: "OCCUPIED" },
       ]),
     });
   });
 
   it("maps admin calendar statuses to operational labels only", () => {
     expect(mapCalendarStatusToAdminStatus("DEPOSIT_PENDING")).toBe("PENDING_CONFIRMATION");
-    expect(mapCalendarStatusToAdminStatus("DEPOSIT_VERIFIED")).toBe("CONFIRMED");
+    expect(mapCalendarStatusToAdminStatus("DEPOSIT_VERIFIED")).toBe("OCCUPIED");
+    expect(mapCalendarStatusToAdminStatus("CONFIRMED")).toBe("OCCUPIED");
+    expect(mapCalendarStatusToAdminStatus("BLOCKED_BY_ADMIN")).toBe("OCCUPIED");
     expect(mapCalendarStatusToAdminStatus("RELEASED")).toBe("AVAILABLE");
   });
 });
@@ -137,22 +152,7 @@ describe("admin calendar blocks", () => {
     expect(set).not.toHaveBeenCalled();
   });
 
-  it("only unblocks admin-owned blocked dates", async () => {
-    const quoteOwned = mockAdminCalendarFirestore({
-      date: "2026-07-15",
-      status: "BLOCKED_BY_ADMIN",
-      source: "public_quote_form",
-      quote_id: "quote-1",
-    });
-
-    await expect(
-      unblockAdminCalendarDate(quoteOwned.firestore, "2026-07-15"),
-    ).resolves.toMatchObject({
-      ok: false,
-      status: 409,
-    });
-    expect(quoteOwned.set).not.toHaveBeenCalled();
-
+  it("unblocks admin-owned blocked dates", async () => {
     const adminOwned = mockAdminCalendarFirestore({
       date: "2026-07-15",
       status: "BLOCKED_BY_ADMIN",
@@ -164,7 +164,31 @@ describe("admin calendar blocks", () => {
       ok: true,
       calendarDateStatus: "RELEASED",
     });
-    expect(adminOwned.set).toHaveBeenCalled();
+    expect(adminOwned.set).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "calendar_dates/2026-07-15" }),
+      expect.objectContaining({ status: "RELEASED" }),
+      { merge: true },
+    );
+  });
+
+  it("unblocks quote-owned active dates and releases the quote calendar status", async () => {
+    const quoteOwned = mockAdminCalendarFirestore({
+      date: "2026-07-15",
+      status: "CONFIRMED",
+      source: "public_quote_form",
+      quote_id: "quote-1",
+    });
+
+    await expect(
+      unblockAdminCalendarDate(quoteOwned.firestore, "2026-07-15"),
+    ).resolves.toMatchObject({
+      ok: true,
+      calendarDateStatus: "RELEASED",
+    });
+    expect(quoteOwned.update).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "quotes/quote-1" }),
+      expect.objectContaining({ calendar_date_status: "RELEASED" }),
+    );
   });
 
   it("bulk blocks available dates and skips quote-owned dates", async () => {

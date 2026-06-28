@@ -61,8 +61,8 @@ export default function HomePage() {
           </div>
         </div>
 
-        <aside className="relative rounded-3xl border border-amber-100/15 bg-gradient-to-br from-stone-900/90 to-stone-950/90 p-6 shadow-2xl shadow-black/30">
-          <div className="absolute right-6 top-6 rounded-full border border-amber-300/30 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
+        <aside className="rounded-3xl border border-amber-100/15 bg-gradient-to-br from-stone-900/90 to-stone-950/90 p-6 shadow-2xl shadow-black/30">
+          <div className="mb-5 inline-flex max-w-full rounded-full border border-amber-300/30 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
             Diseño personalizado premium
           </div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-300">

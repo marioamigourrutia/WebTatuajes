@@ -9,11 +9,11 @@ const fieldClass =
 const labelClass = "text-xs font-semibold uppercase tracking-[0.2em] text-stone-400";
 const maxReferenceImageCount = 3;
 const maxReferenceImageSizeBytes = 5 * 1024 * 1024;
-const unavailablePublicStatuses = new Set(["PENDING_CONFIRMATION", "RESERVED", "UNAVAILABLE"]);
+const unavailablePublicStatuses = new Set(["PENDING_CONFIRMATION", "OCCUPIED"]);
 
 type PublicCalendarDate = {
   date: string;
-  status: "AVAILABLE" | "PENDING_CONFIRMATION" | "RESERVED" | "UNAVAILABLE";
+  status: "AVAILABLE" | "PENDING_CONFIRMATION" | "OCCUPIED";
 };
 
 function getCurrentMonth() {
@@ -34,10 +34,9 @@ function formatCalendarDay(date: string) {
 
 function getPublicStatusLabel(status: PublicCalendarDate["status"]) {
   const labels = {
-    AVAILABLE: "Disponible",
+    AVAILABLE: "Libre",
     PENDING_CONFIRMATION: "Por confirmar",
-    RESERVED: "Reservado",
-    UNAVAILABLE: "No disponible",
+    OCCUPIED: "Ocupado",
   } satisfies Record<PublicCalendarDate["status"], string>;
 
   return labels[status];

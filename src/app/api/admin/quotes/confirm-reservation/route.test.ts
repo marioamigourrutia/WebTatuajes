@@ -43,7 +43,7 @@ describe("admin quote reservation confirmation route", () => {
     confirmQuoteReservationMock.mockResolvedValue({
       ok: true,
       quoteId: "quote-1",
-      calendarDateStatus: "RESERVED",
+      calendarDateStatus: "CONFIRMED",
     });
   });
 

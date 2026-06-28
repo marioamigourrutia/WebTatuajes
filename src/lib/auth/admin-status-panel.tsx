@@ -73,11 +73,7 @@ type RecentPurchaseRequest = {
   whatsappUrl: string | null;
 };
 
-type AdminCalendarDateStatus =
-  | "AVAILABLE"
-  | "PENDING_CONFIRMATION"
-  | "CONFIRMED"
-  | "BLOCKED_BY_ADMIN";
+type AdminCalendarDateStatus = "AVAILABLE" | "PENDING_CONFIRMATION" | "OCCUPIED";
 
 type AdminCalendarDate = {
   date: string;
@@ -125,30 +121,28 @@ function formatPreferredDate(value: string | null) {
 
 function formatCalendarDateStatus(value: string | null) {
   const labels: Record<string, string> = {
-    PENDING_CONFIRMATION: "pendiente de confirmación",
-    DEPOSIT_PENDING: "abono pendiente",
-    DEPOSIT_VERIFIED: "abono verificado",
-    CONFIRMED: "confirmada",
-    BLOCKED_BY_ADMIN: "bloqueada por admin",
-    CANCELLED: "cancelada",
-    RELEASED: "liberada",
+    PENDING_CONFIRMATION: "Por confirmar",
+    DEPOSIT_PENDING: "Por confirmar",
+    DEPOSIT_VERIFIED: "Ocupado",
+    CONFIRMED: "Ocupado",
+    BLOCKED_BY_ADMIN: "Ocupado",
+    CANCELLED: "Libre",
+    RELEASED: "Libre",
   };
 
-  return value ? (labels[value] ?? value) : "sin bloqueo de calendario";
+  return value ? (labels[value] ?? value) : "sin fecha de calendario";
 }
 
 const adminCalendarStatusLabels: Record<AdminCalendarDateStatus, string> = {
-  AVAILABLE: "Disponible",
-  PENDING_CONFIRMATION: "Pendiente",
-  CONFIRMED: "Confirmada",
-  BLOCKED_BY_ADMIN: "Bloqueada por admin",
+  AVAILABLE: "Libre",
+  PENDING_CONFIRMATION: "Por confirmar",
+  OCCUPIED: "Ocupado",
 };
 
 const adminCalendarStatusClasses: Record<AdminCalendarDateStatus, string> = {
   AVAILABLE: "border-emerald-400/40 bg-emerald-400/10 text-emerald-100",
   PENDING_CONFIRMATION: "border-amber-300/50 bg-amber-300/10 text-amber-100",
-  CONFIRMED: "border-sky-300/50 bg-sky-300/10 text-sky-100",
-  BLOCKED_BY_ADMIN: "border-red-300/50 bg-red-300/10 text-red-100",
+  OCCUPIED: "border-sky-300/50 bg-sky-300/10 text-sky-100",
 };
 
 function getCurrentLocalMonth() {
@@ -677,7 +671,7 @@ export function AdminStatusPanel({
       }
 
       setNotice(
-        `${body.updated?.length ?? 0} fecha(s) actualizada(s). ${body.skipped?.length ?? 0} fecha(s) protegida(s) no se modificaron.`,
+        `${body.updated?.length ?? 0} fecha(s) actualizada(s). ${body.skipped?.length ?? 0} fecha(s) no se modificaron.`,
       );
       await loadAdminCalendarMonth(calendarMonth);
     } catch {
@@ -721,7 +715,7 @@ export function AdminStatusPanel({
       setNotice(
         action === "block"
           ? `Fecha ${body.date} marcada como no disponible.`
-          : `Fecha ${body.date} liberada si estaba bloqueada manualmente.`,
+          : `Fecha ${body.date} liberada.`,
       );
       await loadAdminCalendarMonth(calendarMonth);
     } catch {
@@ -874,8 +868,8 @@ export function AdminStatusPanel({
             <div>
               <h3 className="text-xl font-bold text-stone-50">Calendario de disponibilidad</h3>
               <p className="mt-1 text-sm text-stone-400">
-                Bloquea fechas no disponibles para el público. La acción server-side no sobrescribe
-                fechas asociadas a cotizaciones o reservas.
+                Bloquea fechas libres o libera fechas activas. Al liberar una fecha con cotización,
+                también se marca la cotización como liberada.
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -900,7 +894,7 @@ export function AdminStatusPanel({
                 onClick={() => updateAdminCalendarDate("unblock")}
                 type="button"
               >
-                Liberar bloqueo admin
+                Liberar fecha
               </button>
             </div>
             <div className="space-y-3 rounded-2xl border border-stone-800 bg-stone-950/70 p-4">
@@ -980,12 +974,12 @@ export function AdminStatusPanel({
                   onClick={() => bulkUpdateAdminCalendarDates("bulkUnblock")}
                   type="button"
                 >
-                  Liberar bloqueos seleccionados
+                  Liberar fechas seleccionadas
                 </button>
               </div>
               <p className="text-xs leading-5 text-stone-500">
-                La vista no muestra datos personales. Las fechas pendientes o confirmadas por
-                cotización quedan protegidas y no se sobrescriben con bloqueos manuales.
+                La vista no muestra datos personales. Solo se usan los estados visibles Libre, Por
+                confirmar y Ocupado; bloquear no sobrescribe cotizaciones activas.
               </p>
             </div>
           </section>

@@ -22,7 +22,8 @@ describe("public calendar availability route", () => {
       ok: true,
       dates: [
         { date: "2026-07-15", status: "PENDING_CONFIRMATION" },
-        { date: "2026-07-16", status: "AVAILABLE" },
+        { date: "2026-07-16", status: "OCCUPIED" },
+        { date: "2026-07-17", status: "AVAILABLE" },
       ],
     });
   });
@@ -35,7 +36,8 @@ describe("public calendar availability route", () => {
     await expect(response.json()).resolves.toEqual({
       dates: [
         { date: "2026-07-15", status: "PENDING_CONFIRMATION" },
-        { date: "2026-07-16", status: "AVAILABLE" },
+        { date: "2026-07-16", status: "OCCUPIED" },
+        { date: "2026-07-17", status: "AVAILABLE" },
       ],
     });
     expect(listPublicCalendarAvailabilityMock).toHaveBeenCalledWith(expect.anything(), {
