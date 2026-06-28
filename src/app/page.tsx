@@ -1,4 +1,5 @@
 import { appConfig } from "@/lib/config/app";
+import { CommunityMemberForm } from "@/lib/community/member-form";
 import { getFeaturedPortfolioItems } from "@/lib/portfolio/portfolio";
 import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
@@ -208,6 +209,25 @@ export default function HomePage() {
               </li>
             ))}
           </ol>
+        </div>
+      </section>
+
+      <section className="py-10" id="comunidad">
+        <div className="grid gap-6 rounded-3xl border border-amber-100/10 bg-gradient-to-br from-stone-950/90 to-stone-900/60 p-6 shadow-xl shadow-black/20 md:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
+              Comunidad
+            </p>
+            <h2 className="mt-3 text-3xl font-black text-stone-50">
+              Recibe novedades del estudio sin llenar otra cotización.
+            </h2>
+            <p className="mt-3 leading-7 text-stone-300">
+              Déjanos tu nombre y email para enterarte de contenido, agenda y novedades. Esto no
+              crea campañas automáticas ni confirma una cita: solo guarda tu consentimiento de
+              comunidad.
+            </p>
+          </div>
+          <CommunityMemberForm />
         </div>
       </section>
 

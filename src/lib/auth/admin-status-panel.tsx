@@ -73,6 +73,17 @@ type RecentPurchaseRequest = {
   whatsappUrl: string | null;
 };
 
+type RecentCommunityMember = {
+  id: string;
+  fullName: string;
+  email: string;
+  active: boolean;
+  origin: string;
+  sourcePath: string;
+  createdAt: string | null;
+  consentRecordedAt: string | null;
+};
+
 type AdminCalendarDateStatus = "AVAILABLE" | "PENDING_CONFIRMATION" | "OCCUPIED";
 
 type AdminCalendarDate = {
@@ -192,6 +203,7 @@ export function AdminStatusPanel({
   const [status, setStatus] = useState<AdminStatusResponse | null>(initialStatus);
   const [quotes, setQuotes] = useState<RecentQuoteRequest[]>([]);
   const [purchaseRequests, setPurchaseRequests] = useState<RecentPurchaseRequest[]>([]);
+  const [communityMembers, setCommunityMembers] = useState<RecentCommunityMember[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -297,6 +309,7 @@ export function AdminStatusPanel({
         setError("El servidor no pudo validar un perfil con rol permitido.");
         setQuotes([]);
         setPurchaseRequests([]);
+        setCommunityMembers([]);
         return;
       }
 
@@ -304,6 +317,7 @@ export function AdminStatusPanel({
         setError("El perfil autenticado no tiene rol admin en el servidor.");
         setQuotes([]);
         setPurchaseRequests([]);
+        setCommunityMembers([]);
         return;
       }
 
@@ -316,28 +330,38 @@ export function AdminStatusPanel({
         setError("El servidor validó el rol, pero no pudo crear la sesión admin segura.");
         setQuotes([]);
         setPurchaseRequests([]);
+        setCommunityMembers([]);
         return;
       }
 
-      const [quotesResponse, purchaseRequestsResponse] = await Promise.all([
-        fetch("/api/admin/quotes", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${idToken}` },
-        }),
-        fetch("/api/admin/purchase-requests", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${idToken}` },
-        }),
-      ]);
+      const [quotesResponse, purchaseRequestsResponse, communityMembersResponse] =
+        await Promise.all([
+          fetch("/api/admin/quotes", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${idToken}` },
+          }),
+          fetch("/api/admin/purchase-requests", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${idToken}` },
+          }),
+          fetch("/api/admin/community-members", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${idToken}` },
+          }),
+        ]);
       const quotesBody = (await quotesResponse.json()) as { quotes?: RecentQuoteRequest[] };
       const purchaseRequestsBody = (await purchaseRequestsResponse.json()) as {
         purchaseRequests?: RecentPurchaseRequest[];
+      };
+      const communityMembersBody = (await communityMembersResponse.json()) as {
+        communityMembers?: RecentCommunityMember[];
       };
 
       if (!quotesResponse.ok) {
         setError("El servidor no pudo listar solicitudes de cotización.");
         setQuotes([]);
         setPurchaseRequests([]);
+        setCommunityMembers([]);
         return;
       }
 
@@ -345,12 +369,22 @@ export function AdminStatusPanel({
         setError("El servidor no pudo listar solicitudes de compra.");
         setQuotes([]);
         setPurchaseRequests([]);
+        setCommunityMembers([]);
+        return;
+      }
+
+      if (!communityMembersResponse.ok) {
+        setError("El servidor no pudo listar miembros de comunidad.");
+        setQuotes([]);
+        setPurchaseRequests([]);
+        setCommunityMembers([]);
         return;
       }
 
       const nextQuotes = quotesBody.quotes ?? [];
       setQuotes(nextQuotes);
       setPurchaseRequests(purchaseRequestsBody.purchaseRequests ?? []);
+      setCommunityMembers(communityMembersBody.communityMembers ?? []);
       setNoteDrafts(
         Object.fromEntries(nextQuotes.map((quote) => [quote.id, quote.internalNote ?? ""])),
       );
@@ -361,6 +395,7 @@ export function AdminStatusPanel({
       setError("No se pudo consultar el estado de admin en el servidor.");
       setQuotes([]);
       setPurchaseRequests([]);
+      setCommunityMembers([]);
     } finally {
       setLoading(false);
     }
@@ -743,6 +778,7 @@ export function AdminStatusPanel({
           setStatus({ authenticated: false, admin: false, profile: null });
           setQuotes([]);
           setPurchaseRequests([]);
+          setCommunityMembers([]);
         }}
         onSessionEstablished={setStatus}
       />
@@ -777,6 +813,55 @@ export function AdminStatusPanel({
       {status?.admin ? (
         <div className="space-y-5">
           <AdminPortfolioPanel enabled={status.admin} fileUploadsEnabled={imageUploadsEnabled} />
+
+          <section className="space-y-3 rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
+            <div>
+              <h3 className="text-xl font-bold text-stone-50">Miembros recientes de comunidad</h3>
+              <p className="mt-1 text-sm text-stone-400">
+                Inscripciones del formulario público de la home con consentimiento explícito de
+                comunidad/marketing.
+              </p>
+            </div>
+            {communityMembers.length === 0 ? (
+              <p className="rounded-2xl border border-stone-800 bg-stone-950/70 p-4 text-sm text-stone-400">
+                Todavía no hay miembros de comunidad.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {communityMembers.map((member) => (
+                  <li
+                    className="rounded-2xl border border-stone-800 bg-stone-950/70 p-4"
+                    key={member.id}
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-semibold text-stone-100">{member.fullName}</p>
+                        <p className="text-sm text-stone-400">{member.email}</p>
+                      </div>
+                      <div className="text-sm text-stone-400 sm:text-right">
+                        <p>{formatDate(member.createdAt)}</p>
+                        <p>{member.active ? "Activo" : "Inactivo"}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-2 text-sm text-stone-300 sm:grid-cols-2">
+                      <p>
+                        <span className="font-semibold text-stone-100">Origen:</span>{" "}
+                        {member.origin}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-stone-100">Ruta:</span>{" "}
+                        {member.sourcePath}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-stone-100">Consentimiento:</span>{" "}
+                        {formatDate(member.consentRecordedAt)}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
           <section className="space-y-3 rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
             <div>
