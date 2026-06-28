@@ -6,6 +6,7 @@ import {
   isExternalImageUploadConfigured,
   uploadImageToExternalProvider,
 } from "@/lib/images/upload-provider";
+import type { VerifiedCustomerIdentity } from "../auth/customer-token";
 import {
   CalendarDateUnavailableError,
   createQuoteWithOptionalDateReservation,
@@ -40,6 +41,8 @@ export type QuoteRequestInput = {
     marketingOptIn: boolean;
   };
 };
+
+export type QuoteCustomerIdentity = VerifiedCustomerIdentity | null;
 
 export type QuoteReferenceImageInput = {
   file: File;
@@ -136,6 +139,21 @@ type TransactionLike = {
     options?: Record<string, unknown>,
   ) => unknown;
 };
+
+function isFirestoreLike(value: unknown): value is FirestoreLike {
+  return Boolean(value && typeof value === "object" && "collection" in value);
+}
+
+function resolveCustomerAndFirestore(
+  customerOrFirestore: QuoteCustomerIdentity | FirestoreLike,
+  firestore: FirestoreLike | null,
+) {
+  if (isFirestoreLike(customerOrFirestore)) {
+    return { customer: null, firestore: customerOrFirestore };
+  }
+
+  return { customer: customerOrFirestore, firestore };
+}
 
 const maxLengths = {
   customerName: 80,
@@ -518,12 +536,34 @@ export function validateQuoteRequestInput(input: unknown): QuoteRequestValidatio
   };
 }
 
-export function mapQuoteRequestToFirestore(input: QuoteRequestInput, quoteCode: string) {
+function getStoredCustomerEmail(input: QuoteRequestInput, customer: QuoteCustomerIdentity) {
+  return customer?.email ?? input.email;
+}
+
+function validateVerifiedCustomerEmail(input: QuoteRequestInput, customer: QuoteCustomerIdentity) {
+  if (!customer) return null;
+
+  if (input.email !== customer.email) {
+    return {
+      ok: false as const,
+      status: 400,
+      errors: { email: "El email del formulario debe coincidir con el email verificado." },
+    };
+  }
+
+  return null;
+}
+
+export function mapQuoteRequestToFirestore(
+  input: QuoteRequestInput,
+  quoteCode: string,
+  customer: QuoteCustomerIdentity = null,
+) {
   return {
     quote_code: quoteCode,
-    customer_id: "anonymous",
+    customer_id: customer?.uid ?? "anonymous",
     customer_name: input.customerName,
-    customer_email: input.email,
+    customer_email: getStoredCustomerEmail(input, customer),
     customer_phone: input.phone ?? null,
     preferred_contact_method: input.preferredContactMethod,
     status: "pending",
@@ -540,6 +580,7 @@ export function mapQuoteRequestToFirestore(input: QuoteRequestInput, quoteCode: 
       marketing_opt_in: input.consents.marketingOptIn,
     },
     consent_recorded_at: FieldValue.serverTimestamp(),
+    email_verified_at: customer ? FieldValue.serverTimestamp() : null,
     source: "public_quote_form",
   };
 }
@@ -566,14 +607,22 @@ async function generateUniqueQuoteCode(firestore: FirestoreLike) {
   throw new Error("Could not generate a unique quote code.");
 }
 
-export async function createQuoteRequest(input: unknown, firestore = getFirebaseAdminFirestore()) {
+export async function createQuoteRequest(
+  input: unknown,
+  customerOrFirestore: QuoteCustomerIdentity | FirestoreLike = null,
+  firestore = getFirebaseAdminFirestore(),
+) {
+  const resolved = resolveCustomerAndFirestore(customerOrFirestore, firestore);
   const validation = validateQuoteRequestInput(input);
 
   if (!validation.ok) {
     return { ok: false as const, status: 400, errors: validation.errors };
   }
 
-  if (!firestore) {
+  const customerEmailError = validateVerifiedCustomerEmail(validation.value, resolved.customer);
+  if (customerEmailError) return customerEmailError;
+
+  if (!resolved.firestore) {
     return {
       ok: false as const,
       status: 503,
@@ -581,15 +630,15 @@ export async function createQuoteRequest(input: unknown, firestore = getFirebase
     };
   }
 
-  const quoteCode = await generateUniqueQuoteCode(firestore);
+  const quoteCode = await generateUniqueQuoteCode(resolved.firestore);
   const document = {
-    ...mapQuoteRequestToFirestore(validation.value, quoteCode),
+    ...mapQuoteRequestToFirestore(validation.value, quoteCode, resolved.customer),
     created_at: FieldValue.serverTimestamp(),
     updated_at: FieldValue.serverTimestamp(),
   };
   try {
     const result = await createQuoteWithOptionalDateReservation(
-      firestore,
+      resolved.firestore,
       document,
       validation.value.preferredTattooDate,
     );
@@ -610,11 +659,15 @@ export async function createQuoteRequest(input: unknown, firestore = getFirebase
 
 export async function createQuoteRequestFromFormData(
   formData: FormData,
+  customerOrFirestore: QuoteCustomerIdentity | FirestoreLike = null,
   firestore = getFirebaseAdminFirestore(),
-  _storageBucket = getFirebaseAdminStorageBucket(),
+  _storageBucket: StorageBucketLike | boolean | null = getFirebaseAdminStorageBucket(),
   fileUploadsEnabled = areQuoteFileUploadsEnabled(),
 ) {
   void _storageBucket;
+  const resolved = resolveCustomerAndFirestore(customerOrFirestore, firestore);
+  const effectiveFileUploadsEnabled =
+    typeof _storageBucket === "boolean" ? _storageBucket : fileUploadsEnabled;
   const body = Object.fromEntries(
     Array.from(formData.entries()).filter(([, value]) => !(value instanceof File)),
   );
@@ -626,7 +679,7 @@ export async function createQuoteRequestFromFormData(
     return { ok: false as const, status: 400, errors: imageValidation.errors };
   }
 
-  if (!fileUploadsEnabled && imageValidation.value.length > 0) {
+  if (!effectiveFileUploadsEnabled && imageValidation.value.length > 0) {
     return {
       ok: false as const,
       status: 503,
@@ -638,40 +691,51 @@ export async function createQuoteRequestFromFormData(
   }
 
   if (imageValidation.value.length === 0) {
-    return createQuoteRequest(body, firestore);
+    return createQuoteRequest(body, resolved.customer, resolved.firestore);
   }
 
-  return createQuoteRequestWithReferenceImages(body, imageValidation.value, firestore);
+  return createQuoteRequestWithReferenceImages(
+    body,
+    imageValidation.value,
+    resolved.customer,
+    resolved.firestore,
+  );
 }
 
 export async function createQuoteRequestWithReferenceImages(
   input: unknown,
   referenceImages: QuoteReferenceImageInput[],
+  customerOrFirestore: QuoteCustomerIdentity | FirestoreLike = null,
   firestore = getFirebaseAdminFirestore(),
   _storageBucket: StorageBucketLike | null = getFirebaseAdminStorageBucket(),
 ) {
   void _storageBucket;
+  const resolved = resolveCustomerAndFirestore(customerOrFirestore, firestore);
   const validation = validateQuoteRequestInput(input);
 
   if (!validation.ok) {
     return { ok: false as const, status: 400, errors: validation.errors };
   }
 
-  if (!firestore) {
+  const customerEmailError = validateVerifiedCustomerEmail(validation.value, resolved.customer);
+  if (customerEmailError) return customerEmailError;
+
+  if (!resolved.firestore) {
     return {
       ok: false as const,
       status: 503,
       errors: { form: "Firebase Admin no está configurado." },
     };
   }
+  const resolvedFirestore = resolved.firestore;
 
   if (referenceImages.length === 0) {
-    return createQuoteRequest(input, firestore);
+    return createQuoteRequest(input, resolved.customer, resolvedFirestore);
   }
 
-  const quoteCode = await generateUniqueQuoteCode(firestore);
+  const quoteCode = await generateUniqueQuoteCode(resolvedFirestore);
   const document = {
-    ...mapQuoteRequestToFirestore(validation.value, quoteCode),
+    ...mapQuoteRequestToFirestore(validation.value, quoteCode, resolved.customer),
     created_at: FieldValue.serverTimestamp(),
     updated_at: FieldValue.serverTimestamp(),
   };
@@ -679,7 +743,7 @@ export async function createQuoteRequestWithReferenceImages(
 
   try {
     const reservation = await createQuoteWithOptionalDateReservation(
-      firestore,
+      resolvedFirestore,
       document,
       validation.value.preferredTattooDate,
     );
@@ -705,8 +769,8 @@ export async function createQuoteRequestWithReferenceImages(
       });
     }
 
-    const imageReference = await firestore.collection("quote_images").add({
-      customer_id: "anonymous",
+    const imageReference = await resolvedFirestore.collection("quote_images").add({
+      customer_id: resolved.customer?.uid ?? "anonymous",
       quote_id: quoteId,
       provider: upload.image.provider,
       provider_id: upload.image.providerId,
@@ -730,8 +794,12 @@ export async function createQuoteRequestWithReferenceImages(
   if (rejectedResult) {
     await Promise.allSettled([
       ...createdImageReferences.map((reference) => reference.delete()),
-      firestore.collection("quotes").doc(quoteId).delete(),
-      releasePendingCalendarDateForQuote(firestore, quoteId, validation.value.preferredTattooDate),
+      resolvedFirestore.collection("quotes").doc(quoteId).delete(),
+      releasePendingCalendarDateForQuote(
+        resolvedFirestore,
+        quoteId,
+        validation.value.preferredTattooDate,
+      ),
     ]);
     const uploadResult = (rejectedResult.reason as { uploadResult?: unknown })?.uploadResult;
     if (uploadResult && typeof uploadResult === "object" && "status" in uploadResult) {

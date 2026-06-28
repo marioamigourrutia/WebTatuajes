@@ -459,6 +459,7 @@ describe("quote request validation", () => {
           marketing_opt_in: true,
         },
         consent_recorded_at: expect.anything(),
+        email_verified_at: null,
         source: "public_quote_form",
       });
     }
@@ -652,6 +653,48 @@ describe("quote request firestore helpers", () => {
         quote_code: expect.stringMatching(/^COT-\d{4}-[A-F0-9]{5}$/),
       }),
     );
+  });
+
+  it("stores verified Firebase customer identity instead of anonymous form identity", async () => {
+    const { firestore, set } = mockTransactionalFirestore();
+
+    await expect(
+      createQuoteRequest(
+        validInput,
+        {
+          uid: "firebase-uid-1",
+          email: "ana@example.test",
+          emailVerified: true,
+        },
+        firestore as never,
+      ),
+    ).resolves.toMatchObject({ ok: true, id: "quote-123" });
+
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "quote-123" }),
+      expect.objectContaining({
+        customer_id: "firebase-uid-1",
+        customer_email: "ana@example.test",
+        email_verified_at: expect.anything(),
+      }),
+    );
+  });
+
+  it("rejects a form email that does not match the verified Firebase email", async () => {
+    const { firestore, set } = mockTransactionalFirestore();
+
+    await expect(
+      createQuoteRequest(
+        { ...validInput, email: "spoof@example.test" },
+        { uid: "firebase-uid-1", email: "ana@example.test", emailVerified: true },
+        firestore as never,
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      status: 400,
+      errors: { email: "El email del formulario debe coincidir con el email verificado." },
+    });
+    expect(set).not.toHaveBeenCalled();
   });
 
   it("rejects duplicate active quote requests for the same preferred date", async () => {

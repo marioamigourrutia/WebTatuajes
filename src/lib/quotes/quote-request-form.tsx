@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  isSignInWithEmailLink,
+  onAuthStateChanged,
+  sendSignInLinkToEmail,
+  signInWithEmailLink,
+  type User,
+} from "firebase/auth";
+import { appConfig } from "@/lib/config/app";
+import { getFirebaseAuth } from "@/lib/firebase/client";
+import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
 type QuoteFormErrors = Record<string, string>;
 
@@ -10,6 +20,10 @@ const labelClass = "text-xs font-semibold uppercase tracking-[0.2em] text-stone-
 const maxReferenceImageCount = 3;
 const maxReferenceImageSizeBytes = 5 * 1024 * 1024;
 const unavailablePublicStatuses = new Set(["PENDING_CONFIRMATION", "OCCUPIED"]);
+const pendingQuoteEmailStorageKey = "webtatuajes.quote.pendingEmail";
+
+const quoteVerificationFallbackMessage =
+  "Hola HuespedTattooStudio, quiero solicitar una cotización de tatuaje, pero no pude completar la verificación por email en el sitio.";
 
 type PublicCalendarDate = {
   date: string;
@@ -161,9 +175,111 @@ function PreferredDateCalendar({ error }: { error?: string }) {
 }
 
 export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEnabled?: boolean }) {
+  const [auth] = useState(() => getFirebaseAuth());
   const [errors, setErrors] = useState<QuoteFormErrors>({});
   const [createdQuoteCode, setCreatedQuoteCode] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [email, setEmail] = useState("");
+  const [verifiedUser, setVerifiedUser] = useState<User | null>(null);
+  const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
+  const [showVerificationFallback, setShowVerificationFallback] = useState(false);
+  const [sendingVerification, setSendingVerification] = useState(false);
+
+  const verifiedEmail = verifiedUser?.email?.toLowerCase() ?? "";
+  const emailMatchesVerifiedUser = Boolean(verifiedEmail && email.toLowerCase() === verifiedEmail);
+  const verificationFallbackUrl = hasWhatsAppConfig(appConfig.whatsappPhone)
+    ? buildWhatsAppUrl({
+        phone: appConfig.whatsappPhone,
+        message: quoteVerificationFallbackMessage,
+      })
+    : null;
+
+  useEffect(() => {
+    if (!auth) return;
+
+    return onAuthStateChanged(auth, (currentUser) => {
+      const hasVerifiedEmail = Boolean(currentUser?.email && currentUser.emailVerified);
+      setVerifiedUser(hasVerifiedEmail ? currentUser : null);
+      if (currentUser?.email && currentUser.emailVerified) {
+        setEmail(currentUser.email.toLowerCase());
+      }
+    });
+  }, [auth]);
+
+  useEffect(() => {
+    if (!auth || typeof window === "undefined") return;
+
+    const href = window.location.href;
+    if (!isSignInWithEmailLink(auth, href)) return;
+
+    const pendingEmail = window.localStorage.getItem(pendingQuoteEmailStorageKey);
+    if (!pendingEmail) {
+      void Promise.resolve().then(() => {
+        setErrors({
+          email: "Abre el enlace en el mismo navegador donde solicitaste la verificación.",
+        });
+        setShowVerificationFallback(true);
+      });
+      return;
+    }
+
+    void signInWithEmailLink(auth, pendingEmail, href)
+      .then((credential) => {
+        window.localStorage.removeItem(pendingQuoteEmailStorageKey);
+        setVerifiedUser(credential.user.emailVerified ? credential.user : null);
+        setEmail(credential.user.email?.toLowerCase() ?? pendingEmail.toLowerCase());
+        setVerificationMessage(
+          credential.user.emailVerified
+            ? "Email verificado. Ya puedes enviar tu cotización."
+            : "Recibimos el enlace, pero Firebase aún no marcó el email como verificado.",
+        );
+        setShowVerificationFallback(!credential.user.emailVerified);
+        window.history.replaceState({}, "", window.location.pathname);
+      })
+      .catch(() => {
+        setErrors({ email: "No pudimos completar la verificación. Solicita un nuevo enlace." });
+        setShowVerificationFallback(true);
+      });
+  }, [auth]);
+
+  async function sendVerificationLink() {
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!auth) {
+      setErrors({ email: "La verificación por Firebase Auth no está configurada." });
+      setShowVerificationFallback(true);
+      return;
+    }
+
+    if (!cleanEmail) {
+      setErrors({ email: "Ingresa tu email para enviar el enlace de verificación." });
+      setShowVerificationFallback(false);
+      return;
+    }
+
+    setSendingVerification(true);
+    setErrors((current) => ({ ...current, email: "" }));
+    setShowVerificationFallback(false);
+    try {
+      const actionUrl = process.env.NEXT_PUBLIC_SITE_URL
+        ? `${process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")}/quote`
+        : window.location.origin + window.location.pathname;
+
+      await sendSignInLinkToEmail(auth, cleanEmail, {
+        url: actionUrl,
+        handleCodeInApp: true,
+      });
+      window.localStorage.setItem(pendingQuoteEmailStorageKey, cleanEmail);
+      setVerificationMessage(
+        "Te enviamos un enlace. Ábrelo en este navegador para verificar tu email.",
+      );
+    } catch {
+      setErrors({ email: "No pudimos enviar el enlace. Revisa el email e inténtalo nuevamente." });
+      setShowVerificationFallback(true);
+    } finally {
+      setSendingVerification(false);
+    }
+  }
 
   function validateReferenceImages(files: FileList | null) {
     const nextErrors: QuoteFormErrors = {};
@@ -197,6 +313,12 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
     setCreatedQuoteCode(null);
 
     const formData = new FormData(form);
+    if (!verifiedUser || !emailMatchesVerifiedUser) {
+      setErrors({ email: "Verifica este email antes de enviar la cotización." });
+      setSubmitting(false);
+      return;
+    }
+
     const imageErrors = fileUploadsEnabled
       ? validateReferenceImages(
           form.querySelector<HTMLInputElement>('input[name="referenceImages"]')?.files ?? null,
@@ -210,8 +332,11 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
     }
 
     try {
+      const idToken = await verifiedUser.getIdToken();
+      formData.set("email", verifiedEmail);
       const response = await fetch("/api/quotes", {
         method: "POST",
+        headers: { Authorization: `Bearer ${idToken}` },
         body: formData,
       });
       const result = (await response.json()) as { quoteCode?: string; errors?: QuoteFormErrors };
@@ -222,6 +347,7 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
       }
 
       form.reset();
+      setEmail(verifiedEmail);
       setCreatedQuoteCode(result.quoteCode ?? "código por confirmar");
     } catch {
       setErrors({ form: "No pudimos procesar la solicitud. Inténtalo nuevamente." });
@@ -253,8 +379,52 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
         </label>
         <label className="block">
           <span className={labelClass}>Email</span>
-          <input className={fieldClass} name="email" required type="email" />
+          <input
+            className={fieldClass}
+            name="email"
+            onChange={(event) => setEmail(event.target.value)}
+            readOnly={Boolean(verifiedEmail)}
+            required
+            type="email"
+            value={email}
+          />
+          <span className="mt-1 block text-xs text-stone-500">
+            Verificaremos este email con un enlace seguro antes de recibir tu cotización.
+          </span>
+          <button
+            className="mt-2 rounded-full border border-amber-300/50 px-4 py-2 text-xs font-semibold text-amber-100 transition hover:border-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={sendingVerification || emailMatchesVerifiedUser}
+            onClick={sendVerificationLink}
+            type="button"
+          >
+            {emailMatchesVerifiedUser
+              ? "Email verificado"
+              : sendingVerification
+                ? "Enviando enlace…"
+                : "Verificar email"}
+          </button>
+          {verificationMessage ? (
+            <span className="mt-2 block text-sm text-emerald-200">{verificationMessage}</span>
+          ) : null}
           {errors.email ? <span className="text-sm text-red-300">{errors.email}</span> : null}
+          {showVerificationFallback ? (
+            <div className="mt-3 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm leading-6 text-amber-100">
+              <p>
+                Si la verificación por email no funciona, la cotización no se ha enviado. Puedes
+                intentarlo nuevamente o contactar al estudio para continuar por un canal directo.
+              </p>
+              {verificationFallbackUrl ? (
+                <a
+                  className="mt-2 inline-flex rounded-full bg-amber-300 px-4 py-2 text-xs font-semibold text-stone-950 transition hover:bg-amber-200"
+                  href={verificationFallbackUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Contactar por WhatsApp
+                </a>
+              ) : null}
+            </div>
+          ) : null}
         </label>
         <label className="block">
           <span className={labelClass}>Teléfono opcional</span>
@@ -435,7 +605,7 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
 
       <button
         className="rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/30 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={submitting}
+        disabled={submitting || !emailMatchesVerifiedUser}
         type="submit"
       >
         {submitting ? "Enviando…" : "Enviar solicitud"}

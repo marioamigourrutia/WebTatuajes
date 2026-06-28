@@ -1,9 +1,20 @@
 import { NextResponse } from "next/server";
+import { getBearerToken } from "@/lib/auth/bearer";
+import { verifyCustomerIdToken } from "@/lib/auth/customer-token";
 import { createQuoteRequest, createQuoteRequestFromFormData } from "@/lib/quotes/quote-request";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const tokenVerification = await verifyCustomerIdToken(getBearerToken(request));
+
+  if (!tokenVerification.ok) {
+    return NextResponse.json(
+      { errors: tokenVerification.errors },
+      { status: tokenVerification.status },
+    );
+  }
+
   const contentType = request.headers.get("content-type") ?? "";
 
   if (contentType.includes("multipart/form-data")) {
@@ -18,7 +29,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await createQuoteRequestFromFormData(formData);
+    const result = await createQuoteRequestFromFormData(formData, tokenVerification.customer);
 
     if (!result.ok) {
       return NextResponse.json({ errors: result.errors }, { status: result.status });
@@ -38,7 +49,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await createQuoteRequest(body);
+  const result = await createQuoteRequest(body, tokenVerification.customer);
 
   if (!result.ok) {
     return NextResponse.json({ errors: result.errors }, { status: result.status });
