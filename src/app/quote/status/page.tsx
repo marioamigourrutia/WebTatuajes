@@ -4,6 +4,7 @@ import {
   getClientQuoteStatusByCode,
   isValidQuoteCode,
 } from "@/lib/quotes/quote-request";
+import { QuoteStatusPanel } from "@/lib/quotes/quote-status-panel";
 
 const quoteStatusLabels: Record<string, string> = {
   pending: "Recibida, pendiente de revisión",
@@ -64,6 +65,10 @@ export default async function QuoteStatusPage({
           general. Esta página no muestra datos personales, notas internas, imágenes ni detalles
           privados del diseño.
         </p>
+
+        <div className="mt-6">
+          <QuoteStatusPanel initialQuoteCode={code} />
+        </div>
 
         <form className="mt-6 grid gap-3 sm:grid-cols-[1fr_1fr_auto]" method="get">
           <label className="block">

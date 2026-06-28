@@ -1136,6 +1136,45 @@ export async function getClientQuoteStatusByCode(
   return { ok: true as const, quote: serializeClientQuoteStatus(document.id, data) };
 }
 
+function compareQuoteCreatedAtDesc(a: Record<string, unknown>, b: Record<string, unknown>) {
+  const left = serializeCreatedAt(a.created_at) ?? "";
+  const right = serializeCreatedAt(b.created_at) ?? "";
+
+  return right.localeCompare(left);
+}
+
+export async function listClientQuoteStatusesByCustomerId(
+  firestore: FirestoreLike,
+  customerId: unknown,
+  quoteCode?: unknown,
+) {
+  const cleanCustomerId = cleanString(customerId);
+  const cleanQuoteCode = cleanString(quoteCode).toUpperCase();
+
+  if (!cleanCustomerId) {
+    return { ok: false as const, status: 400, error: clientQuoteStatusLookupError };
+  }
+
+  if (cleanQuoteCode && !isValidQuoteCode(cleanQuoteCode)) {
+    return { ok: false as const, status: 400, error: clientQuoteStatusLookupError };
+  }
+
+  let query = firestore.collection("quotes").where("customer_id", "==", cleanCustomerId);
+
+  if (cleanQuoteCode) {
+    query = query.where("quote_code", "==", cleanQuoteCode);
+  }
+
+  const snapshot = await query.limit(cleanQuoteCode ? 1 : 50).get();
+
+  const quotes = snapshot.docs
+    .map((document) => ({ id: document.id, data: document.data() }))
+    .sort((left, right) => compareQuoteCreatedAtDesc(left.data, right.data))
+    .map(({ id, data }) => serializeClientQuoteStatus(id, data));
+
+  return { ok: true as const, quotes };
+}
+
 function getOwnedPendingCalendarDate(
   quoteData: Record<string, unknown>,
   calendarDateData: Record<string, unknown>,

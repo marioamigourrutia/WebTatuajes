@@ -9,6 +9,7 @@ import {
   createQuoteRequestWithReferenceImages,
   getAdminQuoteReferenceImageFile,
   getClientQuoteStatusByCode,
+  listClientQuoteStatusesByCustomerId,
   listRecentQuoteRequests,
   mapQuoteRequestToFirestore,
   quoteStatuses,
@@ -615,6 +616,91 @@ describe("client quote status lookup", () => {
     expect(JSON.stringify(result)).not.toContain("quote-images/private/path.png");
     expect(JSON.stringify(result)).not.toContain("secret-token");
     expect(JSON.stringify(result)).not.toContain("secret-ref");
+  });
+});
+
+describe("authenticated client quote status lookup", () => {
+  function mockOwnedStatusFirestore(records: Array<{ id: string; data: Record<string, unknown> }>) {
+    const get = vi.fn().mockResolvedValue({
+      docs: records.map((record) => ({ id: record.id, data: () => record.data })),
+    });
+    const query = {
+      where: vi.fn(),
+      limit: vi.fn().mockReturnValue({ get }),
+    };
+    query.where.mockReturnValue(query);
+    const where = query.where;
+    const limit = query.limit;
+    const collection = vi.fn().mockReturnValue({ where });
+
+    return { firestore: { collection }, collection, where, limit, get };
+  }
+
+  it("returns only quotes queried by the Firebase customer id", async () => {
+    const { firestore, where } = mockOwnedStatusFirestore([
+      {
+        id: "quote-newer",
+        data: {
+          quote_code: "COT-2026-BBBBB",
+          created_at: new Date("2026-02-01T00:00:00.000Z"),
+          status: "contacted",
+        },
+      },
+      {
+        id: "quote-older",
+        data: {
+          quote_code: "COT-2026-AAAAA",
+          created_at: new Date("2026-01-01T00:00:00.000Z"),
+          status: "pending",
+        },
+      },
+    ]);
+
+    await expect(
+      listClientQuoteStatusesByCustomerId(firestore as never, "firebase-uid-1"),
+    ).resolves.toMatchObject({
+      ok: true,
+      quotes: [{ quoteCode: "COT-2026-BBBBB" }, { quoteCode: "COT-2026-AAAAA" }],
+    });
+    expect(where).toHaveBeenCalledWith("customer_id", "==", "firebase-uid-1");
+  });
+
+  it("queries quoteCode directly within the authenticated customer's own scope", async () => {
+    const { firestore, where, limit } = mockOwnedStatusFirestore([
+      { id: "quote-1", data: { quote_code: "COT-2026-AAAAA", status: "pending" } },
+    ]);
+
+    await expect(
+      listClientQuoteStatusesByCustomerId(firestore as never, "firebase-uid-1", "COT-2026-BBBBB"),
+    ).resolves.toMatchObject({ ok: true });
+
+    expect(where).toHaveBeenNthCalledWith(1, "customer_id", "==", "firebase-uid-1");
+    expect(where).toHaveBeenNthCalledWith(2, "quote_code", "==", "COT-2026-BBBBB");
+    expect(limit).toHaveBeenCalledWith(1);
+  });
+
+  it("does not expose email, internal notes, or images in authenticated status results", async () => {
+    const { firestore } = mockOwnedStatusFirestore([
+      {
+        id: "quote-1",
+        data: {
+          quote_code: "COT-2026-AAAAA",
+          customer_email: "ana@example.test",
+          admin_note: "Nota privada",
+          storage_path: "quote-images/private/path.png",
+          reference_images: [{ storage_path: "private/image.png" }],
+          status: "contacted",
+        },
+      },
+    ]);
+
+    const result = await listClientQuoteStatusesByCustomerId(firestore as never, "firebase-uid-1");
+
+    expect(result.ok).toBe(true);
+    expect(JSON.stringify(result)).not.toContain("ana@example.test");
+    expect(JSON.stringify(result)).not.toContain("Nota privada");
+    expect(JSON.stringify(result)).not.toContain("quote-images/private/path.png");
+    expect(JSON.stringify(result)).not.toContain("private/image.png");
   });
 });
 
