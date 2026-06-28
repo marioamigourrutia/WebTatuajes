@@ -7,6 +7,8 @@ import {
   listRecentAdminPortfolioItems,
 } from "@/lib/portfolio/admin-portfolio";
 
+export const runtime = "nodejs";
+
 async function requireAdmin(request: Request) {
   const authStatus = await getServerAuthStatusFromIdToken(getBearerToken(request));
 

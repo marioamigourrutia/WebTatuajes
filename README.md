@@ -85,13 +85,13 @@ npm run dev:local
 
 6. Abre `http://localhost:3000/portfolio` para revisar la galería pública MVP y sus filtros. Desde una pieza, usa **Cotizar una idea similar** para ir al flujo de cotización.
 
-7. Abre `http://localhost:3000/quote`, carga una solicitud de cotización y agrega enlaces de referencia si corresponde. En modo Spark sin proveedor externo no se muestran cargas de imagen; si configuras `IMAGE_UPLOAD_PROVIDER=supabase` con credenciales server-only, puedes adjuntar hasta 3 imágenes JPG/PNG/WEBP/GIF de máximo 5 MB cada una. Envíala. El resultado esperado es un mensaje de éxito con el ID local de la solicitud.
+7. Abre `http://localhost:3000/quote`, carga una solicitud de cotización y agrega enlaces de referencia si corresponde. En modo Spark sin proveedor externo no se muestran cargas de imagen; si configuras `IMAGE_UPLOAD_PROVIDER=supabase` con credenciales server-only, puedes adjuntar hasta 3 imágenes JPG/PNG/WEBP de máximo 5 MB cada una. GIF no está soportado para cargas. Envíala. El resultado esperado es un mensaje de éxito con el ID local de la solicitud.
 
 8. Abre `http://localhost:3000/admin`, inicia sesión con esas credenciales y presiona **Validar rol en servidor**. El login crea una cookie httpOnly de sesión admin solo después de validar el ID token y el rol `admin` en servidor. El resultado esperado es `Autenticado: sí`, `Admin server-side: sí`, `Rol servidor: admin`, el formulario de portafolio admin y la solicitud reciente en la lista admin.
 
 Si el login muestra que no se pudo iniciar sesión con credenciales locales, normalmente falta uno de estos pasos: emuladores activos en Terminal A o `npm run admin:seed-local` ejecutado después de levantar emuladores. Estas credenciales no existen en producción.
 
-9. En **Portafolio administrable**, crea un ítem con título, estilo, zona del cuerpo, descripción corta, etiquetas separadas por coma y, opcionalmente, una URL pública de imagen. Si Supabase Storage está configurado, también aparece carga de archivo JPG/PNG/WEBP/GIF de máximo 5 MB. Marca **Publicar en `/portfolio`** si quieres verlo públicamente. El resultado esperado es `Ítem de portafolio creado desde ruta server-side con rol admin validado.` y el ítem en **Ítems recientes**.
+9. En **Portafolio administrable**, crea un ítem con título, estilo, zona del cuerpo, descripción corta, etiquetas separadas por coma y, opcionalmente, una URL pública de imagen. Si Supabase Storage está configurado, también aparece carga de archivo JPG/PNG/WEBP de máximo 5 MB; GIF no está soportado. Marca **Publicar en `/portfolio`** si quieres verlo públicamente. El resultado esperado es `Ítem de portafolio creado desde ruta server-side con rol admin validado.` y el ítem en **Ítems recientes**.
 
 10. Vuelve a `http://localhost:3000/portfolio`. El resultado esperado es ver los ítems estáticos más los ítems Firestore con `published=true`. En modo Spark, las imágenes nuevas se muestran desde una URL pública validada o desde la `secure_url` del proveedor externo configurado; la ruta `/api/portfolio/images?itemId=...` queda solo para datos legacy o un modo futuro con Firebase Storage habilitado.
 
@@ -179,7 +179,7 @@ Para mantener compatibilidad con Firebase Spark, las cargas nuevas de imágenes 
 4. No uses prefijo `NEXT_PUBLIC_` para `SUPABASE_SERVICE_ROLE_KEY`; debe existir solo en el entorno server-side de Vercel.
 5. El servidor valida tipo declarado, magic bytes y tamaño, genera una ruta aleatoria no identificable y guarda solo metadata y provider id en Firestore. Las cotizaciones no necesitan URL pública permanente; el admin recibe una URL firmada temporal después de validar autenticación.
 
-Este slice no agrega redimensionado, stripping de EXIF ni procesamiento con Sharp; queda como siguiente mejora de privacidad/performance.
+Antes de subir a Supabase Storage o Cloudinary legacy, el servidor decodifica las imágenes con Sharp, aplica auto-orientación EXIF, redimensiona sin agrandar dentro de límites orientados (horizontal 1920×1080, vertical 1080×1920, cuadradas/otras 1920×1920), elimina metadata al no usar `keepMetadata()` y recomprime a WebP calidad 82. GIF queda rechazado por ahora con error explícito porque el procesamiento seguro de animaciones está fuera de alcance.
 
 Cloudinary queda solo como compatibilidad legacy si ya existen credenciales previas; la guía nueva debe usar Supabase Storage.
 

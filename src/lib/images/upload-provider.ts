@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import sharp, { type Metadata } from "sharp";
 
 export const imageUploadProviders = ["supabase", "cloudinary", "disabled"] as const;
 export type ImageUploadProvider = (typeof imageUploadProviders)[number];
@@ -17,16 +18,14 @@ export type UploadedImageMetadata = {
 export type ImageUploadPurpose = "portfolio" | "quote-reference";
 
 export const defaultImageUploadMaxSizeBytes = 5 * 1024 * 1024;
-export const allowedImageUploadMimeTypes = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-] as const;
+export const allowedImageUploadMimeTypes = ["image/jpeg", "image/png", "image/webp"] as const;
 
 type AllowedImageUploadMimeType = (typeof allowedImageUploadMimeTypes)[number];
 
-const invalidImageContentMessage = "Solo se permiten imágenes JPG, PNG, WEBP o GIF válidas.";
+const invalidImageContentMessage = "Solo se permiten imágenes JPG, PNG o WEBP válidas.";
+const unsupportedGifMessage =
+  "No se permiten GIF por ahora porque el procesamiento seguro de imágenes animadas está fuera de alcance.";
+const processedImageMimeType = "image/webp" as const;
 
 const disabledMessage =
   "La carga de imágenes requiere configurar Supabase Storage en servidor. Puedes usar una URL pública mientras se habilita el proveedor.";
@@ -57,6 +56,18 @@ function parseMaxSizeBytes(value = process.env.IMAGE_UPLOAD_MAX_SIZE_BYTES): num
 function parseSignedUrlTtlSeconds(value = process.env.SUPABASE_SIGNED_URL_TTL_SECONDS): number {
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 300;
+}
+
+function formatMaxSize(maxSizeBytes: number) {
+  const maxSizeMegabytes = maxSizeBytes / (1024 * 1024);
+
+  return maxSizeMegabytes >= 1 && Number.isInteger(maxSizeMegabytes)
+    ? `${maxSizeMegabytes} MB`
+    : `${maxSizeBytes} bytes`;
+}
+
+function getProcessedImageTooLargeMessage(maxSizeBytes: number) {
+  return `La imagen procesada debe pesar ${formatMaxSize(maxSizeBytes)} o menos. Prueba con una imagen más liviana o con menos detalle.`;
 }
 
 export function getImageUploadConfig() {
@@ -111,7 +122,10 @@ export function validateUploadImage(
   if (
     !allowedImageUploadMimeTypes.includes(file.type as (typeof allowedImageUploadMimeTypes)[number])
   ) {
-    errors.image = "Solo se permiten imágenes JPG, PNG, WEBP o GIF.";
+    errors.image =
+      file.type === "image/gif"
+        ? unsupportedGifMessage
+        : "Solo se permiten imágenes JPG, PNG o WEBP.";
   }
 
   if (file.size <= 0) {
@@ -129,7 +143,7 @@ function bytesStartWith(bytes: Uint8Array, signature: number[]) {
   return signature.every((value, index) => bytes[index] === value);
 }
 
-function detectImageMimeType(bytes: Uint8Array): AllowedImageUploadMimeType | null {
+function detectImageMimeType(bytes: Uint8Array): AllowedImageUploadMimeType | "image/gif" | null {
   if (bytes.length < 4) return null;
 
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
@@ -158,7 +172,60 @@ export async function validateUploadImageContent(file: File) {
     return { ok: false as const, errors: { image: invalidImageContentMessage } };
   }
 
+  if (detectedMimeType === "image/gif") {
+    return { ok: false as const, errors: { image: unsupportedGifMessage } };
+  }
+
   return { ok: true as const, mimeType: detectedMimeType };
+}
+
+type ProcessedUploadImage = {
+  buffer: Buffer;
+  mimeType: typeof processedImageMimeType;
+  sizeBytes: number;
+  width: number;
+  height: number;
+};
+
+function getResizeBounds(width: number | undefined, height: number | undefined) {
+  if (width && height && height > width) return { width: 1080, height: 1920 };
+  if (width && height && width > height) return { width: 1920, height: 1080 };
+  return { width: 1920, height: 1920 };
+}
+
+function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
+  return buffer.buffer.slice(
+    buffer.byteOffset,
+    buffer.byteOffset + buffer.byteLength,
+  ) as ArrayBuffer;
+}
+
+function getOrientedDimensions(metadata: Metadata) {
+  if (metadata.orientation && metadata.orientation >= 5 && metadata.orientation <= 8) {
+    return { width: metadata.height, height: metadata.width };
+  }
+
+  return { width: metadata.width, height: metadata.height };
+}
+
+async function processUploadImage(file: File): Promise<ProcessedUploadImage> {
+  const input = Buffer.from(await file.arrayBuffer());
+  const metadata = await sharp(input).metadata();
+  const orientedDimensions = getOrientedDimensions(metadata);
+  const bounds = getResizeBounds(orientedDimensions.width, orientedDimensions.height);
+  const { data, info } = await sharp(input)
+    .rotate()
+    .resize({ ...bounds, fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 82 })
+    .toBuffer({ resolveWithObject: true });
+
+  return {
+    buffer: data,
+    mimeType: processedImageMimeType,
+    sizeBytes: info.size,
+    width: info.width,
+    height: info.height,
+  };
 }
 
 function getPurposeFolder(purpose: ImageUploadPurpose) {
@@ -183,11 +250,10 @@ function signCloudinaryParams(params: Record<string, string>, apiSecret: string)
 }
 
 function getRandomObjectPath(folder: string, purpose: ImageUploadPurpose, mimeType: string) {
-  const extensions: Record<AllowedImageUploadMimeType, string> = {
+  const extensions: Record<AllowedImageUploadMimeType | typeof processedImageMimeType, string> = {
     "image/jpeg": "jpg",
     "image/png": "png",
     "image/webp": "webp",
-    "image/gif": "gif",
   };
   const baseFolder = folder ? `${folder}/` : "";
 
@@ -195,20 +261,19 @@ function getRandomObjectPath(folder: string, purpose: ImageUploadPurpose, mimeTy
 }
 
 async function uploadImageToSupabaseStorage(
-  file: File,
+  image: ProcessedUploadImage,
   purpose: ImageUploadPurpose,
-  mimeType: AllowedImageUploadMimeType,
   config: ReturnType<typeof getImageUploadConfig>,
 ) {
-  const objectPath = getRandomObjectPath(config.supabaseFolder, purpose, mimeType);
+  const objectPath = getRandomObjectPath(config.supabaseFolder, purpose, image.mimeType);
   const bucket = getSupabaseBucketForPurpose(purpose, config);
   const supabase = createClient(config.supabaseUrl, config.supabaseServiceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const upload = await supabase.storage
     .from(bucket)
-    .upload(objectPath, new Blob([await file.arrayBuffer()], { type: mimeType }), {
-      contentType: mimeType,
+    .upload(objectPath, new Blob([bufferToArrayBuffer(image.buffer)], { type: image.mimeType }), {
+      contentType: image.mimeType,
       upsert: false,
     });
 
@@ -239,10 +304,10 @@ async function uploadImageToSupabaseStorage(
       provider: "supabase" as const,
       providerId: objectPath,
       secureUrl: publicUrl,
-      mimeType,
-      sizeBytes: file.size,
-      width: null,
-      height: null,
+      mimeType: image.mimeType,
+      sizeBytes: image.sizeBytes,
+      width: image.width,
+      height: image.height,
     },
   };
 }
@@ -290,8 +355,23 @@ export async function uploadImageToExternalProvider(
     return { ok: false, status: 503, errors: { image: disabledMessage } };
   }
 
+  let processedImage: ProcessedUploadImage;
+  try {
+    processedImage = await processUploadImage(file);
+  } catch {
+    return { ok: false, status: 400, errors: { image: invalidImageContentMessage } };
+  }
+
+  if (processedImage.sizeBytes > config.maxSizeBytes) {
+    return {
+      ok: false,
+      status: 400,
+      errors: { image: getProcessedImageTooLargeMessage(config.maxSizeBytes) },
+    };
+  }
+
   if (config.provider === "supabase") {
-    return uploadImageToSupabaseStorage(file, purpose, contentValidation.mimeType, config);
+    return uploadImageToSupabaseStorage(processedImage, purpose, config);
   }
 
   const folder = `${config.folder}/${getPurposeFolder(purpose)}`;
@@ -302,7 +382,10 @@ export async function uploadImageToExternalProvider(
     config.apiSecret,
   );
   const formData = new FormData();
-  formData.set("file", new Blob([await file.arrayBuffer()], { type: contentValidation.mimeType }));
+  formData.set(
+    "file",
+    new Blob([bufferToArrayBuffer(processedImage.buffer)], { type: processedImage.mimeType }),
+  );
   formData.set("api_key", config.apiKey);
   formData.set("timestamp", timestamp);
   formData.set("folder", folder);
@@ -329,10 +412,10 @@ export async function uploadImageToExternalProvider(
       provider: "cloudinary",
       providerId: body.public_id,
       secureUrl: body.secure_url,
-      mimeType: contentValidation.mimeType,
-      sizeBytes: file.size,
-      width: typeof body.width === "number" ? body.width : null,
-      height: typeof body.height === "number" ? body.height : null,
+      mimeType: processedImage.mimeType,
+      sizeBytes: processedImage.sizeBytes,
+      width: processedImage.width,
+      height: processedImage.height,
     },
   };
 }

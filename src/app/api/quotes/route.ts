@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createQuoteRequest, createQuoteRequestFromFormData } from "@/lib/quotes/quote-request";
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
 

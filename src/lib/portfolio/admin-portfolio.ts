@@ -32,7 +32,7 @@ export type PortfolioImageFile = {
 
 export const portfolioImageConstraints = {
   maxSizeBytes: 5 * 1024 * 1024,
-  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
 } as const;
 
 const maxLengths = {
@@ -133,7 +133,10 @@ export function validatePortfolioImage(file: File | null) {
   }
 
   if (!isAllowedPortfolioImageMimeType(file.type)) {
-    errors.image = "Solo se permiten imágenes JPG, PNG, WEBP o GIF.";
+    errors.image =
+      file.type === "image/gif"
+        ? "No se permiten GIF por ahora porque el procesamiento seguro de imágenes animadas está fuera de alcance."
+        : "Solo se permiten imágenes JPG, PNG o WEBP.";
   }
 
   if (file.size <= 0) {

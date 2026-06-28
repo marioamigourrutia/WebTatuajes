@@ -298,13 +298,13 @@ export function AdminPortfolioPanel({
           <label className="text-sm font-semibold text-stone-200">
             Imagen principal opcional
             <input
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/jpeg,image/png,image/webp"
               className="mt-2 block w-full text-sm text-stone-300"
               name="image"
               type="file"
             />
             <span className="mt-1 block text-xs font-normal leading-5 text-stone-400">
-              Sube JPG, PNG, WEBP o GIF mediante el proveedor externo configurado.
+              Sube JPG, PNG o WEBP mediante el proveedor externo configurado. GIF no está soportado.
             </span>
           </label>
         ) : (

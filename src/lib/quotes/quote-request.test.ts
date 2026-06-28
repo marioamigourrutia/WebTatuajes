@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
 import { activeCalendarDateStatuses, calendarDateStatuses } from "../calendar/reservation";
 import {
   clientQuoteStatusLookupError,
@@ -54,10 +55,23 @@ const validInput = {
   marketingOptIn: "on",
 };
 
-const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+async function createPngFile(name: string) {
+  const buffer = await sharp({
+    create: {
+      width: 16,
+      height: 12,
+      channels: 3,
+      background: { r: 200, g: 120, b: 80 },
+    },
+  })
+    .png()
+    .toBuffer();
 
-function createPngFile(name: string) {
-  return new File([pngBytes], name, { type: "image/png" });
+  return new File(
+    [buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer],
+    name,
+    { type: "image/png" },
+  );
 }
 
 afterEach(() => {
@@ -332,8 +346,8 @@ describe("quote request validation", () => {
     );
   });
 
-  it("validates optional reference image constraints", () => {
-    const validFile = createPngFile("reference.png");
+  it("validates optional reference image constraints", async () => {
+    const validFile = await createPngFile("reference.png");
     const invalidFile = new File(["text"], "reference.txt", { type: "text/plain" });
     const oversizedFile = new File(
       [new Uint8Array(referenceImageConstraints.maxSizeBytes + 1)],
@@ -713,7 +727,7 @@ describe("quote request firestore helpers", () => {
       if (name === "quote_images") return { add: addImage };
       throw new Error(`Unexpected collection ${name}`);
     });
-    const imageFile = createPngFile("flower.png");
+    const imageFile = await createPngFile("flower.png");
 
     await expect(
       createQuoteRequestWithReferenceImages(
@@ -735,11 +749,13 @@ describe("quote request firestore helpers", () => {
         customer_id: "anonymous",
         quote_id: "quote-123",
         provider: "supabase",
-        provider_id: expect.stringMatching(/^webtatuajes\/quote-references\/[a-f0-9]{32}\.png$/),
+        provider_id: expect.stringMatching(/^webtatuajes\/quote-references\/[a-f0-9]{32}\.webp$/),
         secure_url: null,
         original_filename: "Referencia 1",
-        mime_type: "image/png",
-        size_bytes: imageFile.size,
+        mime_type: "image/webp",
+        size_bytes: expect.any(Number),
+        width: 16,
+        height: 12,
       }),
     );
   });
@@ -770,7 +786,7 @@ describe("quote request firestore helpers", () => {
       if (name === "quote_images") return { add: addImage };
       throw new Error(`Unexpected collection ${name}`);
     });
-    const imageFile = createPngFile("flower.png");
+    const imageFile = await createPngFile("flower.png");
 
     await expect(
       createQuoteRequestWithReferenceImages(
@@ -816,7 +832,7 @@ describe("quote request firestore helpers", () => {
   it("rejects uploaded files when quote file uploads are disabled", async () => {
     const formData = new FormData();
     Object.entries(validInput).forEach(([key, value]) => formData.set(key, String(value)));
-    formData.append("referenceImages", createPngFile("reference.png"));
+    formData.append("referenceImages", await createPngFile("reference.png"));
     const collection = vi.fn();
     const file = vi.fn();
 

@@ -133,7 +133,7 @@ describe("admin portfolio helpers", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.errors.image).toBe("Solo se permiten imágenes JPG, PNG, WEBP o GIF.");
+      expect(result.errors.image).toBe("Solo se permiten imágenes JPG, PNG o WEBP.");
     }
   });
 

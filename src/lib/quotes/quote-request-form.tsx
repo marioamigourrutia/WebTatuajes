@@ -343,16 +343,17 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
         <label className="block">
           <span className={labelClass}>Imágenes de referencia opcionales</span>
           <input
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept="image/jpeg,image/png,image/webp"
             className={fieldClass}
             multiple
             name="referenceImages"
             type="file"
           />
           <span className="mt-1 block text-xs text-stone-500">
-            Hasta 3 imágenes JPG, PNG, WEBP o GIF para referencias no sensibles o inspiración.
-            Máximo 5 MB cada una. Si necesitas compartir fotos corporales sensibles, envíalas más
-            adelante por el canal privado acordado hasta que habilitemos almacenamiento privado.
+            Hasta 3 imágenes JPG, PNG o WEBP para referencias no sensibles o inspiración. Máximo 5
+            MB cada una. GIF no está soportado. Si necesitas compartir fotos corporales sensibles,
+            envíalas más adelante por el canal privado acordado hasta que habilitemos almacenamiento
+            privado.
           </span>
           {errors.referenceImages ? (
             <span className="text-sm text-red-300">{errors.referenceImages}</span>

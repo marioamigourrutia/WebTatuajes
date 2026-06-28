@@ -160,7 +160,7 @@ export const referenceUrlConstraints = {
 export const referenceImageConstraints = {
   maxFiles: 3,
   maxSizeBytes: 5 * 1024 * 1024,
-  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
 } as const;
 
 export function areQuoteFileUploadsEnabled() {
@@ -395,7 +395,10 @@ export function validateQuoteReferenceImages(files: File[]) {
     }
 
     if (!isAllowedReferenceImageMimeType(file.type)) {
-      errors[field] = "Solo se permiten imágenes JPG, PNG, WEBP o GIF.";
+      errors[field] =
+        file.type === "image/gif"
+          ? "No se permiten GIF por ahora porque el procesamiento seguro de imágenes animadas está fuera de alcance."
+          : "Solo se permiten imágenes JPG, PNG o WEBP.";
     }
 
     if (file.size <= 0) {
