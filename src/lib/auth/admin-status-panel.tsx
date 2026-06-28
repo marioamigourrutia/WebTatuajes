@@ -7,6 +7,7 @@ import { AdminInstagramMediaPanel } from "@/lib/instagram/admin-instagram-media-
 import { AdminPortfolioPanel } from "@/lib/portfolio/admin-portfolio-panel";
 import { AdminReviewsPanel } from "@/lib/reviews/admin-reviews-panel";
 import { AdminSponsorsPanel } from "@/lib/sponsors/admin-sponsors-panel";
+import { AdminProductsPanel } from "@/lib/shop/admin-products-panel";
 import { buildQuoteMailtoUrl, buildQuoteWhatsAppUrl } from "@/lib/quotes/contact-links";
 import { formatClpPrice } from "@/lib/shop/catalog";
 import {
@@ -816,6 +817,7 @@ export function AdminStatusPanel({
       {status?.admin ? (
         <div className="space-y-5">
           <AdminPortfolioPanel enabled={status.admin} fileUploadsEnabled={imageUploadsEnabled} />
+          <AdminProductsPanel enabled={status.admin} />
           <AdminInstagramMediaPanel enabled={status.admin} />
           <AdminSponsorsPanel enabled={status.admin} />
           <AdminReviewsPanel enabled={status.admin} />

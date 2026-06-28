@@ -4,7 +4,8 @@ import { appConfig } from "@/lib/config/app";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
 import { isPurchaseRequestStatus, type PurchaseRequestStatus } from "./purchase-request-status";
 import { buildPurchaseWhatsAppUrl } from "./contact-links";
-import { getPurchasableProductById, type ShopProduct } from "./catalog";
+import { type ShopProduct } from "./catalog";
+import { getPurchasableFirestoreProductById } from "./product";
 export {
   isPurchaseRequestStatus,
   purchaseRequestStatusLabels,
@@ -111,9 +112,7 @@ function serializeCreatedAt(value: unknown): string | null {
 
 export function validatePurchaseRequestInput(
   input: unknown,
-):
-  | { ok: true; value: PurchaseRequestInput; product: ShopProduct }
-  | { ok: false; errors: Record<string, string> } {
+): { ok: true; value: PurchaseRequestInput } | { ok: false; errors: Record<string, string> } {
   const data = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
   const productId = cleanString(data.productId);
   const customerName = cleanString(data.customerName);
@@ -125,9 +124,6 @@ export function validatePurchaseRequestInput(
   if (!productId) errors.productId = "Selecciona una obra disponible.";
   if (productId.length > maxLengths.productId)
     errors.productId = "La obra seleccionada no es válida.";
-
-  const product = productId ? getPurchasableProductById(productId) : null;
-  if (productId && !product) errors.productId = "La obra no está disponible para solicitar.";
 
   if (!customerName) errors.customerName = "Ingresa tu nombre.";
   if (customerName.length > maxLengths.customerName) {
@@ -145,14 +141,13 @@ export function validatePurchaseRequestInput(
     errors.contactConsent = "Debes aceptar que el estudio te contacte por esta solicitud.";
   }
 
-  if (Object.keys(errors).length > 0 || !product) {
+  if (Object.keys(errors).length > 0) {
     return { ok: false, errors };
   }
 
   return {
     ok: true,
     value: { productId, customerName, phone, email: email || undefined, contactConsent: true },
-    product,
   };
 }
 
@@ -217,9 +212,19 @@ export async function createPurchaseRequest(
     };
   }
 
+  const product = await getPurchasableFirestoreProductById(validation.value.productId, firestore);
+
+  if (!product) {
+    return {
+      ok: false as const,
+      status: 400,
+      errors: { productId: "La obra no está disponible para solicitar." },
+    };
+  }
+
   const purchaseCode = await generateUniquePurchaseCode(firestore);
   const document = {
-    ...mapPurchaseRequestToFirestore(validation.value, validation.product, purchaseCode),
+    ...mapPurchaseRequestToFirestore(validation.value, product, purchaseCode),
     created_at: FieldValue.serverTimestamp(),
     updated_at: FieldValue.serverTimestamp(),
   };
@@ -230,7 +235,7 @@ export async function createPurchaseRequest(
     customerName: validation.value.customerName,
     customerPhone: validation.value.phone,
     customerEmail: validation.value.email ?? null,
-    product: validation.product,
+    product,
   });
 
   return { ok: true as const, id: result.id, purchaseCode, whatsappUrl };

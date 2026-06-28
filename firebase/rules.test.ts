@@ -7,7 +7,16 @@ import {
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getBytes, ref, uploadBytes } from "firebase/storage";
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  Timestamp,
+  updateDoc,
+} from "firebase/firestore";
 
 const projectId = "demo-webtatuajes";
 
@@ -161,6 +170,22 @@ function quoteImageMetadata(customerId = "customer-a", quoteId = "quote-a") {
       customer_id: customerId,
       quote_id: quoteId,
     },
+  };
+}
+
+function validProductData(overrides: Record<string, unknown> = {}) {
+  return {
+    code: "OBR-010",
+    title: "Flash floral",
+    description: "Diseño disponible.",
+    price_clp: 85000,
+    status: "available",
+    image_url: null,
+    active: true,
+    sort_order: 1,
+    created_at: Timestamp.fromMillis(1),
+    updated_at: Timestamp.fromMillis(2),
+    ...overrides,
   };
 }
 
@@ -520,6 +545,39 @@ describe("Firestore private data rules", () => {
         message: "I want a tattoo",
         status: "new",
       }),
+    );
+  });
+
+  it("allows admins to create and soft-hide valid products but blocks hard deletes", async () => {
+    const adminA = userDb("admin-a");
+    const productRef = doc(adminA, "products/admin-product");
+
+    await assertSucceeds(setDoc(productRef, validProductData()));
+    await assertSucceeds(
+      updateDoc(productRef, {
+        active: false,
+        status: "hidden",
+        updated_at: Timestamp.fromMillis(3),
+      }),
+    );
+    await assertFails(deleteDoc(productRef));
+  });
+
+  it("rejects malformed admin product payloads", async () => {
+    const adminA = userDb("admin-a");
+    const missingCoreFields: Record<string, unknown> = validProductData();
+    delete missingCoreFields.code;
+    delete missingCoreFields.title;
+
+    await assertFails(setDoc(doc(adminA, "products/missing-core-fields"), missingCoreFields));
+    await assertFails(
+      setDoc(doc(adminA, "products/bad-status"), validProductData({ status: "deleted" })),
+    );
+    await assertFails(
+      setDoc(doc(adminA, "products/bad-active"), validProductData({ active: "true" })),
+    );
+    await assertFails(
+      setDoc(doc(adminA, "products/bad-price"), validProductData({ price_clp: -1 })),
     );
   });
 });

@@ -10,7 +10,7 @@ import {
 } from "./purchase-request";
 
 const validInput = {
-  productId: "flash-peonia-linea-fina",
+  productId: "product-1",
   customerName: "  Ana Cliente  ",
   phone: " +56 9 1234 5678 ",
   email: " ANA@EXAMPLE.TEST ",
@@ -28,6 +28,25 @@ function mockPurchaseRequestsCollection(add = vi.fn().mockResolvedValue({ id: "p
   };
 }
 
+function mockProductsCollection(status = "available", active = true) {
+  return {
+    doc: vi.fn(() => ({
+      get: vi.fn().mockResolvedValue({
+        exists: true,
+        id: "product-1",
+        data: () => ({
+          code: "OBR-001",
+          title: "Peonía en línea fina",
+          description: "Diseño disponible.",
+          price_clp: 85000,
+          status,
+          active,
+        }),
+      }),
+    })),
+  };
+}
+
 describe("purchase request validation", () => {
   it("sanitizes and accepts an available product request", () => {
     const result = validatePurchaseRequestInput(validInput);
@@ -35,13 +54,12 @@ describe("purchase request validation", () => {
     expect(result).toMatchObject({
       ok: true,
       value: {
-        productId: "flash-peonia-linea-fina",
+        productId: "product-1",
         customerName: "Ana Cliente",
         phone: "+56 9 1234 5678",
         email: "ana@example.test",
         contactConsent: true,
       },
-      product: { code: "OBR-001" },
     });
   });
 
@@ -67,9 +85,9 @@ describe("purchase request validation", () => {
     },
   );
 
-  it("rejects unavailable products, invalid email, and missing consent", () => {
+  it("rejects invalid customer data before resolving the Firestore product", () => {
     const result = validatePurchaseRequestInput({
-      productId: "flash-serpiente-blackwork",
+      productId: "reserved-product",
       customerName: "",
       phone: "",
       email: "not-an-email",
@@ -79,7 +97,6 @@ describe("purchase request validation", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.errors).toMatchObject({
-        productId: expect.any(String),
         customerName: expect.any(String),
         phone: expect.any(String),
         email: expect.any(String),
@@ -94,7 +111,18 @@ describe("purchase request validation", () => {
     expect(validation.ok).toBe(true);
     if (validation.ok) {
       expect(
-        mapPurchaseRequestToFirestore(validation.value, validation.product, "COM-2026-ABCDE"),
+        mapPurchaseRequestToFirestore(
+          validation.value,
+          {
+            id: "product-1",
+            code: "OBR-001",
+            title: "Peonía en línea fina",
+            description: "Diseño disponible.",
+            priceClp: 85000,
+            status: "available",
+          },
+          "COM-2026-ABCDE",
+        ),
       ).toMatchObject({
         purchase_code: "COM-2026-ABCDE",
         customer_name: "Ana Cliente",
@@ -126,6 +154,7 @@ describe("purchase request persistence", () => {
     const firestore = {
       collection: vi.fn((name: string) => {
         if (name === "purchase_requests") return purchaseRequests;
+        if (name === "products") return mockProductsCollection();
         throw new Error(`Unexpected collection ${name}`);
       }),
     };
@@ -138,6 +167,25 @@ describe("purchase request persistence", () => {
       expect(result.whatsappUrl).toContain("https://wa.me/");
     }
     expect(add).toHaveBeenCalledWith(expect.objectContaining({ product_code: "OBR-001" }));
+  });
+
+  it("rejects purchase creation when Firestore product is not active and available", async () => {
+    const add = vi.fn();
+    const purchaseRequests = mockPurchaseRequestsCollection(add);
+    const firestore = {
+      collection: vi.fn((name: string) => {
+        if (name === "purchase_requests") return purchaseRequests;
+        if (name === "products") return mockProductsCollection("reserved", true);
+        throw new Error(`Unexpected collection ${name}`);
+      }),
+    };
+
+    await expect(createPurchaseRequest(validInput, firestore as never)).resolves.toEqual({
+      ok: false,
+      status: 400,
+      errors: { productId: "La obra no está disponible para solicitar." },
+    });
+    expect(add).not.toHaveBeenCalled();
   });
 
   it("returns a clear backend error when Firebase Admin is unavailable", async () => {

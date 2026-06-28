@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { formatClpPrice, getPublicShopProducts, productStatusLabels } from "@/lib/shop/catalog";
+import { formatClpPrice, productStatusLabels } from "@/lib/shop/catalog";
+import { getPublicShopProductsWithFirestoreFallback } from "@/lib/shop/catalog-server";
 import { PurchaseRequestForm } from "@/lib/shop/purchase-request-form";
 
 export const metadata: Metadata = {
@@ -8,8 +9,9 @@ export const metadata: Metadata = {
     "Revisa obras disponibles del estudio y envía una solicitud de compra para coordinar por WhatsApp, sin pagos en línea.",
 };
 
-export default function ShopPage() {
-  const products = getPublicShopProducts();
+export default async function ShopPage() {
+  const { products, source } = await getPublicShopProductsWithFirestoreFallback();
+  const isFallbackCatalog = source === "fallback";
 
   return (
     <main className="mx-auto grid w-full max-w-6xl gap-8 px-6 py-10 sm:px-10">
@@ -27,7 +29,26 @@ export default function ShopPage() {
         </p>
       </section>
 
+      {isFallbackCatalog ? (
+        <section className="rounded-[2rem] border border-amber-300/30 bg-amber-950/30 p-5 text-sm leading-6 text-amber-50">
+          <p className="font-bold uppercase tracking-[0.2em] text-amber-200">
+            Catálogo temporal en modo referencia
+          </p>
+          <p className="mt-2">
+            En este momento no pudimos confirmar disponibilidad desde el sistema de obras. Las
+            piezas mostradas son referenciales y no se pueden solicitar desde el formulario. Para
+            consultar disponibilidad real, coordina directamente por WhatsApp o desde contacto.
+          </p>
+        </section>
+      ) : null}
+
       <section aria-label="Catálogo de obras" className="grid gap-4 md:grid-cols-3">
+        {products.length === 0 ? (
+          <p className="rounded-3xl border border-stone-800 bg-stone-950/70 p-6 text-sm leading-6 text-stone-300 md:col-span-3">
+            No hay obras disponibles publicadas por el momento. Puedes escribir por contacto para
+            consultar próximas piezas o coordinar un diseño personalizado.
+          </p>
+        ) : null}
         {products.map((product) => (
           <article
             className="group flex flex-col overflow-hidden rounded-3xl border border-stone-800 bg-stone-950/70 shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-amber-300/40"
@@ -59,21 +80,32 @@ export default function ShopPage() {
               <p className="mt-auto text-lg font-black text-amber-200">
                 {formatClpPrice(product.priceClp)}
               </p>
-              <a
-                className="rounded-full border border-amber-300/50 px-4 py-2 text-center text-sm font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950 aria-disabled:pointer-events-none aria-disabled:opacity-50"
-                aria-disabled={product.status !== "available"}
-                href="#solicitar-compra"
-              >
-                {product.status === "available" ? "Solicitar compra" : "No disponible"}
-              </a>
+              {isFallbackCatalog ? (
+                <a
+                  className="rounded-full border border-amber-300/50 px-4 py-2 text-center text-sm font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950"
+                  href="/contacto"
+                >
+                  Coordinar por contacto
+                </a>
+              ) : (
+                <a
+                  className="rounded-full border border-amber-300/50 px-4 py-2 text-center text-sm font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950 aria-disabled:pointer-events-none aria-disabled:opacity-50"
+                  aria-disabled={product.status !== "available"}
+                  href="#solicitar-compra"
+                >
+                  {product.status === "available" ? "Solicitar compra" : "No disponible"}
+                </a>
+              )}
             </div>
           </article>
         ))}
       </section>
 
-      <section id="solicitar-compra">
-        <PurchaseRequestForm products={products} />
-      </section>
+      {isFallbackCatalog ? null : (
+        <section id="solicitar-compra">
+          <PurchaseRequestForm products={products} />
+        </section>
+      )}
     </main>
   );
 }
