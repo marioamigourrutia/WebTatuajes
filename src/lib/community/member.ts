@@ -17,9 +17,19 @@ export type RecentCommunityMember = {
   sourcePath: string;
   createdAt: string | null;
   consentRecordedAt: string | null;
+  unsubscribedAt: string | null;
+};
+
+export type CommunityMemberUnsubscribeInput = {
+  email: string;
+  confirmation: true;
 };
 
 type FirestoreLike = NonNullable<ReturnType<typeof getFirebaseAdminFirestore>>;
+
+type FirestoreErrorLike = {
+  code?: unknown;
+};
 
 const maxLengths = {
   fullName: 80,
@@ -59,6 +69,12 @@ function serializeDate(value: unknown): string | null {
   return null;
 }
 
+function isFirestoreNotFoundError(error: unknown): boolean {
+  const firestoreError = error as FirestoreErrorLike;
+
+  return firestoreError.code === 5 || firestoreError.code === "not-found";
+}
+
 export function validateCommunityMemberInput(
   input: unknown,
 ): { ok: true; value: CommunityMemberInput } | { ok: false; errors: Record<string, string> } {
@@ -95,6 +111,7 @@ export function mapCommunityMemberToFirestore(input: CommunityMemberInput) {
     origin: communityMemberConstants.origin,
     source_path: communityMemberConstants.sourcePath,
     active: true,
+    unsubscribed_at: null,
   };
 }
 
@@ -102,6 +119,31 @@ export function getCommunityMemberDocumentId(email: string): string {
   const digest = createHash("sha256").update(email).digest("hex");
 
   return `email_sha256_${digest}`;
+}
+
+export function validateCommunityMemberUnsubscribeInput(
+  input: unknown,
+):
+  | { ok: true; value: CommunityMemberUnsubscribeInput }
+  | { ok: false; errors: Record<string, string> } {
+  const data = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
+  const email = normalizeEmail(data.email);
+  const confirmation = isChecked(data.confirmation);
+  const errors: Record<string, string> = {};
+
+  if (!email) errors.email = "Ingresa tu email.";
+  else if (email.length > maxLengths.email) errors.email = "El email es demasiado largo.";
+  else if (!isValidEmail(email)) errors.email = "Ingresa un email válido.";
+
+  if (!confirmation) {
+    errors.confirmation = "Confirma que quieres dejar de recibir comunicaciones.";
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return { ok: false, errors };
+  }
+
+  return { ok: true, value: { email, confirmation: true } };
 }
 
 export async function createCommunityMember(
@@ -139,6 +181,47 @@ export async function createCommunityMember(
   return { ok: true as const };
 }
 
+export async function unsubscribeCommunityMember(
+  input: unknown,
+  firestore = getFirebaseAdminFirestore(),
+) {
+  const validation = validateCommunityMemberUnsubscribeInput(input);
+
+  if (!validation.ok) {
+    return { ok: false as const, status: 400, errors: validation.errors };
+  }
+
+  if (!firestore) {
+    return {
+      ok: false as const,
+      status: 503,
+      errors: { form: "Firebase Admin no está configurado para procesar la baja." },
+    };
+  }
+
+  const documentId = getCommunityMemberDocumentId(validation.value.email);
+
+  try {
+    await firestore.collection("community_members").doc(documentId).update({
+      active: false,
+      unsubscribed_at: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    if (!isFirestoreNotFoundError(error)) {
+      return {
+        ok: false as const,
+        status: 500,
+        errors: { form: "No pudimos procesar la baja. Intenta nuevamente." },
+      };
+    }
+
+    // Keep the public response generic to avoid confirming whether an email exists.
+  }
+
+  return { ok: true as const };
+}
+
 export async function listRecentCommunityMembers(firestore: FirestoreLike, limit = 10) {
   const snapshot = await firestore
     .collection("community_members")
@@ -158,6 +241,34 @@ export async function listRecentCommunityMembers(firestore: FirestoreLike, limit
       sourcePath: cleanString(data.source_path) || communityMemberConstants.sourcePath,
       createdAt: serializeDate(data.created_at),
       consentRecordedAt: serializeDate(data.consent_recorded_at),
+      unsubscribedAt: serializeDate(data.unsubscribed_at),
     };
   });
+}
+
+function escapeCsvCell(value: unknown): string {
+  const text = value === null || value === undefined ? "" : String(value);
+  const spreadsheetSafeText = /^[\t\r]|^[\s]*[=+\-@]/.test(text) ? `'${text}` : text;
+
+  return /[",\n\r]/.test(spreadsheetSafeText)
+    ? `"${spreadsheetSafeText.replace(/"/g, '""')}"`
+    : spreadsheetSafeText;
+}
+
+export function buildCommunityMembersCsv(members: RecentCommunityMember[]): string {
+  const rows = [
+    ["Nombre", "Email", "Estado", "Origen", "Ruta", "Creado", "Consentimiento", "Baja"],
+    ...members.map((member) => [
+      member.fullName,
+      member.email,
+      member.active ? "Activo" : "Inactivo",
+      member.origin,
+      member.sourcePath,
+      member.createdAt ?? "",
+      member.consentRecordedAt ?? "",
+      member.unsubscribedAt ?? "",
+    ]),
+  ];
+
+  return `${rows.map((row) => row.map(escapeCsvCell).join(",")).join("\n")}\n`;
 }

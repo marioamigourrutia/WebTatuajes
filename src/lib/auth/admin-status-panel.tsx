@@ -86,6 +86,7 @@ type RecentCommunityMember = {
   sourcePath: string;
   createdAt: string | null;
   consentRecordedAt: string | null;
+  unsubscribedAt: string | null;
 };
 
 type AdminCalendarDateStatus = "AVAILABLE" | "PENDING_CONFIRMATION" | "OCCUPIED";
@@ -459,6 +460,42 @@ export function AdminStatusPanel({
     }
   }
 
+  async function exportCommunityMembersCsv() {
+    if (!user) {
+      setError("Inicia sesión antes de exportar miembros de comunidad.");
+      return;
+    }
+
+    setError(null);
+    setNotice(null);
+
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/admin/community-members", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+
+      if (!response.ok) {
+        setError("El servidor no pudo exportar miembros de comunidad.");
+        return;
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = "webtatuajes-community-members.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+      setNotice("Exportación CSV generada.");
+    } catch {
+      setError("No se pudo exportar miembros de comunidad.");
+    }
+  }
+
   async function confirmReservation(quote: RecentQuoteRequest) {
     if (!user) {
       setError("Inicia sesión antes de confirmar una reserva.");
@@ -823,12 +860,21 @@ export function AdminStatusPanel({
           <AdminReviewsPanel enabled={status.admin} />
 
           <section className="space-y-3 rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
-            <div>
-              <h3 className="text-xl font-bold text-stone-50">Miembros recientes de comunidad</h3>
-              <p className="mt-1 text-sm text-stone-400">
-                Inscripciones del formulario público de la home con consentimiento explícito de
-                comunidad/marketing.
-              </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-stone-50">Miembros recientes de comunidad</h3>
+                <p className="mt-1 text-sm text-stone-400">
+                  Inscripciones del formulario público de la home con consentimiento explícito de
+                  comunidad/marketing.
+                </p>
+              </div>
+              <button
+                className="rounded-full border border-stone-700 px-4 py-2 text-sm font-semibold text-stone-100 transition hover:border-stone-500 hover:bg-stone-800"
+                onClick={exportCommunityMembersCsv}
+                type="button"
+              >
+                Exportar CSV
+              </button>
             </div>
             {communityMembers.length === 0 ? (
               <p className="rounded-2xl border border-stone-800 bg-stone-950/70 p-4 text-sm text-stone-400">
@@ -863,6 +909,10 @@ export function AdminStatusPanel({
                       <p>
                         <span className="font-semibold text-stone-100">Consentimiento:</span>{" "}
                         {formatDate(member.consentRecordedAt)}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-stone-100">Baja:</span>{" "}
+                        {formatDate(member.unsubscribedAt)}
                       </p>
                     </div>
                   </li>

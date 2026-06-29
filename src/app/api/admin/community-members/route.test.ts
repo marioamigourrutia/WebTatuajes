@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { POST } from "./route";
+import { GET, POST } from "./route";
 import { getBearerToken } from "@/lib/auth/bearer";
 import { getServerAuthStatusFromIdToken } from "@/lib/auth/server";
-import { listRecentCommunityMembers } from "@/lib/community/member";
+import { buildCommunityMembersCsv, listRecentCommunityMembers } from "@/lib/community/member";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
 
 vi.mock("@/lib/auth/bearer", () => ({
@@ -18,12 +18,14 @@ vi.mock("@/lib/firebase/admin", () => ({
 }));
 
 vi.mock("@/lib/community/member", () => ({
+  buildCommunityMembersCsv: vi.fn(() => "Nombre,Email\nAna,ana@example.test\n"),
   listRecentCommunityMembers: vi.fn(),
 }));
 
 const getServerAuthStatusFromIdTokenMock = vi.mocked(getServerAuthStatusFromIdToken);
 const getBearerTokenMock = vi.mocked(getBearerToken);
 const getFirebaseAdminFirestoreMock = vi.mocked(getFirebaseAdminFirestore);
+const buildCommunityMembersCsvMock = vi.mocked(buildCommunityMembersCsv);
 const listRecentCommunityMembersMock = vi.mocked(listRecentCommunityMembers);
 
 describe("admin community members route", () => {
@@ -46,6 +48,7 @@ describe("admin community members route", () => {
         sourcePath: "/",
         createdAt: null,
         consentRecordedAt: null,
+        unsubscribedAt: null,
       },
     ]);
   });
@@ -94,6 +97,39 @@ describe("admin community members route", () => {
     expect(listRecentCommunityMembersMock).not.toHaveBeenCalled();
   });
 
+  it("returns 401 when exporting CSV without authentication", async () => {
+    getBearerTokenMock.mockReturnValue(undefined);
+    getServerAuthStatusFromIdTokenMock.mockResolvedValue({
+      authenticated: false,
+      admin: false,
+      profile: null,
+    });
+
+    const response = await GET(
+      new Request("http://localhost/api/admin/community-members", { method: "GET" }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(listRecentCommunityMembersMock).not.toHaveBeenCalled();
+    expect(buildCommunityMembersCsvMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when a non-admin user exports CSV", async () => {
+    getServerAuthStatusFromIdTokenMock.mockResolvedValue({
+      authenticated: true,
+      admin: false,
+      profile: { uid: "user-a", email: "user@example.test", emailVerified: true, role: "customer" },
+    });
+
+    const response = await GET(
+      new Request("http://localhost/api/admin/community-members", { method: "GET" }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(listRecentCommunityMembersMock).not.toHaveBeenCalled();
+    expect(buildCommunityMembersCsvMock).not.toHaveBeenCalled();
+  });
+
   it("returns 503 when Firebase Admin is unavailable", async () => {
     getFirebaseAdminFirestoreMock.mockReturnValue(null);
 
@@ -102,5 +138,23 @@ describe("admin community members route", () => {
     );
 
     expect(response.status).toBe(503);
+  });
+
+  it("exports a protected CSV without exposing internal document fields", async () => {
+    const response = await GET(
+      new Request("http://localhost/api/admin/community-members", { method: "GET" }),
+    );
+
+    await expect(response.text()).resolves.toBe("Nombre,Email\nAna,ana@example.test\n");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Content-Type")).toBe("text/csv; charset=utf-8");
+    expect(response.headers.get("Content-Disposition")).toContain(
+      "webtatuajes-community-members.csv",
+    );
+    expect(listRecentCommunityMembersMock).toHaveBeenCalledWith(expect.anything(), 1000);
+    expect(buildCommunityMembersCsvMock).toHaveBeenCalledWith([
+      expect.not.objectContaining({ id: "email_sha256_secret" }),
+    ]);
   });
 });
