@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 export default async function ShopPage() {
   const { products, source } = await getPublicShopProductsWithFirestoreFallback();
   const isFallbackCatalog = source === "fallback";
+  const hasFirestoreProducts = source === "firestore" && products.length > 0;
 
   return (
     <main className="mx-auto grid w-full max-w-6xl gap-8 px-6 py-10 sm:px-10">
@@ -101,11 +102,11 @@ export default async function ShopPage() {
         ))}
       </section>
 
-      {isFallbackCatalog ? null : (
+      {hasFirestoreProducts ? (
         <section id="solicitar-compra">
           <PurchaseRequestForm products={products} />
         </section>
-      )}
+      ) : null}
     </main>
   );
 }

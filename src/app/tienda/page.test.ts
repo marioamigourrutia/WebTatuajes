@@ -47,6 +47,7 @@ describe("shop page", () => {
     expect(content).toContain("OBR-100");
     expect(content).toContain("Solicitar compra");
     expect(content).toContain("solicitar-compra");
+    expect(content).toContain('"products":[{"id":"firestore-product"');
     expect(content).not.toContain("Catálogo temporal en modo referencia");
   });
 
@@ -64,6 +65,8 @@ describe("shop page", () => {
     expect(content).toContain("Las piezas mostradas son referenciales");
     expect(content).toContain("Coordinar por contacto");
     expect(content).not.toContain("Solicitar compra");
+    expect(content).not.toContain("solicitar-compra");
+    expect(content).not.toContain('"products":[');
     expect(content).not.toContain("Guardar y preparar WhatsApp");
   });
 
@@ -80,5 +83,7 @@ describe("shop page", () => {
     expect(content).toContain("No hay obras disponibles publicadas por el momento");
     expect(content).not.toContain("Catálogo temporal en modo referencia");
     expect(content).not.toContain("OBR-001");
+    expect(content).not.toContain("solicitar-compra");
+    expect(content).not.toContain('"products":[');
   });
 });
