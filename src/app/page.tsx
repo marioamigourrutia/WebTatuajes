@@ -73,70 +73,95 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-10 sm:py-10">
-      <section className="relative grid min-w-0 items-center gap-7 overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/55 px-4 py-8 shadow-2xl shadow-black/30 sm:gap-10 sm:px-8 sm:py-12 lg:grid-cols-[1.1fr_0.9fr] lg:py-16">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/10 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 left-1/4 h-px w-1/2 bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" />
-        <div className="min-w-0 space-y-5 sm:space-y-8">
-          <p className="break-words text-sm font-medium uppercase tracking-[0.22em] text-amber-200 sm:tracking-[0.35em]">
-            Estudio profesional en Chile · {appConfig.artistName}
-          </p>
-          <div className="space-y-4 sm:space-y-5">
-            <h1 className="max-w-4xl break-words text-[clamp(2.1rem,9.5vw,4.5rem)] font-black leading-[1.02] text-stone-50 sm:text-7xl sm:leading-[0.98]">
-              {appConfig.studioName}: tatuajes con diseño, criterio y una experiencia segura.
-            </h1>
-            <p className="max-w-2xl text-base leading-7 text-stone-300 sm:text-lg sm:leading-8">
-              Mario Amigo Urrutia convierte ideas en piezas pensadas para tu cuerpo, tu ritmo y tu
-              historia. El primer contacto parte con una cotización clara, privada y revisada por el
-              estudio.
-            </p>
-          </div>
-          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <a
-              className="w-full whitespace-normal rounded-full bg-amber-300 px-6 py-3 text-center font-semibold text-stone-950 shadow-lg shadow-amber-950/30 transition hover:-translate-y-0.5 hover:bg-amber-200 sm:w-auto"
-              href="/quote"
-            >
-              Solicitar cotización
-            </a>
-            {whatsappUrl ? (
-              <a
-                className="w-full whitespace-normal rounded-full border border-amber-300/50 bg-stone-950/40 px-6 py-3 text-center font-semibold text-amber-100 transition hover:-translate-y-0.5 hover:bg-amber-300 hover:text-stone-950 sm:w-auto"
-                href={whatsappUrl}
-              >
-                Escribir por WhatsApp
-              </a>
-            ) : null}
-          </div>
-        </div>
+      <section className="relative isolate min-w-0 overflow-hidden rounded-[2rem] border border-amber-100/10 bg-[radial-gradient(circle_at_18%_12%,rgba(251,191,36,0.16),transparent_30%),linear-gradient(135deg,rgba(28,25,23,0.94),rgba(12,10,9,0.98)_58%,rgba(41,37,36,0.9))] px-4 py-8 shadow-2xl shadow-black/35 sm:rounded-[2.5rem] sm:px-8 sm:py-12 lg:px-10 lg:py-14">
+        <div className="pointer-events-none absolute -right-20 top-10 h-72 w-72 rounded-full bg-amber-300/10 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-0 h-40 w-2/3 bg-gradient-to-r from-amber-300/10 via-transparent to-transparent blur-2xl" />
+        <div className="pointer-events-none absolute inset-x-6 top-6 h-px bg-gradient-to-r from-transparent via-amber-200/25 to-transparent" />
 
-        <aside className="min-w-0 rounded-3xl border border-amber-100/15 bg-gradient-to-br from-stone-900/90 to-stone-950/90 p-6 shadow-2xl shadow-black/30">
-          <div className="mb-5 inline-flex max-w-full whitespace-normal break-words rounded-full border border-amber-300/30 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
-            Diseño personalizado premium
+        <div className="relative grid min-w-0 items-center gap-8 lg:grid-cols-[minmax(0,1.04fr)_minmax(320px,0.74fr)] lg:gap-10">
+          <div className="min-w-0 space-y-6 sm:space-y-8">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <p className="inline-flex w-fit max-w-full rounded-full border border-amber-200/20 bg-white/[0.03] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-amber-100 shadow-lg shadow-black/15 backdrop-blur sm:tracking-[0.28em]">
+                Estudio profesional en Chile
+              </p>
+              <p className="text-sm font-medium text-stone-400">
+                Dirección artística · {appConfig.artistName}
+              </p>
+            </div>
+
+            <div className="space-y-4 sm:space-y-5">
+              <h1 className="max-w-4xl text-balance break-words text-[clamp(2.08rem,7.2vw,4.25rem)] font-extrabold leading-[1.04] tracking-[-0.04em] text-stone-50 sm:leading-[0.98]">
+                Tatuajes con diseño, criterio y una experiencia segura.
+              </h1>
+              <p className="max-w-2xl text-base leading-7 text-stone-300 sm:text-lg sm:leading-8">
+                {appConfig.studioName} convierte ideas en piezas pensadas para tu cuerpo, tu ritmo y
+                tu historia. El primer contacto parte con una cotización clara, privada y revisada
+                por el estudio.
+              </p>
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <a
+                className="w-full rounded-full bg-amber-300 px-6 py-3 text-center font-semibold text-stone-950 shadow-xl shadow-amber-950/30 transition hover:-translate-y-0.5 hover:bg-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:ring-offset-2 focus:ring-offset-stone-950 sm:w-auto"
+                href="/quote"
+              >
+                Solicitar cotización
+              </a>
+              {whatsappUrl ? (
+                <a
+                  className="w-full rounded-full border border-amber-200/35 bg-white/[0.03] px-6 py-3 text-center font-semibold text-amber-100 shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:border-amber-200 hover:bg-amber-300 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:ring-offset-2 focus:ring-offset-stone-950 sm:w-auto"
+                  href={whatsappUrl}
+                >
+                  Escribir por WhatsApp
+                </a>
+              ) : null}
+              <span className="hidden text-sm text-stone-500 sm:inline sm:pl-2">
+                Respuesta con evaluación profesional.
+              </span>
+            </div>
           </div>
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-300">
-            Atención enfocada
-          </p>
-          <h2 className="mt-3 text-2xl font-bold text-stone-50">De la idea al diseño viable</h2>
-          <p className="mt-3 text-stone-300">
-            Revisamos zona, tamaño, estilo, cicatrización esperada y referencias antes de avanzar.
-            Sin promesas automáticas: cada proyecto se evalúa con criterio profesional.
-          </p>
-          <dl className="mt-6 grid gap-3 text-sm text-stone-300 sm:grid-cols-3 lg:grid-cols-1">
-            <div className="rounded-2xl border border-stone-800 bg-stone-950/70 p-4">
-              <dt className="font-semibold text-stone-100">Privado</dt>
-              <dd className="mt-1">Tus datos se tratan con reserva durante la evaluación.</dd>
+
+          <aside
+            className="relative min-w-0 pt-2 lg:pt-8"
+            aria-label="Resumen del proceso de cotización"
+          >
+            <div className="pointer-events-none absolute -left-6 top-0 hidden h-24 w-24 rounded-full border border-amber-200/20 lg:block" />
+            <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/30 backdrop-blur sm:p-6 lg:translate-y-5">
+              <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-amber-200/10 blur-2xl" />
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-200">
+                Diseño personalizado premium
+              </p>
+              <h2 className="mt-4 text-2xl font-black tracking-[-0.03em] text-stone-50">
+                De la idea al diseño viable
+              </h2>
+              <p className="mt-3 hidden leading-7 text-stone-300 sm:block">
+                Revisamos zona, tamaño, estilo, cicatrización esperada y referencias antes de
+                avanzar. Sin promesas automáticas: cada proyecto se evalúa con criterio profesional.
+              </p>
+
+              <dl className="mt-5 grid gap-3 text-sm text-stone-300 sm:mt-6 sm:grid-cols-3 lg:grid-cols-1">
+                {[
+                  ["Privado", "Tus datos se tratan con reserva durante la evaluación."],
+                  ["Ordenado", "Cada solicitud se revisa con contexto antes de responder."],
+                  ["Claro", "La cotización define viabilidad antes de reservar una sesión."],
+                ].map(([term, description], index) => (
+                  <div
+                    className="group grid grid-cols-[auto_1fr] gap-3 rounded-3xl border border-white/10 bg-stone-950/45 p-4 transition hover:border-amber-200/30 hover:bg-stone-900/70"
+                    key={term}
+                  >
+                    <dt className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-200/25 bg-amber-200/10 text-xs font-black text-amber-100">
+                      {index + 1}
+                    </dt>
+                    <dd>
+                      <span className="block font-semibold text-stone-100">{term}</span>
+                      <span className="mt-1 hidden leading-6 sm:block">{description}</span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
-            <div className="rounded-2xl border border-stone-800 bg-stone-950/70 p-4">
-              <dt className="font-semibold text-stone-100">Ordenado</dt>
-              <dd className="mt-1">Cada solicitud se revisa con contexto antes de responder.</dd>
-            </div>
-            <div className="rounded-2xl border border-stone-800 bg-stone-950/70 p-4">
-              <dt className="font-semibold text-stone-100">Claro</dt>
-              <dd className="mt-1">
-                La cotización define viabilidad antes de reservar una sesión.
-              </dd>
-            </div>
-          </dl>
-        </aside>
+          </aside>
+        </div>
       </section>
 
       <section className="py-10">
