@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
+import { BotProtectionFields } from "@/lib/bot-protection-fields";
 
 type UnsubscribeResponse = {
   ok?: boolean;
@@ -25,10 +26,7 @@ export function CommunityUnsubscribeForm() {
       const response = await fetch("/api/community-members/unsubscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: formData.get("email"),
-          confirmation: formData.get("confirmation"),
-        }),
+        body: JSON.stringify(Object.fromEntries(formData.entries())),
       });
       const body = (await response.json()) as UnsubscribeResponse;
 
@@ -50,6 +48,7 @@ export function CommunityUnsubscribeForm() {
 
   return (
     <form className="space-y-4" onSubmit={submitUnsubscribe}>
+      <BotProtectionFields />
       <div>
         <label className="text-sm font-semibold text-stone-100" htmlFor="email">
           Email inscrito

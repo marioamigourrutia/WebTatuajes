@@ -15,6 +15,10 @@ function request(body: unknown) {
   });
 }
 
+function botFields() {
+  return { companyWebsite: "", submittedAt: String(Date.now() - 3000) };
+}
+
 describe("community member unsubscribe route", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -22,18 +26,23 @@ describe("community member unsubscribe route", () => {
   });
 
   it("is public and returns generic ok for unsubscribe requests", async () => {
-    const body = { email: "ana@example.test", confirmation: true };
+    const body = { email: "ana@example.test", confirmation: true, ...botFields() };
     const response = await POST(request(body));
 
     await expect(response.json()).resolves.toEqual({ ok: true });
     expect(response.status).toBe(200);
-    expect(unsubscribeCommunityMemberMock).toHaveBeenCalledWith(body);
+    expect(unsubscribeCommunityMemberMock).toHaveBeenCalledWith({
+      email: "ana@example.test",
+      confirmation: true,
+    });
   });
 
   it("does not expose whether the email was previously subscribed", async () => {
     unsubscribeCommunityMemberMock.mockResolvedValue({ ok: true });
 
-    const response = await POST(request({ email: "missing@example.test", confirmation: true }));
+    const response = await POST(
+      request({ email: "missing@example.test", confirmation: true, ...botFields() }),
+    );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
@@ -46,7 +55,7 @@ describe("community member unsubscribe route", () => {
       errors: { email: "Ingresa un email válido." },
     });
 
-    const response = await POST(request({ email: "bad" }));
+    const response = await POST(request({ email: "bad", ...botFields() }));
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
@@ -61,7 +70,9 @@ describe("community member unsubscribe route", () => {
       errors: { form: "No pudimos procesar la baja. Intenta nuevamente." },
     });
 
-    const response = await POST(request({ email: "ana@example.test", confirmation: true }));
+    const response = await POST(
+      request({ email: "ana@example.test", confirmation: true, ...botFields() }),
+    );
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({
@@ -78,5 +89,22 @@ describe("community member unsubscribe route", () => {
     );
 
     expect(response.status).toBe(400);
+  });
+
+  it("rejects bot-like unsubscribe requests without exposing membership state", async () => {
+    const response = await POST(
+      request({
+        email: "ana@example.test",
+        confirmation: true,
+        companyWebsite: "https://spam.test",
+        submittedAt: String(Date.now() - 3000),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      errors: { form: "No pudimos procesar la solicitud. Intenta nuevamente." },
+    });
+    expect(unsubscribeCommunityMemberMock).not.toHaveBeenCalled();
   });
 });

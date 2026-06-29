@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { BotProtectionFields } from "@/lib/bot-protection-fields";
 
 export function ReviewForm({ initialToken }: { initialToken: string }) {
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +26,8 @@ export function ReviewForm({ initialToken }: { initialToken: string }) {
           comment: formData.get("comment"),
           publicName: formData.get("publicName"),
           publishConsent: formData.get("publishConsent") === "on",
+          companyWebsite: formData.get("companyWebsite"),
+          submittedAt: formData.get("submittedAt"),
         }),
       });
       const body = (await response.json()) as { errors?: Record<string, string> };
@@ -57,6 +60,7 @@ export function ReviewForm({ initialToken }: { initialToken: string }) {
       onSubmit={submitReview}
     >
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
+      <BotProtectionFields />
       <input name="token" type="hidden" value={initialToken} />
       <label className="grid gap-1 text-sm font-semibold text-stone-200">
         Calificación

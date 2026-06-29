@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBearerToken } from "@/lib/auth/bearer";
 import { verifyCustomerIdToken } from "@/lib/auth/customer-token";
+import { stripBotProtectionFields, validateBotProtection } from "@/lib/bot-protection";
 import { createQuoteRequest, createQuoteRequestFromFormData } from "@/lib/quotes/quote-request";
 
 export const runtime = "nodejs";
@@ -29,7 +30,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await createQuoteRequestFromFormData(formData, tokenVerification.customer);
+    const botProtection = validateBotProtection(formData);
+    if (!botProtection.ok) {
+      return NextResponse.json({ errors: botProtection.errors }, { status: botProtection.status });
+    }
+
+    const result = await createQuoteRequestFromFormData(
+      stripBotProtectionFields(formData),
+      tokenVerification.customer,
+    );
 
     if (!result.ok) {
       return NextResponse.json({ errors: result.errors }, { status: result.status });
@@ -49,7 +58,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await createQuoteRequest(body, tokenVerification.customer);
+  const botProtection = validateBotProtection(body);
+  if (!botProtection.ok) {
+    return NextResponse.json({ errors: botProtection.errors }, { status: botProtection.status });
+  }
+
+  const result = await createQuoteRequest(
+    stripBotProtectionFields(body),
+    tokenVerification.customer,
+  );
 
   if (!result.ok) {
     return NextResponse.json({ errors: result.errors }, { status: result.status });

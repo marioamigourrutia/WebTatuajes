@@ -18,6 +18,21 @@ const createQuoteRequestFromFormDataMock = vi.mocked(createQuoteRequestFromFormD
 function multipartRequest(token?: string) {
   const formData = new FormData();
   formData.set("email", "ana@example.test");
+  formData.set("companyWebsite", "");
+  formData.set("submittedAt", String(Date.now() - 3000));
+
+  return new Request("http://localhost/api/quotes", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+}
+
+function botMultipartRequest(token?: string) {
+  const formData = new FormData();
+  formData.set("email", "ana@example.test");
+  formData.set("companyWebsite", "https://spam.test");
+  formData.set("submittedAt", String(Date.now() - 3000));
 
   return new Request("http://localhost/api/quotes", {
     method: "POST",
@@ -77,5 +92,19 @@ describe("quote creation route", () => {
       email: "ana@example.test",
       emailVerified: true,
     });
+    const submittedFormData = createQuoteRequestFromFormDataMock.mock.calls[0]?.[0] as FormData;
+    expect(submittedFormData.get("email")).toBe("ana@example.test");
+    expect(submittedFormData.has("companyWebsite")).toBe(false);
+    expect(submittedFormData.has("submittedAt")).toBe(false);
+  });
+
+  it("rejects bot-like quote submissions before writing", async () => {
+    const response = await POST(botMultipartRequest("verified-token"));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      errors: { form: "No pudimos procesar la solicitud. Intenta nuevamente." },
+    });
+    expect(createQuoteRequestFromFormDataMock).not.toHaveBeenCalled();
   });
 });

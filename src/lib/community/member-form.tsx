@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { BotProtectionFields } from "@/lib/bot-protection-fields";
 
 type FormState = {
   fullName: string;
@@ -31,11 +32,17 @@ export function CommunityMemberForm() {
     setMessage(null);
     setErrors({});
 
+    const formData = new FormData(event.currentTarget);
+
     try {
       const response = await fetch("/api/community-members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          companyWebsite: formData.get("companyWebsite"),
+          submittedAt: formData.get("submittedAt"),
+        }),
       });
       const body = (await response.json()) as CommunityMemberResponse;
 
@@ -57,6 +64,7 @@ export function CommunityMemberForm() {
 
   return (
     <form className="space-y-4" onSubmit={submitCommunityMember}>
+      <BotProtectionFields />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="grid gap-2 text-sm font-semibold text-stone-200">
           Nombre completo

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { stripBotProtectionFields, validateBotProtection } from "@/lib/bot-protection";
 import { createPurchaseRequest } from "@/lib/shop/purchase-request";
 
 export async function POST(request: Request) {
@@ -13,7 +14,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await createPurchaseRequest(body);
+  const botProtection = validateBotProtection(body);
+  if (!botProtection.ok) {
+    return NextResponse.json({ errors: botProtection.errors }, { status: botProtection.status });
+  }
+
+  const result = await createPurchaseRequest(stripBotProtectionFields(body));
 
   if (!result.ok) {
     return NextResponse.json({ errors: result.errors }, { status: result.status });

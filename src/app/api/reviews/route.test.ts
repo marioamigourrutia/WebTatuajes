@@ -13,6 +13,10 @@ const getFirebaseAdminFirestoreMock = vi.mocked(getFirebaseAdminFirestore);
 const listPublishedReviewsMock = vi.mocked(listPublishedReviews);
 const submitReviewWithTokenMock = vi.mocked(submitReviewWithToken);
 
+function botFields() {
+  return { companyWebsite: "", submittedAt: String(Date.now() - 3000) };
+}
+
 describe("public reviews route", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -41,12 +45,42 @@ describe("public reviews route", () => {
       comment: "Excelente",
       publicName: "MA",
       publishConsent: true,
+      ...botFields(),
     };
     const response = await POST(
       new Request("http://localhost/api/reviews", { method: "POST", body: JSON.stringify(body) }),
     );
 
     expect(response.status).toBe(201);
-    expect(submitReviewWithTokenMock).toHaveBeenCalledWith(expect.anything(), body);
+    expect(submitReviewWithTokenMock).toHaveBeenCalledWith(expect.anything(), {
+      token: "private-token",
+      rating: 5,
+      comment: "Excelente",
+      publicName: "MA",
+      publishConsent: true,
+    });
+  });
+
+  it("rejects bot-like review submissions before token validation", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/reviews", {
+        method: "POST",
+        body: JSON.stringify({
+          token: "private-token",
+          rating: 5,
+          comment: "Excelente",
+          publicName: "MA",
+          publishConsent: true,
+          companyWebsite: "https://spam.test",
+          submittedAt: String(Date.now() - 3000),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      errors: { form: "No pudimos procesar la solicitud. Intenta nuevamente." },
+    });
+    expect(submitReviewWithTokenMock).not.toHaveBeenCalled();
   });
 });

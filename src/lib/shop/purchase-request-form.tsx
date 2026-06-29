@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BotProtectionFields } from "@/lib/bot-protection-fields";
 import { formatClpPrice, productStatusLabels, type ShopProduct } from "./catalog";
 
 type PurchaseRequestResponse = {
@@ -56,6 +57,7 @@ export function PurchaseRequestForm({ products }: { products: readonly ShopProdu
       className="grid gap-5 rounded-[2rem] border border-amber-100/10 bg-stone-950/75 p-6 shadow-2xl shadow-black/25 sm:p-8"
       onSubmit={submitPurchaseRequest}
     >
+      <BotProtectionFields />
       <div>
         <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
           Solicitar compra

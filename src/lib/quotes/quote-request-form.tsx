@@ -9,6 +9,7 @@ import {
   type User,
 } from "firebase/auth";
 import { appConfig } from "@/lib/config/app";
+import { BotProtectionFields } from "@/lib/bot-protection-fields";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
@@ -361,6 +362,7 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
       className="space-y-5 rounded-[2rem] border border-amber-100/10 bg-stone-950/75 p-6 shadow-2xl shadow-black/25 sm:p-8"
       onSubmit={handleSubmit}
     >
+      <BotProtectionFields />
       <div>
         <h2 className="text-3xl font-black text-stone-50">Formulario de cotización</h2>
         <p className="mt-2 text-sm leading-6 text-stone-400">

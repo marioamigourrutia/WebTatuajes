@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { stripBotProtectionFields, validateBotProtection } from "@/lib/bot-protection";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
 import { listPublishedReviews, submitReviewWithToken } from "@/lib/reviews/review";
 
@@ -31,7 +32,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await submitReviewWithToken(firestore, body);
+  const botProtection = validateBotProtection(body);
+  if (!botProtection.ok) {
+    return NextResponse.json({ errors: botProtection.errors }, { status: botProtection.status });
+  }
+
+  const result = await submitReviewWithToken(firestore, stripBotProtectionFields(body));
   if (!result.ok) return NextResponse.json({ errors: result.errors }, { status: result.status });
 
   return NextResponse.json({ id: result.id }, { status: 201 });
