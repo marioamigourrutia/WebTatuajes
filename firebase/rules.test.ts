@@ -128,6 +128,51 @@ beforeEach(async () => {
       title: "Inactive product",
       active: false,
     });
+    await setDoc(doc(db, "sponsors/active-sponsor"), {
+      name: "Active sponsor",
+      description: "Published collaborator",
+      active: true,
+    });
+    await setDoc(doc(db, "sponsors/inactive-sponsor"), {
+      name: "Inactive sponsor",
+      description: "Private collaborator",
+      active: false,
+    });
+    await setDoc(doc(db, "reviews/approved-review"), {
+      customer_id: "customer-a",
+      rating: 5,
+      comment: "Approved review",
+      approved: true,
+    });
+    await setDoc(doc(db, "reviews/pending-review"), {
+      customer_id: "customer-b",
+      rating: 4,
+      comment: "Pending moderation",
+      approved: false,
+    });
+    await setDoc(doc(db, "community_posts/published-post"), {
+      title: "Published community update",
+      body: "Visible community content.",
+      author_id: "admin-a",
+      published: true,
+    });
+    await setDoc(doc(db, "community_posts/draft-post"), {
+      title: "Draft community update",
+      body: "Hidden community content.",
+      author_id: "admin-a",
+      published: false,
+    });
+    await setDoc(doc(db, "community_members/member-a"), {
+      full_name: "Community Member",
+      email: "member@example.invalid",
+      active: true,
+    });
+    await setDoc(doc(db, "purchase_requests/request-a"), {
+      customer_name: "Customer A",
+      phone: "+56912345678",
+      product_id: "active-product",
+      status: "new",
+    });
   });
 });
 
@@ -183,6 +228,18 @@ function validProductData(overrides: Record<string, unknown> = {}) {
     image_url: null,
     active: true,
     sort_order: 1,
+    created_at: Timestamp.fromMillis(1),
+    updated_at: Timestamp.fromMillis(2),
+    ...overrides,
+  };
+}
+
+function validCommunityPostData(overrides: Record<string, unknown> = {}) {
+  return {
+    title: "Community update",
+    body: "Public community content.",
+    author_id: "admin-a",
+    published: true,
     created_at: Timestamp.fromMillis(1),
     updated_at: Timestamp.fromMillis(2),
     ...overrides,
@@ -563,6 +620,21 @@ describe("Firestore private data rules", () => {
     await assertFails(deleteDoc(productRef));
   });
 
+  it("keeps product writes admin-only and rejects destructive or incomplete updates", async () => {
+    const customerA = userDb("customer-a");
+    const adminA = userDb("admin-a");
+
+    await assertFails(setDoc(doc(customerA, "products/customer-product"), validProductData()));
+    await assertFails(deleteDoc(doc(adminA, "products/inactive-product")));
+    await assertFails(
+      setDoc(doc(adminA, "products/active-product"), {
+        code: "OBR-010",
+        title: "Missing required fields",
+        active: false,
+      }),
+    );
+  });
+
   it("rejects malformed admin product payloads", async () => {
     const adminA = userDb("admin-a");
     const missingCoreFields: Record<string, unknown> = validProductData();
@@ -579,6 +651,122 @@ describe("Firestore private data rules", () => {
     await assertFails(
       setDoc(doc(adminA, "products/bad-price"), validProductData({ price_clp: -1 })),
     );
+  });
+
+  it("keeps community members and purchase requests closed to client SDK access", async () => {
+    const customerA = userDb("customer-a");
+    const adminA = userDb("admin-a");
+
+    await assertFails(getDoc(doc(customerA, "community_members/member-a")));
+    await assertFails(getDoc(doc(adminA, "community_members/member-a")));
+    await assertFails(getDocs(collection(adminA, "community_members")));
+    await assertFails(
+      setDoc(doc(customerA, "community_members/customer-write"), {
+        email: "customer@example.invalid",
+        active: true,
+      }),
+    );
+
+    await assertFails(getDoc(doc(customerA, "purchase_requests/request-a")));
+    await assertFails(getDoc(doc(adminA, "purchase_requests/request-a")));
+    await assertFails(getDocs(collection(adminA, "purchase_requests")));
+    await assertFails(
+      setDoc(doc(customerA, "purchase_requests/customer-write"), {
+        customer_name: "Customer A",
+        phone: "+56912345678",
+        product_id: "active-product",
+        status: "new",
+      }),
+    );
+  });
+
+  it("enforces sponsor and review publication boundaries and admin-only writes", async () => {
+    const db = anonymousDb();
+    const customerA = userDb("customer-a");
+    const adminA = userDb("admin-a");
+
+    await assertSucceeds(getDoc(doc(db, "sponsors/active-sponsor")));
+    await assertFails(getDoc(doc(db, "sponsors/inactive-sponsor")));
+    await assertFails(getDocs(collection(db, "sponsors")));
+    await assertFails(
+      setDoc(doc(customerA, "sponsors/customer-sponsor"), {
+        name: "Customer sponsor",
+        active: true,
+      }),
+    );
+    await assertFails(
+      setDoc(doc(adminA, "sponsors/bad-sponsor"), {
+        name: "Bad sponsor",
+        active: "true",
+      }),
+    );
+    await assertSucceeds(
+      setDoc(doc(adminA, "sponsors/admin-sponsor"), {
+        name: "Admin sponsor",
+        description: "Published by admin",
+        active: true,
+      }),
+    );
+
+    await assertSucceeds(getDoc(doc(db, "reviews/approved-review")));
+    await assertFails(getDoc(doc(db, "reviews/pending-review")));
+    await assertFails(getDocs(collection(db, "reviews")));
+    await assertFails(
+      setDoc(doc(customerA, "reviews/customer-review"), {
+        customer_id: "customer-a",
+        rating: 5,
+        comment: "Client SDK write attempt",
+        approved: true,
+      }),
+    );
+    await assertFails(
+      setDoc(doc(adminA, "reviews/bad-review"), {
+        customer_id: "customer-a",
+        rating: 5,
+        comment: "Injected field",
+        approved: true,
+        private_note: "not allowed",
+      }),
+    );
+    await assertSucceeds(
+      setDoc(doc(adminA, "reviews/admin-review"), {
+        customer_id: "customer-a",
+        rating: 5,
+        comment: "Approved by admin",
+        approved: true,
+      }),
+    );
+  });
+
+  it("allows public reads for published community posts and keeps drafts private", async () => {
+    const db = anonymousDb();
+
+    await assertSucceeds(getDoc(doc(db, "community_posts/published-post")));
+    await assertFails(getDoc(doc(db, "community_posts/draft-post")));
+    await assertFails(getDocs(collection(db, "community_posts")));
+  });
+
+  it("allows admins to manage community posts", async () => {
+    const adminA = userDb("admin-a");
+    const postRef = doc(adminA, "community_posts/admin-post");
+
+    await assertSucceeds(setDoc(postRef, validCommunityPostData()));
+    await assertSucceeds(
+      updateDoc(postRef, { published: false, updated_at: Timestamp.fromMillis(3) }),
+    );
+    await assertSucceeds(deleteDoc(postRef));
+  });
+
+  it("denies non-admin community post writes", async () => {
+    const customerA = userDb("customer-a");
+
+    await assertFails(
+      setDoc(doc(customerA, "community_posts/customer-post"), validCommunityPostData()),
+    );
+    await assertFails(
+      updateDoc(doc(customerA, "community_posts/published-post"), { published: false }),
+    );
+    await assertFails(deleteDoc(doc(customerA, "community_posts/published-post")));
   });
 });
 
