@@ -72,19 +72,19 @@ export default async function HomePage() {
     : null;
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-10">
-      <section className="relative grid min-w-0 items-center gap-10 overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/55 px-4 py-12 shadow-2xl shadow-black/30 sm:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:py-16">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-10 sm:py-10">
+      <section className="relative grid min-w-0 items-center gap-7 overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/55 px-4 py-8 shadow-2xl shadow-black/30 sm:gap-10 sm:px-8 sm:py-12 lg:grid-cols-[1.1fr_0.9fr] lg:py-16">
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/10 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 left-1/4 h-px w-1/2 bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" />
-        <div className="min-w-0 space-y-8">
+        <div className="min-w-0 space-y-5 sm:space-y-8">
           <p className="break-words text-sm font-medium uppercase tracking-[0.22em] text-amber-200 sm:tracking-[0.35em]">
             Estudio profesional en Chile · {appConfig.artistName}
           </p>
-          <div className="space-y-5">
-            <h1 className="max-w-4xl break-words text-[clamp(2.5rem,11vw,4.5rem)] font-black leading-[0.98] text-stone-50 sm:text-7xl">
+          <div className="space-y-4 sm:space-y-5">
+            <h1 className="max-w-4xl break-words text-[clamp(2.1rem,9.5vw,4.5rem)] font-black leading-[1.02] text-stone-50 sm:text-7xl sm:leading-[0.98]">
               {appConfig.studioName}: tatuajes con diseño, criterio y una experiencia segura.
             </h1>
-            <p className="max-w-2xl text-lg leading-8 text-stone-300">
+            <p className="max-w-2xl text-base leading-7 text-stone-300 sm:text-lg sm:leading-8">
               Mario Amigo Urrutia convierte ideas en piezas pensadas para tu cuerpo, tu ritmo y tu
               historia. El primer contacto parte con una cotización clara, privada y revisada por el
               estudio.
