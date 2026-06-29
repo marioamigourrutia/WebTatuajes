@@ -6,21 +6,24 @@ const navItems = [
   { href: "/", label: "Inicio" },
   { href: "/servicios", label: "Servicios" },
   { href: "/portfolio", label: "Portafolio" },
+  { href: "/colaboradores", label: "Colaboradores" },
   { href: "/opiniones", label: "Opiniones" },
   { href: "/tienda", label: "Tienda" },
   { href: "/contacto", label: "Contacto" },
   { href: "/quote", label: "Cotizar" },
 ];
 
+const globalWhatsAppPhone = "+56 9 7761 6917";
+
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
-  const whatsappUrl = hasWhatsAppConfig(appConfig.whatsappPhone)
-    ? buildWhatsAppUrl({ phone: appConfig.whatsappPhone, message: appConfig.whatsappMessage })
+  const whatsappUrl = hasWhatsAppConfig(globalWhatsAppPhone)
+    ? buildWhatsAppUrl({ phone: globalWhatsAppPhone, message: appConfig.whatsappMessage })
     : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:42px_42px]">
       <header className="sticky top-0 z-40 border-b border-amber-100/10 bg-stone-950/85 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-4 sm:px-10 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:px-10 lg:flex-row lg:items-center lg:justify-between">
           <Link className="group flex items-center gap-3" href="/">
             <span className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/40 bg-amber-300/10 text-sm font-black text-amber-200 shadow-lg shadow-amber-950/30 transition group-hover:border-amber-200">
               HT
@@ -32,10 +35,13 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <span className="mt-1 block text-xs text-stone-400">{appConfig.artistName}</span>
             </span>
           </Link>
-          <nav aria-label="Navegación principal" className="flex flex-wrap items-center gap-2">
+          <nav
+            aria-label="Navegación principal"
+            className="flex flex-wrap items-center gap-1 sm:gap-2"
+          >
             {navItems.map((item) => (
               <Link
-                className="rounded-full px-3 py-2 text-sm font-medium text-stone-200 transition hover:bg-stone-800/90 hover:text-stone-50"
+                className="rounded-full px-2.5 py-2 text-sm font-medium text-stone-200 transition hover:bg-stone-800/90 hover:text-stone-50 sm:px-3"
                 href={item.href}
                 key={item.href}
               >
@@ -44,7 +50,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             ))}
             {whatsappUrl ? (
               <a
-                className="rounded-full border border-amber-300/50 bg-amber-300/10 px-4 py-2 text-sm font-semibold text-amber-100 shadow-sm shadow-amber-950/30 transition hover:bg-amber-300 hover:text-stone-950"
+                className="rounded-full border border-amber-300/50 bg-amber-300/10 px-3 py-2 text-sm font-semibold text-amber-100 shadow-sm shadow-amber-950/30 transition hover:bg-amber-300 hover:text-stone-950 sm:px-4"
                 href={whatsappUrl}
                 rel="noreferrer"
                 target="_blank"

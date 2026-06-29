@@ -72,16 +72,16 @@ export default async function HomePage() {
     : null;
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
-      <section className="relative grid items-center gap-10 overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/55 px-5 py-12 shadow-2xl shadow-black/30 sm:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:py-16">
+    <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-10">
+      <section className="relative grid min-w-0 items-center gap-10 overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/55 px-4 py-12 shadow-2xl shadow-black/30 sm:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:py-16">
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/10 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 left-1/4 h-px w-1/2 bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" />
-        <div className="space-y-8">
-          <p className="text-sm font-medium uppercase tracking-[0.35em] text-amber-200">
+        <div className="min-w-0 space-y-8">
+          <p className="break-words text-sm font-medium uppercase tracking-[0.22em] text-amber-200 sm:tracking-[0.35em]">
             Estudio profesional en Chile · {appConfig.artistName}
           </p>
           <div className="space-y-5">
-            <h1 className="max-w-4xl text-5xl font-black leading-[0.95] text-stone-50 sm:text-7xl">
+            <h1 className="max-w-4xl break-words text-[clamp(2.5rem,11vw,4.5rem)] font-black leading-[0.98] text-stone-50 sm:text-7xl">
               {appConfig.studioName}: tatuajes con diseño, criterio y una experiencia segura.
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-stone-300">
@@ -90,16 +90,16 @@ export default async function HomePage() {
               estudio.
             </p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
             <a
-              className="rounded-full bg-amber-300 px-6 py-3 text-center font-semibold text-stone-950 shadow-lg shadow-amber-950/30 transition hover:-translate-y-0.5 hover:bg-amber-200"
+              className="w-full whitespace-normal rounded-full bg-amber-300 px-6 py-3 text-center font-semibold text-stone-950 shadow-lg shadow-amber-950/30 transition hover:-translate-y-0.5 hover:bg-amber-200 sm:w-auto"
               href="/quote"
             >
               Solicitar cotización
             </a>
             {whatsappUrl ? (
               <a
-                className="rounded-full border border-amber-300/50 bg-stone-950/40 px-6 py-3 text-center font-semibold text-amber-100 transition hover:-translate-y-0.5 hover:bg-amber-300 hover:text-stone-950"
+                className="w-full whitespace-normal rounded-full border border-amber-300/50 bg-stone-950/40 px-6 py-3 text-center font-semibold text-amber-100 transition hover:-translate-y-0.5 hover:bg-amber-300 hover:text-stone-950 sm:w-auto"
                 href={whatsappUrl}
               >
                 Escribir por WhatsApp
@@ -108,8 +108,8 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <aside className="rounded-3xl border border-amber-100/15 bg-gradient-to-br from-stone-900/90 to-stone-950/90 p-6 shadow-2xl shadow-black/30">
-          <div className="mb-5 inline-flex max-w-full rounded-full border border-amber-300/30 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
+        <aside className="min-w-0 rounded-3xl border border-amber-100/15 bg-gradient-to-br from-stone-900/90 to-stone-950/90 p-6 shadow-2xl shadow-black/30">
+          <div className="mb-5 inline-flex max-w-full whitespace-normal break-words rounded-full border border-amber-300/30 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
             Diseño personalizado premium
           </div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-300">

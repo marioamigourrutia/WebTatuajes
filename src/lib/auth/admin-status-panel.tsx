@@ -807,7 +807,7 @@ export function AdminStatusPanel({
         <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
           Operaciones
         </p>
-        <h1 className="mt-3 text-3xl font-black text-stone-50">Dashboard admin local</h1>
+        <h1 className="mt-3 text-3xl font-black text-stone-50">Panel de administración</h1>
         <p className="mt-2 text-sm leading-6 text-stone-400">
           Valida el token contra servidor, revisa cotizaciones recientes y actualiza estados sin
           abrir escrituras cliente en Firestore.
@@ -1137,7 +1137,7 @@ export function AdminStatusPanel({
             </div>
             {quotes.length === 0 ? (
               <p className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4 text-sm text-stone-400">
-                Todavía no hay solicitudes locales.
+                Todavía no hay solicitudes registradas.
               </p>
             ) : (
               <ul className="space-y-3">
