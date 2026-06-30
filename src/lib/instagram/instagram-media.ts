@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { sanitizeExternalImageUrl } from "@/lib/images/external-image-url";
 
@@ -20,6 +21,8 @@ type FirestoreQueryLike = {
   limit: (limit: number) => FirestoreQueryLike;
   get: () => Promise<{ docs: FirestoreDocumentLike[] }>;
 };
+
+type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
 type FirestoreDocumentLike = {
   id: string;
@@ -69,6 +72,36 @@ export type InstagramManualMediaInput = {
   showOnHome: boolean;
   portfolioOnly: boolean;
   order: number | null;
+};
+
+type InstagramGraphMedia = {
+  id?: unknown;
+  caption?: unknown;
+  media_type?: unknown;
+  media_url?: unknown;
+  permalink?: unknown;
+  thumbnail_url?: unknown;
+  timestamp?: unknown;
+};
+
+type InstagramGraphResponse = {
+  data?: InstagramGraphMedia[];
+  error?: {
+    type?: unknown;
+    code?: unknown;
+    error_subcode?: unknown;
+  };
+};
+
+class SafeInstagramSyncError extends Error {}
+
+export type InstagramSyncSummary = {
+  imported: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+  missing: string[];
+  endpoint: string;
 };
 
 const maxLengths = {
@@ -196,6 +229,173 @@ export function getInstagramSyncDisabledMessage(env: InstagramEnv = process.env)
       "caption",
     ],
   };
+}
+
+function getMissingInstagramConfig(env: InstagramEnv = process.env) {
+  const required: Array<[string, string | undefined]> = [
+    ["INSTAGRAM_IG_USER_ID", env.INSTAGRAM_IG_USER_ID],
+    ["INSTAGRAM_ACCESS_TOKEN", env.INSTAGRAM_ACCESS_TOKEN],
+    ["INSTAGRAM_APP_ID", env.INSTAGRAM_APP_ID],
+    ["INSTAGRAM_APP_SECRET", env.INSTAGRAM_APP_SECRET],
+  ];
+
+  return required.filter(([, value]) => !value?.trim()).map(([key]) => key);
+}
+
+function getInstagramGraphMediaEndpoint(env: InstagramEnv = process.env) {
+  return `https://graph.facebook.com/v25.0/${env.INSTAGRAM_IG_USER_ID?.trim()}/media`;
+}
+
+function createInstagramAppSecretProof(accessToken: string, appSecret: string) {
+  return createHmac("sha256", appSecret).update(accessToken).digest("hex");
+}
+
+function mapGraphMediaToFirestore(media: InstagramGraphMedia) {
+  const errors: string[] = [];
+  const externalId = cleanString(media.id);
+  const mediaType = parseMediaType(media.media_type);
+  const caption = cleanLongText(media.caption);
+  const mediaUrl = sanitizeExternalImageUrl(media.media_url);
+  const thumbnailUrl = sanitizeExternalImageUrl(media.thumbnail_url);
+  const permalink = sanitizeExternalImageUrl(media.permalink);
+  const timestamp = parseTimestamp(media.timestamp);
+
+  if (!externalId) errors.push("media sin id externo");
+  if (!mediaType) errors.push(`media ${externalId || "sin id"} con tipo inválido`);
+  if (!mediaUrl) errors.push(`media ${externalId || "sin id"} sin URL pública válida`);
+
+  if (errors.length > 0 || !externalId || !mediaType || !mediaUrl) {
+    return { ok: false as const, errors };
+  }
+
+  return {
+    ok: true as const,
+    externalId,
+    value: {
+      external_id: externalId,
+      media_type: mediaType,
+      caption,
+      description: caption.slice(0, maxLengths.description),
+      media_url: mediaUrl,
+      thumbnail_url: thumbnailUrl,
+      permalink,
+      timestamp,
+      source: "instagram_api" satisfies InstagramMediaSource,
+      instagram_api_version: "v25.0",
+    },
+  };
+}
+
+async function fetchInstagramGraphMedia(env: InstagramEnv, fetcher: FetchLike) {
+  const endpoint = getInstagramGraphMediaEndpoint(env);
+  const url = new URL(endpoint);
+  const accessToken = env.INSTAGRAM_ACCESS_TOKEN?.trim() ?? "";
+  const appSecret = env.INSTAGRAM_APP_SECRET?.trim() ?? "";
+
+  url.searchParams.set(
+    "fields",
+    "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp",
+  );
+  url.searchParams.set("access_token", accessToken);
+  url.searchParams.set("appsecret_proof", createInstagramAppSecretProof(accessToken, appSecret));
+
+  const response = await fetcher(url);
+  const body = (await response.json().catch(() => ({}))) as InstagramGraphResponse;
+
+  if (!response.ok) {
+    const code = typeof body.error?.code === "number" ? ` code ${body.error.code}` : "";
+    const type = typeof body.error?.type === "string" ? ` (${body.error.type})` : "";
+    throw new SafeInstagramSyncError(`Meta Graph API respondió ${response.status}${code}${type}.`);
+  }
+
+  if (!Array.isArray(body.data)) {
+    throw new SafeInstagramSyncError("Meta Graph API no devolvió una lista de media válida.");
+  }
+
+  return body.data;
+}
+
+export async function syncInstagramMediaFromGraph(
+  firestore: FirestoreLike,
+  options: { env?: InstagramEnv; fetcher?: FetchLike } = {},
+): Promise<
+  | { ok: true; summary: InstagramSyncSummary }
+  | { ok: false; status: number; summary: InstagramSyncSummary }
+> {
+  const env = options.env ?? process.env;
+  const missing = getMissingInstagramConfig(env);
+  const endpoint = "/{ig-user-id}/media";
+  const summary: InstagramSyncSummary = {
+    imported: 0,
+    updated: 0,
+    skipped: 0,
+    errors: [],
+    missing,
+    endpoint,
+  };
+
+  if (missing.length > 0) {
+    summary.errors.push("Faltan credenciales oficiales server-only para sincronizar Instagram.");
+    return { ok: false as const, status: 501, summary };
+  }
+
+  let mediaItems: InstagramGraphMedia[];
+  try {
+    mediaItems = await fetchInstagramGraphMedia(env, options.fetcher ?? fetch);
+  } catch (error) {
+    summary.errors.push(
+      error instanceof SafeInstagramSyncError ? error.message : "No se pudo sincronizar Instagram.",
+    );
+    return { ok: false as const, status: 502, summary };
+  }
+
+  for (const media of mediaItems) {
+    const mapped = mapGraphMediaToFirestore(media);
+    if (!mapped.ok) {
+      summary.skipped += 1;
+      summary.errors.push(...mapped.errors);
+      continue;
+    }
+
+    const existing = await firestore
+      .collection(instagramMediaCollection)
+      .where("external_id", "==", mapped.externalId)
+      .limit(1)
+      .get();
+    const existingDocument = existing.docs[0];
+
+    if (existingDocument) {
+      await firestore
+        .collection(instagramMediaCollection)
+        .doc(existingDocument.id)
+        .update({
+          ...mapped.value,
+          synced_at: FieldValue.serverTimestamp(),
+          updated_at: FieldValue.serverTimestamp(),
+        });
+      summary.updated += 1;
+      continue;
+    }
+
+    await firestore
+      .collection(instagramMediaCollection)
+      .doc()
+      .set({
+        ...mapped.value,
+        hidden: false,
+        featured: false,
+        pinned: false,
+        show_on_home: false,
+        portfolio_only: false,
+        order: null,
+        synced_at: FieldValue.serverTimestamp(),
+        created_at: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+      });
+    summary.imported += 1;
+  }
+
+  return { ok: true as const, summary };
 }
 
 export function validateManualInstagramMediaInput(input: unknown) {

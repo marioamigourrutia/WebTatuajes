@@ -151,13 +151,27 @@ export function AdminInstagramMediaPanel({ enabled }: { enabled: boolean }) {
         method: "POST",
         headers: { Authorization: `Bearer ${idToken}` },
       });
-      const body = (await response.json()) as { message?: string; missing?: string[] };
+      const body = (await response.json()) as {
+        message?: string;
+        missing?: string[];
+        imported?: number;
+        updated?: number;
+        skipped?: number;
+        errors?: string[];
+      };
+      const baseMessage =
+        body.message ??
+        `Sync completado: ${body.imported ?? 0} importadas, ${body.updated ?? 0} actualizadas, ${body.skipped ?? 0} omitidas.`;
       const message = body.missing?.length
-        ? `${body.message} Faltan: ${body.missing.join(", ")}.`
-        : body.message;
+        ? `${baseMessage} Faltan: ${body.missing.join(", ")}.`
+        : (body.message ??
+          `Sync completado: ${body.imported ?? 0} importadas, ${body.updated ?? 0} actualizadas, ${body.skipped ?? 0} omitidas.`);
 
-      if (!response.ok) setError(message ?? "Sincronización deshabilitada.");
-      else setNotice(message ?? "Sincronización ejecutada.");
+      if (!response.ok) setError(body.errors?.[0] ?? message ?? "No se pudo sincronizar.");
+      else {
+        setNotice(message);
+        await loadItems();
+      }
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "No se pudo sincronizar.");
     } finally {
@@ -173,8 +187,8 @@ export function AdminInstagramMediaPanel({ enabled }: { enabled: boolean }) {
         <div>
           <h3 className="text-xl font-bold text-stone-50">Instagram / media de portafolio</h3>
           <p className="mt-1 text-sm leading-6 text-stone-400">
-            Base preparada para API oficial. Sin credenciales server-only, usa fallback manual y el
-            sync responde deshabilitado.
+            Sincroniza desde la API oficial de Meta cuando hay credenciales server-only. El fallback
+            manual sigue disponible para publicar o corregir media.
           </p>
         </div>
         <button
@@ -183,7 +197,7 @@ export function AdminInstagramMediaPanel({ enabled }: { enabled: boolean }) {
           onClick={syncInstagram}
           type="button"
         >
-          {syncing ? "Revisando…" : "Sincronizar Instagram"}
+          {syncing ? "Sincronizando…" : "Sincronizar Instagram"}
         </button>
       </div>
 
