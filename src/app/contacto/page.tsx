@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function ContactPage() {
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
+    <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-10">
       <section className="relative space-y-6 overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/55 p-6 py-12 shadow-2xl shadow-black/25 sm:p-8 sm:py-14">
         <div className="pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full bg-amber-300/10 blur-3xl" />
         <p className="text-sm font-semibold uppercase tracking-[0.35em] text-amber-300">
@@ -44,7 +44,10 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 py-8 md:grid-cols-3" aria-labelledby="contact-intent-heading">
+      <section
+        className="grid min-w-0 gap-4 py-8 md:grid-cols-3"
+        aria-labelledby="contact-intent-heading"
+      >
         <div className="md:col-span-3">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
             Cómo contactarnos
@@ -55,7 +58,7 @@ export default function ContactPage() {
         </div>
         {contactHighlights.map((item) => (
           <article
-            className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5 shadow-xl shadow-black/15 transition hover:border-amber-300/40"
+            className="min-w-0 rounded-3xl border border-stone-800 bg-stone-950/70 p-5 shadow-xl shadow-black/15 transition hover:border-amber-300/40"
             key={item.title}
           >
             <h3 className="text-xl font-black text-stone-50">{item.title}</h3>
@@ -64,8 +67,8 @@ export default function ContactPage() {
         ))}
       </section>
 
-      <section className="grid gap-6 py-8 lg:grid-cols-2">
-        <article className="rounded-3xl border border-stone-700 bg-stone-950/70 p-6">
+      <section className="grid min-w-0 gap-6 py-8 lg:grid-cols-2">
+        <article className="min-w-0 rounded-3xl border border-stone-700 bg-stone-950/70 p-6">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
             Ubicación y atención
           </p>
@@ -79,7 +82,7 @@ export default function ContactPage() {
           </ul>
         </article>
 
-        <article className="rounded-3xl border border-stone-700 bg-stone-950/70 p-6">
+        <article className="min-w-0 rounded-3xl border border-stone-700 bg-stone-950/70 p-6">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
             Higiene y soporte
           </p>
@@ -103,10 +106,10 @@ export default function ContactPage() {
         <h2 id="next-steps-heading" className="mt-3 text-3xl font-black text-stone-50">
           Prepara mejor tu solicitud antes de agendar.
         </h2>
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <div className="mt-6 grid min-w-0 gap-4 md:grid-cols-3">
           {contactLinks.map((link) => (
             <a
-              className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5 shadow-xl shadow-black/15 transition hover:-translate-y-0.5 hover:border-amber-300/60"
+              className="min-w-0 rounded-3xl border border-stone-800 bg-stone-950/70 p-5 shadow-xl shadow-black/15 transition hover:-translate-y-0.5 hover:border-amber-300/60"
               href={link.href}
               key={link.href}
             >
