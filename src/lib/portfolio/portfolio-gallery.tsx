@@ -5,11 +5,11 @@ import {
   filterPortfolioItems,
   getPortfolioStyles,
   getPortfolioTags,
-  type PortfolioItem,
+  type PublicPortfolioItem,
 } from "./portfolio";
 
 type PortfolioGalleryProps = {
-  items: PortfolioItem[];
+  items: PublicPortfolioItem[];
 };
 
 export function PortfolioGallery({ items }: PortfolioGalleryProps) {
@@ -24,7 +24,7 @@ export function PortfolioGallery({ items }: PortfolioGalleryProps) {
 
   return (
     <section className="space-y-8 py-10" aria-label="Portafolio de trabajos">
-      <div className="grid gap-4 rounded-3xl border border-stone-800 bg-stone-950/70 p-5 md:grid-cols-2">
+      <div className="grid gap-4 rounded-3xl border border-amber-100/10 bg-stone-950/70 p-5 shadow-xl shadow-black/20 md:grid-cols-2">
         <label className="space-y-2 text-sm font-semibold text-stone-200">
           Estilo
           <select
@@ -61,11 +61,25 @@ export function PortfolioGallery({ items }: PortfolioGalleryProps) {
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {filteredItems.map((item) => (
           <article
-            className="overflow-hidden rounded-3xl border border-stone-800 bg-stone-950/75 shadow-xl shadow-black/20"
+            className="group overflow-hidden rounded-3xl border border-stone-800 bg-stone-950/75 shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-amber-300/40"
             key={item.id}
           >
-            <div className="flex h-56 items-end p-5" style={{ background: item.gradient }}>
-              <div className="rounded-2xl bg-stone-950/80 px-4 py-3 backdrop-blur">
+            <div
+              className="relative flex h-56 items-end overflow-hidden p-5"
+              style={item.imageUrl ? undefined : { background: item.gradient }}
+            >
+              {item.imageUrl ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    alt={item.title}
+                    className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    src={item.imageUrl}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-b from-stone-950/10 to-stone-950/85" />
+                </>
+              ) : null}
+              <div className="relative z-10 rounded-2xl bg-stone-950/80 px-4 py-3 backdrop-blur">
                 <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-300">
                   {item.style}
                 </p>
@@ -88,7 +102,7 @@ export function PortfolioGallery({ items }: PortfolioGalleryProps) {
                 ))}
               </div>
               <a
-                className="inline-flex rounded-full bg-amber-300 px-5 py-2 text-sm font-bold text-stone-950 transition hover:bg-amber-200"
+                className="inline-flex rounded-full bg-amber-300 px-5 py-2 text-sm font-bold text-stone-950 shadow-md shadow-amber-950/25 transition hover:bg-amber-200"
                 href="/quote"
               >
                 Cotizar una idea similar

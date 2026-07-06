@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBearerToken } from "@/lib/auth/bearer";
 import { getServerAuthStatusFromIdToken } from "@/lib/auth/server";
+import { appendAuditLog } from "@/lib/audit-log";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
 import { updateQuoteRequestStatus } from "@/lib/quotes/quote-request";
 
@@ -39,5 +40,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  return NextResponse.json({ quoteId: result.quoteId, status: result.quoteStatus });
+  await appendAuditLog(firestore, {
+    action: "quote.status_updated",
+    actorUid: authStatus.profile?.uid,
+    actorEmail: authStatus.profile?.email,
+    targetType: "quote",
+    targetId: result.quoteId,
+    metadata: { status: result.quoteStatus, calendarDateStatus: result.calendarDateStatus },
+  });
+
+  return NextResponse.json({
+    quoteId: result.quoteId,
+    status: result.quoteStatus,
+    calendarDateStatus: result.calendarDateStatus,
+  });
 }

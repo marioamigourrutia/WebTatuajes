@@ -1,17 +1,17 @@
 # Seguridad — Plataforma web para tatuador
 
-La plataforma manejará datos personales, solicitudes privadas e imágenes de referencia. La seguridad debe diseñarse antes de conectar Firebase real y no agregarse al final.
+La plataforma maneja datos personales, solicitudes privadas e imágenes de referencia. La seguridad se basa en Firebase Auth, Firestore/Storage Security Rules y validación server-side con Firebase Admin SDK.
 
 ## Decisiones de seguridad
 
-| Área              | Decisión                                                                                  |
-| ----------------- | ----------------------------------------------------------------------------------------- |
-| Autenticación     | Firebase Auth futuro.                                                                     |
-| Autorización      | Roles `customer`, `artist` y `admin` respaldados por datos server-side y reglas Firebase. |
-| Archivos privados | Firebase Storage privado futuro para imágenes de cotización.                              |
-| Datos sensibles   | Nunca exponer datos privados en páginas públicas, metadata SEO ni logs.                   |
-| Integraciones     | Solo API oficial de Instagram; WhatsApp click-to-chat sin automatización no autorizada.   |
-| Secretos          | Variables de entorno; ningún secreto real en repositorio.                                 |
+| Área              | Decisión                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------- |
+| Autenticación     | Firebase Auth; en local se usa Auth Emulator por opt-in explícito.                          |
+| Autorización      | Roles `customer`, `artist` y `admin` respaldados por datos server-side y reglas Firebase.   |
+| Archivos privados | Firebase Storage con acceso controlado para imágenes de cotización y assets administrables. |
+| Datos sensibles   | Nunca exponer datos privados en páginas públicas, metadata SEO ni logs.                     |
+| Integraciones     | Solo API oficial de Instagram; WhatsApp click-to-chat sin automatización no autorizada.     |
+| Secretos          | Variables de entorno; ningún secreto real en repositorio.                                   |
 
 ## Modelo de amenazas
 
@@ -27,7 +27,7 @@ La plataforma manejará datos personales, solicitudes privadas e imágenes de re
 ## Autenticación y sesiones
 
 - Usar Firebase Auth con una estrategia compatible con Next.js App Router.
-- Proteger rutas cliente y admin mediante validación en servidor.
+- Proteger rutas cliente y admin mediante validación en servidor; `/admin` ya valida cookie httpOnly de sesión admin y rol server-side.
 - No depender de componentes cliente para ocultar información sensible.
 - Revalidar permisos en cada mutación server-side.
 
@@ -65,9 +65,10 @@ Checklist mínimo por colección privada:
 | Limpieza       | Borrar archivos huérfanos cuando se elimina una cotización.          |
 | Logs           | No registrar URLs firmadas completas ni rutas privadas innecesarias. |
 
-Rutas esperadas:
+Rutas esperadas / actuales:
 
 - `quote-images/{customerId}/{quoteId}/{fileId}`: privado; dueño, admin o artista asignado.
+- `portfolio-admin/{itemId}/{fileId}`: ruta actual para imágenes subidas desde panel admin; se sirve al público solo mediante route handler después de confirmar `portfolio_items/{itemId}.published == true`.
 - `portfolio/{artistId}/{itemId}/{fileId}`: público solo si el item asociado está publicado; escritura solo admin o artista dueño validado contra `portfolio_items`.
 - `artist-profiles/{artistId}/{fileId}`: público solo si el perfil está publicado; escritura solo admin o artista dueño validado contra `artists`.
 - `products/{productId}/{fileId}`: público solo para productos activos; escritura admin.
@@ -99,7 +100,7 @@ Se recomienda documentar variables esperadas en un archivo de ejemplo sin valore
 
 En Vercel, `NEXT_PUBLIC_FIREBASE_*` puede configurarse como variables públicas del cliente. `FIREBASE_SERVICE_ACCOUNT_JSON` debe ser server-only y nunca debe aparecer en bundles cliente, logs ni documentación con valores reales.
 
-## Migración Supabase → Firebase
+## Alineación Supabase/PostgreSQL/RLS → Firebase
 
 Supabase fue reemplazado intencionalmente por Firebase como dirección backend. No se deben reintroducir clientes, variables ni documentación Supabase salvo una decisión explícita nueva. La arquitectura de seguridad debe basarse en Firebase Auth, Firestore, Storage y Security Rules.
 

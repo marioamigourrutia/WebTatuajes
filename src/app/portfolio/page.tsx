@@ -1,32 +1,65 @@
 import type { Metadata } from "next";
+import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
+import { instagramMediaToPortfolioItems } from "@/lib/instagram/portfolio-adapter";
+import { listPublicInstagramMedia } from "@/lib/instagram/instagram-media";
 import { PortfolioGallery } from "@/lib/portfolio/portfolio-gallery";
-import { getPublishedPortfolioItems } from "@/lib/portfolio/portfolio";
+import {
+  getPortfolioItemsWithStaticFallback,
+  getPublishedPortfolioItems,
+  toPublicPortfolioItems,
+} from "@/lib/portfolio/portfolio";
+import {
+  canUsePublicBackend,
+  listPublicBackendPortfolioItems,
+} from "@/lib/portfolio/public-portfolio-backend";
 
 export const metadata: Metadata = {
-  title: "Portafolio — WebTatuajes",
+  title: "Portafolio",
   description:
     "Galería pública de estilos y trabajos de referencia para cotizar tatuajes personalizados.",
 };
 
-export default function PortfolioPage() {
-  const items = getPublishedPortfolioItems();
+export const dynamic = "force-dynamic";
+
+async function getPublicPortfolioItems() {
+  try {
+    if (!(await canUsePublicBackend())) {
+      return toPublicPortfolioItems(getPublishedPortfolioItems());
+    }
+
+    const firestore = getFirebaseAdminFirestore();
+    const instagramItems = firestore
+      ? instagramMediaToPortfolioItems(await listPublicInstagramMedia(firestore))
+      : [];
+    const firestoreItems = await listPublicBackendPortfolioItems();
+
+    return toPublicPortfolioItems(
+      getPortfolioItemsWithStaticFallback([...instagramItems, ...firestoreItems]),
+    );
+  } catch {
+    return toPublicPortfolioItems(getPublishedPortfolioItems());
+  }
+}
+
+export default async function PortfolioPage() {
+  const items = await getPublicPortfolioItems();
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
-      <section className="space-y-5 py-12">
+      <section className="relative overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/55 p-6 py-12 shadow-2xl shadow-black/25 sm:p-8 sm:py-14">
+        <div className="pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full bg-amber-300/10 blur-3xl" />
         <p className="text-sm font-semibold uppercase tracking-[0.35em] text-amber-300">
-          Portafolio
+          Portafolio · HuespedTattooStudio
         </p>
         <h1 className="max-w-4xl text-5xl font-black leading-tight text-stone-50 sm:text-7xl">
           Referencias de estilo para imaginar tu próxima pieza.
         </h1>
         <p className="max-w-3xl text-lg leading-8 text-stone-300">
-          Esta galería usa placeholders visuales mientras el estudio carga imágenes reales. El foco
-          del MVP es mostrar estilos, zonas del cuerpo, etiquetas y una ruta clara hacia la
-          cotización.
+          Galería en actualización con referencias de estilo, zonas del cuerpo y etiquetas para
+          ayudarte a preparar una cotización clara.
         </p>
         <a
-          className="inline-flex rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 transition hover:bg-amber-200"
+          className="inline-flex rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/30 transition hover:-translate-y-0.5 hover:bg-amber-200"
           href="/quote"
         >
           Solicitar cotización

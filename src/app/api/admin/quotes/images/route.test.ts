@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 import { getServerAuthStatusFromIdToken } from "@/lib/auth/server";
 import { getFirebaseAdminFirestore, getFirebaseAdminStorageBucket } from "@/lib/firebase/admin";
-import { getAdminQuoteReferenceImageFile } from "@/lib/quotes/quote-request";
+import {
+  createAdminQuoteReferenceImageSignedUrl,
+  getAdminQuoteReferenceImageFile,
+} from "@/lib/quotes/quote-request";
 
 vi.mock("@/lib/auth/bearer", () => ({
   getBearerToken: vi.fn(() => "id-token"),
@@ -18,12 +21,16 @@ vi.mock("@/lib/firebase/admin", () => ({
 }));
 
 vi.mock("@/lib/quotes/quote-request", () => ({
+  createAdminQuoteReferenceImageSignedUrl: vi.fn(),
   getAdminQuoteReferenceImageFile: vi.fn(),
 }));
 
 const getServerAuthStatusFromIdTokenMock = vi.mocked(getServerAuthStatusFromIdToken);
 const getFirebaseAdminFirestoreMock = vi.mocked(getFirebaseAdminFirestore);
 const getFirebaseAdminStorageBucketMock = vi.mocked(getFirebaseAdminStorageBucket);
+const createAdminQuoteReferenceImageSignedUrlMock = vi.mocked(
+  createAdminQuoteReferenceImageSignedUrl,
+);
 const getAdminQuoteReferenceImageFileMock = vi.mocked(getAdminQuoteReferenceImageFile);
 const download = vi.fn().mockResolvedValue([Buffer.from("image-bytes")]);
 const file = vi.fn(() => ({ download }));
@@ -47,6 +54,7 @@ describe("admin quote image proxy route", () => {
     getAdminQuoteReferenceImageFileMock.mockResolvedValue({
       ok: true,
       file: {
+        provider: "firebase",
         storagePath: "quote-images/anonymous/quote-1/reference.png",
         originalFilename: "reference.png",
         mimeType: "image/png",
@@ -80,6 +88,52 @@ describe("admin quote image proxy route", () => {
 
     expect(response.status).toBe(403);
     expect(getAdminQuoteReferenceImageFileMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects unauthenticated users before reading image metadata", async () => {
+    getServerAuthStatusFromIdTokenMock.mockResolvedValue({
+      authenticated: false,
+      admin: false,
+      profile: null,
+    });
+
+    const response = await GET(request());
+
+    expect(response.status).toBe(401);
+    expect(getAdminQuoteReferenceImageFileMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects Supabase quote images to a short-lived signed URL after admin auth", async () => {
+    getAdminQuoteReferenceImageFileMock.mockResolvedValue({
+      ok: true,
+      file: {
+        provider: "supabase",
+        storagePath: "webtatuajes/quote-references/ref.png",
+        originalFilename: "reference.png",
+        mimeType: "image/png",
+        bucket: "private-quote-images",
+      },
+    });
+    createAdminQuoteReferenceImageSignedUrlMock.mockResolvedValue({
+      ok: true,
+      signedUrl: "https://project.supabase.co/storage/v1/object/sign/private/ref.png?token=short",
+    });
+
+    const response = await GET(request());
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://project.supabase.co/storage/v1/object/sign/private/ref.png?token=short",
+    );
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(getFirebaseAdminStorageBucketMock).not.toHaveBeenCalled();
+    expect(createAdminQuoteReferenceImageSignedUrlMock).toHaveBeenCalledWith({
+      provider: "supabase",
+      storagePath: "webtatuajes/quote-references/ref.png",
+      originalFilename: "reference.png",
+      mimeType: "image/png",
+      bucket: "private-quote-images",
+    });
   });
 
   it("returns validation errors before downloading from Storage", async () => {

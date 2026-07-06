@@ -1,8 +1,8 @@
 # Datos — Modelo inicial Firebase
 
-Este documento describe el modelo de datos recomendado para la plataforma con Firebase como dirección futura. El diseño prioriza reglas de seguridad, trazabilidad, agenda sin duplicaciones y separación clara entre datos públicos y datos privados.
+Este documento describe el modelo de datos Firebase aprobado para la plataforma. El diseño prioriza reglas de seguridad, trazabilidad, agenda sin duplicaciones y separación clara entre datos públicos y datos privados.
 
-> Diseño ampliado: ver `docs/FIREBASE_ARCHITECTURE.md` para Auth, roles, Storage, Security Rules, entorno local/Vercel y nota de migración desde Supabase.
+> Diseño ampliado: ver `docs/FIREBASE_ARCHITECTURE.md` para Auth, roles, Storage, Security Rules, entorno local/Vercel y alineación desde requisitos Supabase/PostgreSQL/RLS hacia Firebase.
 
 ## Principios de diseño
 
@@ -16,22 +16,23 @@ Este documento describe el modelo de datos recomendado para la plataforma con Fi
 
 ## Entidades principales
 
-| Colección                       | Propósito                                     | Visibilidad                                     |
-| ------------------------------- | --------------------------------------------- | ----------------------------------------------- |
-| `profiles`                      | Perfil extendido de usuarios autenticados.    | Propio usuario y administradores.               |
-| `roles` o campo `profiles.role` | Control de rol `customer`/`artist`/`admin`.   | Lectura restringida.                            |
-| `artists`                       | Perfil público y operativo del tatuador.      | Público si está publicado; escritura protegida. |
-| `portfolio_items`               | Trabajos publicados del artista.              | Público si está publicado.                      |
-| `quotes`                        | Solicitudes de cotización.                    | Dueño, administradores y artista asignado.      |
-| `quote_images`                  | Referencias privadas subidas por clientes.    | Dueño, administradores y artista asignado.      |
-| `quote_events`                  | Historial de estados y comentarios internos.  | Administradores; cliente solo eventos visibles. |
-| `appointments`                  | Citas agendadas.                              | Cliente relacionado, admin y artista asignado.  |
-| `availability`                  | Horarios, bloqueos y configuración de agenda. | Lectura parcial pública; escritura protegida.   |
-| `contact_leads`                 | Mensajes de contacto sin cuenta.              | Administradores solamente.                      |
-| `reviews`                       | Reseñas moderadas.                            | Público si están aprobadas.                     |
-| `products`                      | Productos públicos o administrables.          | Público si están activos.                       |
-| `sponsors`                      | Marcas colaboradoras.                         | Público si están activos.                       |
-| `community_posts`               | Contenido comunitario/editorial.              | Público si está publicado.                      |
+| Colección                       | Propósito                                                          | Visibilidad                                     |
+| ------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------- |
+| `profiles`                      | Perfil extendido de usuarios autenticados.                         | Propio usuario y administradores.               |
+| `roles` o campo `profiles.role` | Control de rol `customer`/`artist`/`admin`.                        | Lectura restringida.                            |
+| `artists`                       | Perfil público y operativo del tatuador.                           | Público si está publicado; escritura protegida. |
+| `portfolio_items`               | Trabajos publicados del artista.                                   | Público si está publicado.                      |
+| `quotes`                        | Solicitudes de cotización.                                         | Dueño, administradores y artista asignado.      |
+| `calendar_dates`                | Bloqueo diario MVP para fechas solicitadas desde cotización.       | Admin/servidor; sin datos privados del cliente. |
+| `quote_images`                  | Metadata de referencias privadas subidas por el flujo server-side. | Dueño, administradores y artista asignado.      |
+| `quote_events`                  | Historial de estados y comentarios internos.                       | Administradores; cliente solo eventos visibles. |
+| `appointments`                  | Citas agendadas.                                                   | Cliente relacionado, admin y artista asignado.  |
+| `availability`                  | Horarios, bloqueos y configuración de agenda.                      | Lectura parcial pública; escritura protegida.   |
+| `contact_leads`                 | Mensajes de contacto sin cuenta; modelo listo, UI pendiente.       | Administradores solamente.                      |
+| `reviews`                       | Reseñas moderadas.                                                 | Público si están aprobadas.                     |
+| `products`                      | Productos públicos o administrables.                               | Público si están activos.                       |
+| `sponsors`                      | Marcas colaboradoras.                                              | Público si están activos.                       |
+| `community_posts`               | Contenido comunitario/editorial.                                   | Público si está publicado.                      |
 
 ## Modelo sugerido por colección
 
@@ -62,17 +63,33 @@ Este documento describe el modelo de datos recomendado para la plataforma con Fi
 | `created_at`       | `timestamp`   | Timestamp de creación.             |
 | `updated_at`       | `timestamp`   | Timestamp de última actualización. |
 
+Cuando una cotización pública incluye `preferred_tattoo_date`, el servidor guarda además `calendar_date_id` y `calendar_date_status` para que admin vea si la fecha está `PENDING_CONFIRMATION`. El admin puede registrar un abono manual verificado en `deposit` (`amount_clp`, `method`, `paid_at`, `reference`, metadata server-side y `internal_note` privada). La reserva solo pasa a `CONFIRMED` mediante transacción server-side cuando existe un abono verificado para la misma fecha y el documento `calendar_dates/{YYYY-MM-DD}` sigue perteneciendo a la cotización.
+
+### `calendar_dates`
+
+Documento determinístico por día local `YYYY-MM-DD`, interpretado como fecha de Chile/Santiago para este MVP.
+
+| Campo        | Tipo sugerido | Notas                                                                                                                     |
+| ------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `date`       | `string`      | Mismo valor que el ID del documento, por ejemplo `2026-07-15`.                                                            |
+| `status`     | `text`        | `PENDING_CONFIRMATION`, `DEPOSIT_PENDING`, `DEPOSIT_VERIFIED`, `CONFIRMED`, `BLOCKED_BY_ADMIN`, `CANCELLED` o `RELEASED`. |
+| `quote_id`   | `string`      | Referencia a la cotización que solicitó el día.                                                                           |
+| `quote_code` | `string`      | Código público/admin-safe de cotización; no contiene datos privados.                                                      |
+| `source`     | `string`      | Origen del bloqueo, por ejemplo `public_quote_form`.                                                                      |
+| `created_at` | `timestamp`   | Timestamp de creación.                                                                                                    |
+| `updated_at` | `timestamp`   | Timestamp de última actualización.                                                                                        |
+
 ### `quote_images`
 
-| Campo            | Tipo sugerido | Notas                                       |
-| ---------------- | ------------- | ------------------------------------------- |
-| `id`             | `string`      | Identificador interno.                      |
-| `quote_id`       | `string`      | Hereda ownership por cotización.            |
-| `storage_bucket` | `text`        | Bucket privado, por ejemplo `quote-images`. |
-| `storage_path`   | `text`        | Ruta privada del archivo.                   |
-| `mime_type`      | `text`        | Validar tipos permitidos.                   |
-| `size_bytes`     | `integer`     | Validar límite máximo.                      |
-| `created_at`     | `timestamp`   | Timestamp de creación.                      |
+| Campo            | Tipo sugerido | Notas                                        |
+| ---------------- | ------------- | -------------------------------------------- |
+| `id`             | `string`      | Identificador interno.                       |
+| `quote_id`       | `string`      | Hereda ownership por cotización.             |
+| `storage_bucket` | `text`        | Bucket/path controlado por Firebase Storage. |
+| `storage_path`   | `text`        | Ruta privada del archivo.                    |
+| `mime_type`      | `text`        | Validar tipos permitidos.                    |
+| `size_bytes`     | `integer`     | Validar límite máximo.                       |
+| `created_at`     | `timestamp`   | Timestamp de creación.                       |
 
 ### `appointments`
 
@@ -132,7 +149,7 @@ Este documento describe el modelo de datos recomendado para la plataforma con Fi
 
 ## Prevención de duplicación en calendario
 
-La agenda no debe depender solo de validaciones de UI. El backend debe impedir solapamientos de citas activas.
+La agenda no debe depender solo de validaciones de UI. El backend debe impedir solapamientos de citas activas. En el MVP actual, una solicitud de cotización con fecha preferida crea o rechaza transaccionalmente `calendar_dates/{YYYY-MM-DD}`. Si el documento existe con `PENDING_CONFIRMATION`, `DEPOSIT_PENDING`, `DEPOSIT_VERIFIED`, `CONFIRMED` o `BLOCKED_BY_ADMIN`, el servidor rechaza la nueva solicitud y pide elegir otro día.
 
 Opciones recomendadas:
 
@@ -142,12 +159,13 @@ Opciones recomendadas:
 
 ## Firebase Storage privado
 
-| Ruta/Bucket base                          | Público                         | Uso                                 |
-| ----------------------------------------- | ------------------------------- | ----------------------------------- |
-| `quote-images/{customerId}/{quoteId}/...` | No                              | Referencias privadas de clientes.   |
-| `portfolio/{artistId}/{itemId}/...`       | Sí o con CDN pública controlada | Trabajos publicados por el artista. |
-| `artist-profiles/{artistId}/...`          | Sí si perfil publicado          | Avatar o banner del artista.        |
-| `products/{productId}/...`                | Sí                              | Imágenes de productos publicados.   |
+| Ruta/Bucket base                          | Público                         | Uso                                                                                              |
+| ----------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `quote-images/{customerId}/{quoteId}/...` | No                              | Referencias privadas de clientes; hoy se crean server-side para cotizaciones públicas anónimas.  |
+| `portfolio-admin/{itemId}/...`            | No directo                      | Imágenes subidas desde admin; el público las recibe por route handler si el item está publicado. |
+| `portfolio/{artistId}/{itemId}/...`       | Sí o con CDN pública controlada | Ruta prevista para trabajos publicados por artista.                                              |
+| `artist-profiles/{artistId}/...`          | Sí si perfil publicado          | Avatar o banner del artista.                                                                     |
+| `products/{productId}/...`                | Sí                              | Imágenes de productos publicados.                                                                |
 
 Las imágenes privadas deben servirse mediante URLs firmadas de corta duración o acceso server-side validado. No se deben publicar rutas privadas directamente en HTML público.
 

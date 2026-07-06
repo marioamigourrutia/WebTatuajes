@@ -18,9 +18,12 @@ describe("quote contact links", () => {
   });
 
   it("builds a WhatsApp link with normalized phone and encoded quote context", () => {
-    expect(buildQuoteWhatsAppUrl(quote)).toBe(
-      "https://wa.me/56912345678?text=Hola+Ana+Cliente%2C+te+contactamos+por+tu+solicitud+de+cotizaci%C3%B3n+quote-123+para+Antebrazo+%2810+cm%29.",
-    );
+    const url = buildQuoteWhatsAppUrl(quote);
+    const message = new URL(url ?? "").searchParams.get("text") ?? "";
+
+    expect(url).toContain("https://wa.me/56912345678?");
+    expect(message).toContain("solicitud de cotización quote-123 para Antebrazo (10 cm)");
+    expect(message).toContain("coordinar referencias, disponibilidad y próximos pasos");
   });
 
   it("omits WhatsApp when the quote has no phone", () => {

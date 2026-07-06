@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
-    exclude: [...configDefaults.exclude, "firebase/**/*.test.ts"],
+    exclude: [...configDefaults.exclude, "firebase/**/*.test.ts", "tests/e2e/**/*.ts"],
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
   },

@@ -8,7 +8,7 @@ Este documento define el alcance funcional de una plataforma web profesional par
 | -------------- | ------------------------------------------------------------------------------------------------------------- |
 | Mercado        | Clientes en Chile, moneda CLP y zona horaria `America/Santiago`.                                              |
 | Plataforma     | Sitio web responsive con experiencia pública, área de cliente y panel administrativo.                         |
-| Stack objetivo | Next.js App Router, TypeScript estricto, Firebase futuro y Vercel futuro.                                     |
+| Stack objetivo | Next.js App Router, TypeScript estricto, Firebase como backend oficial y Vercel como hosting objetivo.        |
 | Privacidad     | Las imágenes de cotización son privadas y accesibles solo por el cliente dueño y administradores autorizados. |
 | Integraciones  | Instagram mediante API oficial; WhatsApp mediante enlace click-to-chat, sin automatización no autorizada.     |
 

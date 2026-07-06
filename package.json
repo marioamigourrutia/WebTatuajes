@@ -12,6 +12,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "test:watch": "vitest",
     "test:rules": "firebase emulators:exec --project demo-webtatuajes --only firestore,storage \"vitest run --config vitest.rules.config.ts\"",
     "test:rules:existing": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 GCLOUD_PROJECT=demo-webtatuajes vitest run --config vitest.rules.config.ts",
@@ -21,15 +22,18 @@
     "admin:seed-local": "node --env-file=.env.local scripts/seed-local-admin.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
     "firebase": "^12.14.0",
-    "firebase-admin": "^14.0.0",
+    "firebase-admin": "^13.10.0",
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "sharp": "^0.35.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "latest",
     "@firebase/rules-unit-testing": "^5.0.1",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "latest",
     "@testing-library/dom": "latest",
     "@testing-library/jest-dom": "latest",
@@ -47,7 +51,7 @@
     "vitest": "latest"
   },
   "engines": {
-    "node": ">=20.11.0",
+    "node": "22.x",
     "npm": ">=10.0.0"
   }
 }

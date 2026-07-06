@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getFirebaseAdminProjectId,
+  isFirebaseAdminBackendConfigured,
   isFirebaseAdminEmulatorEnabled,
   parseFirebaseServiceAccountJson,
 } from "./firebase-admin";
@@ -42,7 +43,23 @@ describe("firebase admin configuration", () => {
     vi.stubEnv("FIREBASE_PROJECT_ID", "demo-webtatuajes");
 
     expect(isFirebaseAdminEmulatorEnabled()).toBe(true);
+    expect(isFirebaseAdminBackendConfigured()).toBe(true);
     expect(getFirebaseAdminProjectId()).toBe("demo-webtatuajes");
+  });
+
+  it("does not mark the Admin backend configured without credentials or emulator hosts", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("FIREBASE_SERVICE_ACCOUNT_JSON", "");
+    vi.stubEnv("FIREBASE_AUTH_EMULATOR_HOST", "");
+    vi.stubEnv("FIRESTORE_EMULATOR_HOST", "");
+
+    expect(isFirebaseAdminBackendConfigured()).toBe(false);
+  });
+
+  it("marks the Admin backend configured with a valid service account", () => {
+    vi.stubEnv("FIREBASE_SERVICE_ACCOUNT_JSON", validServiceAccount);
+
+    expect(isFirebaseAdminBackendConfigured()).toBe(true);
   });
 
   it("does not allow Admin SDK emulator mode in production", () => {
