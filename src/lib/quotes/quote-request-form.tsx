@@ -6,6 +6,7 @@ import {
   onAuthStateChanged,
   sendSignInLinkToEmail,
   signInWithEmailLink,
+  signOut,
   type User,
 } from "firebase/auth";
 import { appConfig } from "@/lib/config/app";
@@ -283,6 +284,22 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
     }
   }
 
+  async function useAnotherEmail() {
+    setVerifiedUser(null);
+    setEmail("");
+    setVerificationMessage(null);
+    setShowVerificationFallback(false);
+    setErrors((current) => ({ ...current, email: "" }));
+
+    if (!auth) return;
+
+    try {
+      await signOut(auth);
+    } catch {
+      setErrors({ email: "No pudimos cerrar la verificación actual. Recarga la página e inténtalo nuevamente." });
+    }
+  }
+
   function validateReferenceImages(files: FileList | null) {
     const nextErrors: QuoteFormErrors = {};
 
@@ -412,6 +429,15 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
                 ? "Enviando enlace…"
                 : "Verificar email"}
           </button>
+          {emailMatchesVerifiedUser ? (
+            <button
+              className="ml-2 mt-2 rounded-full border border-stone-700 px-4 py-2 text-xs font-semibold text-stone-200 transition hover:border-amber-300/50"
+              onClick={useAnotherEmail}
+              type="button"
+            >
+              Usar otro email
+            </button>
+          ) : null}
           {verificationMessage ? (
             <span className="mt-2 block text-sm text-emerald-200">{verificationMessage}</span>
           ) : null}

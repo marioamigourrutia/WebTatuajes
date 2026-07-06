@@ -1,7 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sendSignInLinkToEmail } from "firebase/auth";
+import { sendSignInLinkToEmail, signOut } from "firebase/auth";
 import { QuoteRequestForm } from "./quote-request-form";
+
+const authState = vi.hoisted(() => ({
+  currentUser: null as null | { email: string; emailVerified: boolean; getIdToken: () => Promise<string> },
+}));
 
 vi.mock("@/lib/firebase/client", () => ({
   getFirebaseAuth: () => ({ app: { name: "test" } }),
@@ -9,17 +13,19 @@ vi.mock("@/lib/firebase/client", () => ({
 
 vi.mock("firebase/auth", () => ({
   isSignInWithEmailLink: () => false,
-  onAuthStateChanged: (_auth: unknown, callback: (user: null) => void) => {
-    callback(null);
+  onAuthStateChanged: (_auth: unknown, callback: (user: typeof authState.currentUser) => void) => {
+    callback(authState.currentUser);
     return () => undefined;
   },
   sendSignInLinkToEmail: vi.fn(),
+  signOut: vi.fn().mockResolvedValue(undefined),
   signInWithEmailLink: vi.fn(),
 }));
 
 describe("QuoteRequestForm email verification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.currentUser = null;
   });
 
   it("shows an actionable WhatsApp fallback when sending the email link fails", async () => {
@@ -86,5 +92,30 @@ describe("QuoteRequestForm email verification", () => {
     expect(await screen.findAllByText(/Verificación de email obligatoria/)).toHaveLength(2);
     expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/quotes")).toBe(false);
     expect(screen.queryByText("Solicitud recibida correctamente.")).not.toBeInTheDocument();
+  });
+
+  it("allows switching away from a verified email stored in the browser session", async () => {
+    authState.currentUser = {
+      email: "owner@example.test",
+      emailVerified: true,
+      getIdToken: async () => "verified-token",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ dates: [] }) }),
+    );
+
+    const { container } = render(<QuoteRequestForm />);
+    const emailInput = container.querySelector<HTMLInputElement>('input[name="email"]');
+
+    expect(emailInput).toHaveValue("owner@example.test");
+    expect(emailInput).toHaveAttribute("readonly");
+
+    fireEvent.click(screen.getByRole("button", { name: "Usar otro email" }));
+
+    await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    expect(emailInput).toHaveValue("");
+    expect(emailInput).not.toHaveAttribute("readonly");
+    expect(screen.getByRole("button", { name: "Verificar email" })).toBeEnabled();
   });
 });
