@@ -6,19 +6,19 @@ Este documento define la arquitectura Firebase oficial del repo. Firebase cubre 
 
 | Área     | Decisión                                                                                                                                           |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Auth     | Firebase Auth con email/password o magic link para clientes; admin asignado por proceso controlado, nunca por formulario público.                  |
+| Auth     | Firebase Auth para administración; el flujo público de cotización no requiere login ni email verificado.                                           |
 | Roles    | `customer`, `artist` y `admin`; el MVP puede operar con un solo `artist/admin`, pero el modelo deja espacio para separar artista y administración. |
 | Datos    | Firestore separa contenido público publicable de datos privados por ownership.                                                                     |
-| Archivos | Storage usa rutas por dominio y dueño; referencias de cotización privadas, portafolio público solo si está publicado.                              |
+| Archivos | Storage queda para dominios administrados/futuros; las referencias de cotización públicas se envían por WhatsApp.                                  |
 | Reglas   | Least privilege desde el inicio, validación de shape/tipos y pruebas con emuladores antes de producción.                                           |
-| SDK      | Cliente Firebase para Auth y Firebase Admin SDK server-only para validación de sesión/rol, cotizaciones, Storage y primer admin controlado.        |
+| SDK      | Cliente Firebase para Auth admin y Firebase Admin SDK server-only para rol admin, cotizaciones y primer admin controlado.                          |
 
 ## Modelo de autenticación y acceso
 
 | Rol        | Quién es                         | Acceso esperado                                                                                         |
 | ---------- | -------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `visitor`  | Usuario sin sesión               | Lee solo contenido público publicado: portafolio, servicios, productos activos, sponsors y comunidad.   |
-| `customer` | Cliente autenticado              | Crea cotizaciones, sube referencias privadas, lee sus propias cotizaciones/citas y actualiza su perfil. |
+| `customer` | Cliente o solicitante            | Crea cotizaciones públicas sin login, envía referencias por WhatsApp y consulta estado con código/email. |
 | `artist`   | Tatuador o colaborador operativo | Gestiona portafolio propio, disponibilidad y citas asignadas. Puede leer cotizaciones que debe atender. |
 | `admin`    | Dueño/equipo autorizado          | Gestiona usuarios, roles, cotizaciones, agenda, contenido público y configuración.                      |
 
@@ -26,9 +26,9 @@ La fuente de verdad del rol debe estar protegida. Para el MVP se recomienda `pro
 
 ### Estrategia de login
 
-- Clientes: registro/login por email. Magic link reduce fricción; password puede ser más simple para primera implementación.
+- Clientes: el flujo público de cotización no requiere registro/login; usa código + email para consulta básica.
 - Admin/artista: login con email verificado y rol asignado fuera del cliente público.
-- Futuro flujo cliente: permitir crear cotización después de login; si se quiere UX sin cuenta previa, guardar `quote_drafts` temporales no sensibles y pedir login antes de subir imágenes privadas.
+- Futuro flujo cliente: si se reintroducen cuentas o imágenes privadas, diseñar autorización explícita antes de habilitar uploads.
 
 ## Modelo Firestore
 
@@ -37,9 +37,9 @@ La fuente de verdad del rol debe estar protegida. Para el MVP se recomienda `pro
 | `profiles/{uid}`                                     | Perfil extendido y rol               | Dueño + admin                                         | Nombre, teléfono, rol, flags de estado.                        |
 | `artists/{artistId}`                                 | Perfil público/operativo del artista | Público si `published`; escritura admin/artista dueño | Bio, estilos, enlaces, avatar, estado.                         |
 | `portfolio_items/{itemId}`                           | Trabajo publicado                    | Público si `published`; escritura admin/artista dueño | Estilo, zona, imagen principal, tags, fecha.                   |
-| `quotes/{quoteId}`                                   | Solicitud de cotización              | Cliente dueño + admin/artist asignado                 | Estado, descripción, presupuesto, zona, tamaño, `customer_id`. |
+| `quotes/{quoteId}`                                   | Solicitud de cotización              | Consulta pública reducida por código/email; admin/artist asignado gestiona detalle | Estado, descripción, presupuesto, zona, tamaño, email de contacto. |
 | `quotes/{quoteId}/events/{eventId}`                  | Historial                            | Admin/artist; cliente solo eventos marcados visibles  | Cambios de estado, mensajes internos, auditoría.               |
-| `quote_images/{imageId}`                             | Metadata de referencias              | Cliente dueño + admin/artist asignado                 | `quote_id`, `customer_id`, `storage_path`, MIME, tamaño.       |
+| `quote_images/{imageId}`                             | Metadata legacy/futura de referencias | No usado por cotizaciones públicas actuales           | Reservado para una futura carga privada con autorización explícita. |
 | `appointments/{appointmentId}`                       | Cita                                 | Cliente relacionado + admin/artist asignado           | UTC start/end, estado, `artist_id`, `quote_id`.                |
 | `availability/{artistId}`                            | Configuración de agenda              | Lectura pública parcial; escritura admin/artista      | Horarios, bloqueos, duración base, zona horaria.               |
 | `contact_leads/{leadId}`                             | Mensajes/contacto                    | Admin solamente                                       | Consultas públicas sin cuenta, consentimiento y estado.        |

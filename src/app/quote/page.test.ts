@@ -10,11 +10,13 @@ vi.mock("@/lib/quotes/quote-request-form", () => ({
 }));
 
 describe("quote page", () => {
-  it("explains passwordless email verification instead of claiming no sign-in is needed", () => {
+  it("explains quote creation before sending references through WhatsApp", () => {
     const content = JSON.stringify(QuotePage());
 
-    expect(content).toContain("verificaremos tu");
-    expect(content).toContain("enlace de acceso sin contraseña");
-    expect(content).not.toContain("No necesitas iniciar sesión");
+    expect(content).toContain("Crearemos tu cotización");
+    expect(content).toContain("abriremos WhatsApp");
+    expect(content).toContain("enviar fotos o referencias directamente al estudio");
+    expect(content).not.toContain("verificaremos tu");
+    expect(content).not.toContain("enlace de acceso sin contraseña");
   });
 });

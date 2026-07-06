@@ -79,13 +79,15 @@ Documento determinístico por día local `YYYY-MM-DD`, interpretado como fecha d
 | `created_at` | `timestamp`   | Timestamp de creación.                                                                                                    |
 | `updated_at` | `timestamp`   | Timestamp de última actualización.                                                                                        |
 
-### `quote_images`
+### `quote_images` (legacy / no usado por cotizaciones públicas)
+
+El flujo público actual no sube imágenes ni referencias al formulario. Las fotos se envían por WhatsApp con el código de cotización. Esta colección queda documentada solo como referencia legacy o para una futura carga privada rediseñada.
 
 | Campo            | Tipo sugerido | Notas                                        |
 | ---------------- | ------------- | -------------------------------------------- |
 | `id`             | `string`      | Identificador interno.                       |
 | `quote_id`       | `string`      | Hereda ownership por cotización.             |
-| `storage_bucket` | `text`        | Bucket/path controlado por Firebase Storage. |
+| `storage_bucket` | `text`        | Bucket/path privado si se reintroduce carga privada en el futuro. |
 | `storage_path`   | `text`        | Ruta privada del archivo.                    |
 | `mime_type`      | `text`        | Validar tipos permitidos.                    |
 | `size_bytes`     | `integer`     | Validar límite máximo.                       |
@@ -157,11 +159,13 @@ Opciones recomendadas:
 2. Complementar con lógica server-side al crear o mover citas.
 3. Excluir estados cancelados de los bloqueos activos mediante una estrategia documentada.
 
-## Firebase Storage privado
+## Firebase Storage privado (legacy / futuro)
+
+El flujo vigente de cotizaciones públicas no crea archivos en Storage ni en `quote_images`. Mantener estas rutas solo para compatibilidad histórica o futuras cargas privadas con autorización explícita.
 
 | Ruta/Bucket base                          | Público                         | Uso                                                                                              |
 | ----------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `quote-images/{customerId}/{quoteId}/...` | No                              | Referencias privadas de clientes; hoy se crean server-side para cotizaciones públicas anónimas.  |
+| `quote-images/{customerId}/{quoteId}/...` | No                              | Ruta legacy/futura para referencias privadas; no se usa en cotizaciones públicas actuales.       |
 | `portfolio-admin/{itemId}/...`            | No directo                      | Imágenes subidas desde admin; el público las recibe por route handler si el item está publicado. |
 | `portfolio/{artistId}/{itemId}/...`       | Sí o con CDN pública controlada | Ruta prevista para trabajos publicados por artista.                                              |
 | `artist-profiles/{artistId}/...`          | Sí si perfil publicado          | Avatar o banner del artista.                                                                     |
@@ -175,7 +179,7 @@ Las imágenes privadas deben servirse mediante URLs firmadas de corta duración 
 | ----------------- | -------------------------------------------------------------------------------------------- |
 | `profiles`        | Cliente lee/actualiza su perfil; admin gestiona perfiles.                                    |
 | `quotes`          | Cliente crea y lee sus cotizaciones; admin y artista asignado gestionan atención.            |
-| `quote_images`    | Cliente gestiona imágenes de sus cotizaciones; admin y artista asignado pueden leerlas.      |
+| `quote_images`    | Legacy/futuro: si se reintroduce carga privada, validar ownership/rol antes de leer o escribir. |
 | `appointments`    | Cliente lee sus citas; admin y artista asignado crean, actualizan o cancelan según permisos. |
 | Contenido público | Lectura pública solo si `published`/`active`; escritura solo admin.                          |
 

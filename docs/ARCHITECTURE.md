@@ -69,7 +69,7 @@ Integraciones externas
 | `/portfolio`      | Público       | Galería de trabajos.                                     |
 | `/servicios`      | Público       | Servicios, proceso, higiene, cuidados y FAQ.             |
 | `/contacto`       | Público       | Contacto, ubicación por reserva y soporte.               |
-| `/quote`          | Público       | Solicitud de cotización y carga de imágenes server-side. |
+| `/quote`          | Público       | Solicitud de cotización; fotos/referencias se envían por WhatsApp con el código creado. |
 | `/admin`          | Administrador | Login/status, cotizaciones y portafolio administrable.   |
 | `/account`        | Cliente       | Pendiente: estado de solicitudes propias.                |
 | `/admin/calendar` | Administrador | Pendiente: gestión de agenda.                            |

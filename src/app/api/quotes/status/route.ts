@@ -1,19 +1,17 @@
 import { NextResponse } from "next/server";
-import { getBearerToken } from "@/lib/auth/bearer";
-import { verifyCustomerIdToken } from "@/lib/auth/customer-token";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
-import { listClientQuoteStatusesByCustomerId } from "@/lib/quotes/quote-request";
+import { getClientQuoteStatusByCode } from "@/lib/quotes/quote-request";
+import { checkRateLimit, getRateLimitOptions, getRequestRateLimitKey } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const tokenVerification = await verifyCustomerIdToken(getBearerToken(request));
-
-  if (!tokenVerification.ok) {
-    return NextResponse.json(
-      { errors: tokenVerification.errors },
-      { status: tokenVerification.status },
-    );
+  const rateLimit = checkRateLimit(
+    getRequestRateLimitKey(request, "quotes-status"),
+    getRateLimitOptions("quotes"),
+  );
+  if (!rateLimit.ok) {
+    return NextResponse.json({ errors: { form: rateLimit.message } }, { status: 429 });
   }
 
   const firestore = getFirebaseAdminFirestore();
@@ -27,15 +25,12 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const quoteCode = url.searchParams.get("quoteCode") ?? undefined;
-  const result = await listClientQuoteStatusesByCustomerId(
-    firestore,
-    tokenVerification.customer.uid,
-    quoteCode,
-  );
+  const email = url.searchParams.get("email") ?? undefined;
+  const result = await getClientQuoteStatusByCode(firestore, quoteCode, email);
 
   if (!result.ok) {
     return NextResponse.json({ errors: { form: result.error } }, { status: result.status });
   }
 
-  return NextResponse.json({ quotes: result.quotes });
+  return NextResponse.json({ quotes: [result.quote] });
 }

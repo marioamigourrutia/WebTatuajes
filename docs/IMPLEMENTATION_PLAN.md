@@ -83,8 +83,8 @@ Objetivo: implementar el flujo central de negocio.
 
 - [x] Crear formulario público de solicitud de cotización.
 - [x] Validar campos de zona, tamaño, descripción, contacto y presupuesto CLP server-side.
-- [x] Implementar carga server-side de imágenes a Firebase Storage controlado.
-- [x] Registrar metadata de imágenes en `quote_images`.
+- [x] Derivar fotos/referencias a WhatsApp con el código de cotización creado.
+- [x] Mantener sin uso la carga pública de imágenes; `quote_images` queda legacy/futuro.
 - [ ] Permitir al cliente autenticado ver sus solicitudes.
 - [x] Crear vista administrativa de cotizaciones.
 - [x] Implementar cambios de estado y nota interna.
@@ -131,7 +131,7 @@ Objetivo: validar seguridad, estabilidad y operación.
 - [x] Ejecutar pruebas unitarias durante slices previos.
 - [x] Ejecutar pruebas de integración Firebase/reglas durante slices previos.
 - [ ] Ejecutar pruebas e2e de cotización, login, admin y agenda.
-- [ ] Revisar seguridad de Firebase Storage privado.
+- [ ] Revisar seguridad de Firebase Storage privado solo si se reintroducen uploads.
 - [ ] Revisar variables de entorno por ambiente.
 - [ ] Configurar despliegue.
 - [x] Verificar build de producción durante slices previos.
@@ -158,7 +158,7 @@ Objetivo: validar seguridad, estabilidad y operación.
 
 - [ ] Sitio público con portafolio, servicios, contacto y SEO básico.
 - [ ] Login/registro de clientes operativo.
-- [ ] Cotizaciones con imágenes privadas funcionando.
+- [ ] Cotizaciones públicas funcionando con WhatsApp para fotos/referencias.
 - [ ] Panel admin para revisar y responder cotizaciones.
 - [ ] Agenda con prevención de duplicación.
 - [ ] Reglas Firebase probadas para datos privados.

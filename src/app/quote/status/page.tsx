@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
 import {
   clientQuoteStatusLookupError,
@@ -5,6 +6,7 @@ import {
   isValidQuoteCode,
 } from "@/lib/quotes/quote-request";
 import { QuoteStatusPanel } from "@/lib/quotes/quote-status-panel";
+import { checkRateLimit, getRateLimitOptions } from "@/lib/rate-limit";
 
 const quoteStatusLabels: Record<string, string> = {
   pending: "Recibida, pendiente de revisión",
@@ -42,13 +44,23 @@ export default async function QuoteStatusPage({
   const email = (params.email ?? "").trim().toLowerCase();
   const firestore = getFirebaseAdminFirestore();
   const hasLookupInput = Boolean(code && email);
+  const requestHeaders = hasLookupInput ? await headers() : null;
+  const forwardedFor = requestHeaders?.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const realIp = requestHeaders?.get("x-real-ip")?.trim();
+  const rateLimit = hasLookupInput
+    ? checkRateLimit(`quotes-status:${forwardedFor || realIp || "unknown"}`, getRateLimitOptions("quotes"))
+    : { ok: true as const };
   const result =
-    firestore && hasLookupInput ? await getClientQuoteStatusByCode(firestore, code, email) : null;
+    firestore && hasLookupInput && rateLimit.ok
+      ? await getClientQuoteStatusByCode(firestore, code, email)
+      : null;
   const quote = result?.ok ? result.quote : null;
   const safeError =
-    hasLookupInput && (!isValidQuoteCode(code) || result?.ok === false)
-      ? clientQuoteStatusLookupError
-      : null;
+    hasLookupInput && !rateLimit.ok
+      ? rateLimit.message
+      : hasLookupInput && (!isValidQuoteCode(code) || result?.ok === false)
+        ? clientQuoteStatusLookupError
+        : null;
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-10 sm:px-10">

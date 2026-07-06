@@ -1,12 +1,9 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import {
-  createSupabaseStorageSignedUrl,
-  getImageUploadConfig,
   isExternalImageUploadConfigured,
   uploadImageToExternalProvider,
 } from "@/lib/images/upload-provider";
-import type { VerifiedCustomerIdentity } from "../auth/customer-token";
 import {
   CalendarDateUnavailableError,
   createQuoteWithOptionalDateReservation,
@@ -42,7 +39,7 @@ export type QuoteRequestInput = {
   };
 };
 
-export type QuoteCustomerIdentity = VerifiedCustomerIdentity | null;
+export type QuoteCustomerIdentity = { uid: string; email: string } | null;
 
 export type QuoteReferenceImageInput = {
   file: File;
@@ -60,11 +57,18 @@ export type QuoteReferenceImage = {
 };
 
 export type AdminQuoteReferenceImageFile = {
-  provider: "firebase" | "supabase";
+  provider: "firebase";
   storagePath: string;
   originalFilename: string;
   mimeType: string;
   bucket?: string;
+};
+
+export type CreatedQuoteRequest = {
+  ok: true;
+  id: string;
+  quoteCode: string;
+  whatsappMessage: string;
 };
 
 export type QuoteRequestValidationResult =
@@ -463,7 +467,6 @@ export function validateQuoteRequestInput(input: unknown): QuoteRequestValidatio
   const approximateSize = cleanString(data.approximateSize);
   const preferredContactMethod = cleanString(data.preferredContactMethod);
   const preferredTattooDate = cleanString(data.preferredTattooDate);
-  const referenceUrlValidation = validateQuoteReferenceUrls(data.referenceUrls);
   const budgetClp = parseBudgetClp(data.budgetClp);
   const dataProcessingConsent = isChecked(data.dataProcessingConsent);
   const imageHandlingConsent = isChecked(data.imageHandlingConsent);
@@ -494,9 +497,6 @@ export function validateQuoteRequestInput(input: unknown): QuoteRequestValidatio
   if (preferredTattooDate && !isValidPreferredTattooDate(preferredTattooDate)) {
     errors.preferredTattooDate = "Ingresa una fecha tentativa válida en formato de Chile.";
   }
-  if (!referenceUrlValidation.ok) {
-    Object.assign(errors, referenceUrlValidation.errors);
-  }
   if (Number.isNaN(budgetClp)) errors.budgetClp = "El presupuesto debe ser un número positivo.";
   if (!dataProcessingConsent) {
     errors.dataProcessingConsent =
@@ -525,7 +525,7 @@ export function validateQuoteRequestInput(input: unknown): QuoteRequestValidatio
       budgetClp,
       preferredContactMethod: preferredContactMethod as PreferredContactMethod,
       preferredTattooDate: preferredTattooDate || undefined,
-      referenceUrls: referenceUrlValidation.ok ? referenceUrlValidation.value : [],
+      referenceUrls: [],
       consents: {
         dataProcessing: true,
         imageHandling: true,
@@ -536,18 +536,36 @@ export function validateQuoteRequestInput(input: unknown): QuoteRequestValidatio
   };
 }
 
+function buildQuoteWhatsAppMessage(input: QuoteRequestInput, quoteCode: string) {
+  const lines = [
+    `Hola HuespedTattooStudio, acabo de enviar una cotización desde la web.`,
+    `Código: ${quoteCode}`,
+    `Nombre: ${input.customerName}`,
+    `Email: ${input.email}`,
+    input.phone ? `Teléfono: ${input.phone}` : null,
+    `Contacto preferido: ${input.preferredContactMethod}`,
+    `Zona: ${input.bodyPlacement}`,
+    `Tamaño aprox.: ${input.approximateSize}`,
+    input.preferredTattooDate ? `Fecha tentativa: ${input.preferredTattooDate}` : null,
+    input.budgetClp ? `Presupuesto: $${input.budgetClp.toLocaleString("es-CL")}` : null,
+    "Quiero enviar referencias/fotos por este chat.",
+  ];
+
+  return lines.filter((line): line is string => Boolean(line)).join("\n");
+}
+
 function getStoredCustomerEmail(input: QuoteRequestInput, customer: QuoteCustomerIdentity) {
   return customer?.email ?? input.email;
 }
 
-function validateVerifiedCustomerEmail(input: QuoteRequestInput, customer: QuoteCustomerIdentity) {
+function validateAuthenticatedCustomerEmail(input: QuoteRequestInput, customer: QuoteCustomerIdentity) {
   if (!customer) return null;
 
   if (input.email !== customer.email) {
     return {
       ok: false as const,
       status: 400,
-      errors: { email: "El email del formulario debe coincidir con el email verificado." },
+      errors: { email: "El email del formulario debe coincidir con el email autenticado." },
     };
   }
 
@@ -580,7 +598,7 @@ export function mapQuoteRequestToFirestore(
       marketing_opt_in: input.consents.marketingOptIn,
     },
     consent_recorded_at: FieldValue.serverTimestamp(),
-    email_verified_at: customer ? FieldValue.serverTimestamp() : null,
+    customer_authenticated_at: customer ? FieldValue.serverTimestamp() : null,
     source: "public_quote_form",
   };
 }
@@ -619,7 +637,7 @@ export async function createQuoteRequest(
     return { ok: false as const, status: 400, errors: validation.errors };
   }
 
-  const customerEmailError = validateVerifiedCustomerEmail(validation.value, resolved.customer);
+  const customerEmailError = validateAuthenticatedCustomerEmail(validation.value, resolved.customer);
   if (customerEmailError) return customerEmailError;
 
   if (!resolved.firestore) {
@@ -643,7 +661,12 @@ export async function createQuoteRequest(
       validation.value.preferredTattooDate,
     );
 
-    return { ok: true as const, id: result.quoteId, quoteCode };
+    return {
+      ok: true as const,
+      id: result.quoteId,
+      quoteCode,
+      whatsappMessage: buildQuoteWhatsAppMessage(validation.value, quoteCode),
+    };
   } catch (error) {
     if (error instanceof CalendarDateUnavailableError) {
       return {
@@ -662,12 +685,11 @@ export async function createQuoteRequestFromFormData(
   customerOrFirestore: QuoteCustomerIdentity | FirestoreLike = null,
   firestore = getFirebaseAdminFirestore(),
   _storageBucket: StorageBucketLike | boolean | null = getFirebaseAdminStorageBucket(),
-  fileUploadsEnabled = areQuoteFileUploadsEnabled(),
+  _fileUploadsEnabled = areQuoteFileUploadsEnabled(),
 ) {
   void _storageBucket;
+  void _fileUploadsEnabled;
   const resolved = resolveCustomerAndFirestore(customerOrFirestore, firestore);
-  const effectiveFileUploadsEnabled =
-    typeof _storageBucket === "boolean" ? _storageBucket : fileUploadsEnabled;
   const body = Object.fromEntries(
     Array.from(formData.entries()).filter(([, value]) => !(value instanceof File)),
   );
@@ -679,13 +701,13 @@ export async function createQuoteRequestFromFormData(
     return { ok: false as const, status: 400, errors: imageValidation.errors };
   }
 
-  if (!effectiveFileUploadsEnabled && imageValidation.value.length > 0) {
+  if (imageValidation.value.length > 0) {
     return {
       ok: false as const,
-      status: 503,
+      status: 400,
       errors: {
         referenceImages:
-          "La carga de imágenes requiere configurar un proveedor externo de imágenes. Agrega enlaces de referencia o coordina el envío por WhatsApp mientras se configura.",
+          "Las referencias o fotos se envían por WhatsApp después de registrar la cotización.",
       },
     };
   }
@@ -717,7 +739,7 @@ export async function createQuoteRequestWithReferenceImages(
     return { ok: false as const, status: 400, errors: validation.errors };
   }
 
-  const customerEmailError = validateVerifiedCustomerEmail(validation.value, resolved.customer);
+  const customerEmailError = validateAuthenticatedCustomerEmail(validation.value, resolved.customer);
   if (customerEmailError) return customerEmailError;
 
   if (!resolved.firestore) {
@@ -809,7 +831,12 @@ export async function createQuoteRequestWithReferenceImages(
     throw rejectedResult.reason;
   }
 
-  return { ok: true as const, id: quoteId, quoteCode };
+  return {
+    ok: true as const,
+    id: quoteId,
+    quoteCode,
+    whatsappMessage: buildQuoteWhatsAppMessage(validation.value, quoteCode),
+  };
 }
 
 function serializeCreatedAt(value: unknown): string | null {
@@ -870,10 +897,6 @@ function buildReferenceImageAccessUrl(imageId: string): string | null {
     : null;
 }
 
-function isSupabaseQuoteImage(data: Record<string, unknown>) {
-  return cleanString(data.provider) === "supabase" && Boolean(cleanString(data.provider_id));
-}
-
 function sanitizeProviderImageUrl(value: unknown): string | null {
   if (typeof value !== "string") return null;
   try {
@@ -898,17 +921,8 @@ function serializeQuoteImage(document: { id: string; data: () => Record<string, 
     originalFilename: cleanString(data.original_filename) || "Referencia",
     mimeType: cleanString(data.mime_type),
     sizeBytes: typeof data.size_bytes === "number" ? data.size_bytes : 0,
-    accessUrl: isSupabaseQuoteImage(data) ? internalAccessUrl : (secureUrl ?? internalAccessUrl),
+    accessUrl: secureUrl ?? internalAccessUrl,
   } satisfies QuoteReferenceImage;
-}
-
-function isValidSupabaseProviderPath(value: string): boolean {
-  return (
-    value.length <= 500 &&
-    !value.startsWith("/") &&
-    !value.includes("..") &&
-    /^[A-Za-z0-9][A-Za-z0-9._\-\/]+$/.test(value)
-  );
 }
 
 export async function getAdminQuoteReferenceImageFile(
@@ -939,8 +953,6 @@ export async function getAdminQuoteReferenceImageFile(
 
   const data = snapshot.data() ?? {};
   const storagePath = cleanString(data.storage_path);
-  const provider = cleanString(data.provider);
-  const providerId = cleanString(data.provider_id);
   const mimeType = cleanString(data.mime_type);
   const originalFilename = cleanString(data.original_filename) || "reference-image";
   const imageQuoteId = cleanString(data.quote_id);
@@ -951,23 +963,6 @@ export async function getAdminQuoteReferenceImageFile(
 
   if (!mimeType || !isAllowedReferenceImageMimeType(mimeType)) {
     return { ok: false as const, status: 422, error: "La metadata de imagen es inválida." };
-  }
-
-  if (provider === "supabase") {
-    if (!providerId || !isValidSupabaseProviderPath(providerId)) {
-      return { ok: false as const, status: 422, error: "La metadata de imagen es inválida." };
-    }
-
-    return {
-      ok: true as const,
-      file: {
-        provider: "supabase",
-        storagePath: providerId,
-        originalFilename,
-        mimeType,
-        bucket: getImageUploadConfig().supabaseQuoteBucket,
-      } satisfies AdminQuoteReferenceImageFile,
-    };
   }
 
   if (!storagePath || !isValidQuoteImageStoragePath(storagePath)) {
@@ -983,14 +978,6 @@ export async function getAdminQuoteReferenceImageFile(
       mimeType,
     } satisfies AdminQuoteReferenceImageFile,
   };
-}
-
-export async function createAdminQuoteReferenceImageSignedUrl(file: AdminQuoteReferenceImageFile) {
-  if (file.provider !== "supabase") {
-    return { ok: false as const, status: 422, error: "La imagen no usa Supabase Storage." };
-  }
-
-  return createSupabaseStorageSignedUrl(file.storagePath, file.bucket);
 }
 
 async function listReferenceImagesByQuoteId(firestore: FirestoreLike, quoteIds: string[]) {

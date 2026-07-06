@@ -20,7 +20,7 @@ const contentSecurityPolicy = [
   ["img-src 'self' data: blob: https:", ...extraImgSrc].join(" "),
   "font-src 'self' data:",
   [
-    "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.supabase.co wss://*.firebaseio.com",
+    "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com wss://*.firebaseio.com",
     ...extraConnectSrc,
   ].join(" "),
   ["frame-src 'self' https://*.firebaseapp.com", ...extraFrameSrc].join(" "),

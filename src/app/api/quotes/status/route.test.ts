@@ -1,105 +1,83 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { verifyCustomerIdToken } from "@/lib/auth/customer-token";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
-import { listClientQuoteStatusesByCustomerId } from "@/lib/quotes/quote-request";
+import { getClientQuoteStatusByCode } from "@/lib/quotes/quote-request";
+import { resetRateLimitForTests } from "@/lib/rate-limit";
 import { GET } from "./route";
-
-vi.mock("@/lib/auth/customer-token", () => ({
-  verifyCustomerIdToken: vi.fn(),
-}));
 
 vi.mock("@/lib/firebase/admin", () => ({
   getFirebaseAdminFirestore: vi.fn(),
 }));
 
 vi.mock("@/lib/quotes/quote-request", () => ({
-  listClientQuoteStatusesByCustomerId: vi.fn(),
+  getClientQuoteStatusByCode: vi.fn(),
 }));
 
-const verifyCustomerIdTokenMock = vi.mocked(verifyCustomerIdToken);
 const getFirebaseAdminFirestoreMock = vi.mocked(getFirebaseAdminFirestore);
-const listClientQuoteStatusesByCustomerIdMock = vi.mocked(listClientQuoteStatusesByCustomerId);
+const getClientQuoteStatusByCodeMock = vi.mocked(getClientQuoteStatusByCode);
 
-function request(token?: string, quoteCode?: string) {
+function request(quoteCode?: string, email?: string) {
   const url = new URL("http://localhost/api/quotes/status");
 
   if (quoteCode) {
     url.searchParams.set("quoteCode", quoteCode);
   }
 
-  return new Request(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
+  if (email) {
+    url.searchParams.set("email", email);
+  }
+
+  return new Request(url);
 }
 
-describe("authenticated quote status route", () => {
+describe("public quote status route", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    verifyCustomerIdTokenMock.mockResolvedValue({
-      ok: true,
-      customer: { uid: "firebase-uid-1", email: "ana@example.test", emailVerified: true },
-    });
+    resetRateLimitForTests();
     getFirebaseAdminFirestoreMock.mockReturnValue({ collection: vi.fn() } as never);
-    listClientQuoteStatusesByCustomerIdMock.mockResolvedValue({
+    getClientQuoteStatusByCodeMock.mockResolvedValue({
       ok: true,
-      quotes: [{ quoteCode: "COT-2026-AAAAA", status: "pending" } as never],
+      quote: { quoteCode: "COT-2026-AAAAA", status: "pending" } as never,
     });
   });
 
-  it("rejects requests without a bearer token", async () => {
-    verifyCustomerIdTokenMock.mockResolvedValue({
+  it("rejects requests without the quote code and email pair", async () => {
+    getClientQuoteStatusByCodeMock.mockResolvedValue({
       ok: false,
-      status: 401,
-      errors: { form: "Debes verificar tu email antes de enviar la cotización." },
+      status: 400,
+      error:
+        "No pudimos validar la solicitud con esos datos. Revisa el código y el email ingresados o contacta al estudio.",
     });
 
     const response = await GET(request());
 
-    expect(response.status).toBe(401);
-    expect(verifyCustomerIdTokenMock).toHaveBeenCalledWith(undefined);
-    expect(listClientQuoteStatusesByCustomerIdMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(400);
+    expect(getClientQuoteStatusByCodeMock).toHaveBeenCalledWith(expect.anything(), undefined, undefined);
   });
 
-  it("rejects invalid or unverified tokens", async () => {
-    verifyCustomerIdTokenMock.mockResolvedValue({
-      ok: false,
-      status: 403,
-      errors: { email: "Debes usar un email verificado para enviar la cotización." },
-    });
-
-    const response = await GET(request("unverified-token"));
-
-    expect(response.status).toBe(403);
-    expect(listClientQuoteStatusesByCustomerIdMock).not.toHaveBeenCalled();
-  });
-
-  it("loads statuses for the authenticated Firebase uid only", async () => {
-    const response = await GET(request("verified-token"));
+  it("loads a public quote status with quote code and matching email", async () => {
+    const response = await GET(request("COT-2026-AAAAA", "ana@example.test"));
 
     await expect(response.json()).resolves.toEqual({
       quotes: [{ quoteCode: "COT-2026-AAAAA", status: "pending" }],
     });
     expect(response.status).toBe(200);
-    expect(listClientQuoteStatusesByCustomerIdMock).toHaveBeenCalledWith(
+    expect(getClientQuoteStatusByCodeMock).toHaveBeenCalledWith(
       expect.anything(),
-      "firebase-uid-1",
-      undefined,
+      "COT-2026-AAAAA",
+      "ana@example.test",
     );
   });
 
-  it("passes quoteCode as an own-quote filter and never accepts email", async () => {
+  it("uses email only as the existing anti-spoofing lookup key", async () => {
     const response = await GET(
-      new Request(
-        "http://localhost/api/quotes/status?quoteCode=COT-2026-BBBBB&email=otra@example.test",
-        { headers: { Authorization: "Bearer verified-token" } },
-      ),
+      new Request("http://localhost/api/quotes/status?quoteCode=COT-2026-BBBBB&email=otra@example.test"),
     );
 
     expect(response.status).toBe(200);
-    expect(listClientQuoteStatusesByCustomerIdMock).toHaveBeenCalledWith(
+    expect(getClientQuoteStatusByCodeMock).toHaveBeenCalledWith(
       expect.anything(),
-      "firebase-uid-1",
       "COT-2026-BBBBB",
+      "otra@example.test",
     );
   });
 });

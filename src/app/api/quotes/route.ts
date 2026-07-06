@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { getBearerToken } from "@/lib/auth/bearer";
-import { verifyCustomerIdToken } from "@/lib/auth/customer-token";
 import { stripBotProtectionFields, validateBotProtection } from "@/lib/bot-protection";
 import { checkRateLimit, getRateLimitOptions, getRequestRateLimitKey } from "@/lib/rate-limit";
 import { createQuoteRequest, createQuoteRequestFromFormData } from "@/lib/quotes/quote-request";
@@ -11,24 +9,6 @@ export async function POST(request: Request) {
   const rateLimit = checkRateLimit(getRequestRateLimitKey(request, "quotes"), getRateLimitOptions("quotes"));
   if (!rateLimit.ok) {
     return NextResponse.json({ errors: { form: rateLimit.message } }, { status: 429 });
-  }
-
-  const authorizationHeader = request.headers.get("authorization");
-  const bearerToken = getBearerToken(request);
-  if (authorizationHeader === null) {
-    return NextResponse.json(
-      { errors: { email: "Verificación de email obligatoria." } },
-      { status: 401 },
-    );
-  }
-
-  const tokenVerification = await verifyCustomerIdToken(bearerToken);
-
-  if (!tokenVerification.ok) {
-    return NextResponse.json(
-      { errors: tokenVerification.errors },
-      { status: tokenVerification.status },
-    );
   }
 
   const contentType = request.headers.get("content-type") ?? "";
@@ -50,16 +30,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ errors: botProtection.errors }, { status: botProtection.status });
     }
 
-    const result = await createQuoteRequestFromFormData(
-      stripBotProtectionFields(formData),
-      tokenVerification.customer,
-    );
+    const result = await createQuoteRequestFromFormData(stripBotProtectionFields(formData));
 
     if (!result.ok) {
       return NextResponse.json({ errors: result.errors }, { status: result.status });
     }
 
-    return NextResponse.json({ id: result.id, quoteCode: result.quoteCode }, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   }
 
   let body: unknown;
@@ -78,14 +55,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ errors: botProtection.errors }, { status: botProtection.status });
   }
 
-  const result = await createQuoteRequest(
-    stripBotProtectionFields(body),
-    tokenVerification.customer,
-  );
+  const result = await createQuoteRequest(stripBotProtectionFields(body));
 
   if (!result.ok) {
     return NextResponse.json({ errors: result.errors }, { status: result.status });
   }
 
-  return NextResponse.json({ id: result.id, quoteCode: result.quoteCode }, { status: 201 });
+  return NextResponse.json(result, { status: 201 });
 }

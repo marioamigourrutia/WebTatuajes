@@ -21,8 +21,8 @@ export default function QuotePage() {
         </h1>
         <p className="mt-3 max-w-2xl leading-7 text-stone-300">
           Mientras más clara sea la zona, tamaño, estilo y presupuesto estimado, mejor podremos
-          evaluar viabilidad y próximos pasos. Para proteger tus datos, primero verificaremos tu
-          email con un enlace de acceso sin contraseña y luego podrás enviar la solicitud.
+          evaluar viabilidad y próximos pasos. Crearemos tu cotización y abriremos WhatsApp para
+          que puedas enviar fotos o referencias directamente al estudio.
         </p>
       </section>
       <QuoteRequestForm fileUploadsEnabled={isExternalImageUploadConfigured()} />

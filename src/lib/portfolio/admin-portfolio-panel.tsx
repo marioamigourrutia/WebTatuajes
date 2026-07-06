@@ -310,7 +310,7 @@ export function AdminPortfolioPanel({
         ) : (
           <div className="rounded-xl border border-amber-300/30 bg-amber-950/20 p-3 text-sm leading-6 text-amber-100">
             La carga de archivos requiere configurar un proveedor externo de imágenes. Puedes usar
-            una URL pública mientras se configura Supabase Storage.
+            una URL pública mientras se configura un proveedor externo compatible.
           </div>
         )}
         <label className="grid gap-1 text-sm font-semibold text-stone-200">

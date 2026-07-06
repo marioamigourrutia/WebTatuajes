@@ -14,7 +14,7 @@ export default function PrivacyPage() {
         <div className="mt-6 space-y-5 leading-7">
           <p>Usamos tus datos para responder cotizaciones, coordinar reservas, gestionar compras, comunidad y seguimiento del servicio.</p>
           <p>Podemos tratar nombre, email, teléfono, descripción del proyecto, referencias, preferencias de contacto, abonos y mensajes operativos. No publiques datos sensibles innecesarios en enlaces de referencia.</p>
-          <p>El sitio usa Firebase para autenticación y base operativa, y Supabase solo cuando está configurado para almacenamiento privado de imágenes. No vendemos tus datos.</p>
+          <p>El sitio usa Firebase para autenticación admin y base operativa. Las referencias de cotización pública se envían por WhatsApp, no se suben al formulario. No vendemos tus datos.</p>
           <p>Conservamos la información mientras sea necesaria para atención, trazabilidad operativa y obligaciones legales. Puedes pedir acceso, corrección, eliminación o anonimización desde la página de solicitud de datos.</p>
         </div>
       </section>

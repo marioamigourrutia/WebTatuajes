@@ -1,17 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import {
-  isSignInWithEmailLink,
-  onAuthStateChanged,
-  sendSignInLinkToEmail,
-  signInWithEmailLink,
-  signOut,
-  type User,
-} from "firebase/auth";
 import { appConfig } from "@/lib/config/app";
 import { BotProtectionFields } from "@/lib/bot-protection-fields";
-import { getFirebaseAuth } from "@/lib/firebase/client";
 import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
 type QuoteFormErrors = Record<string, string>;
@@ -19,14 +10,7 @@ type QuoteFormErrors = Record<string, string>;
 const fieldClass =
   "mt-1 w-full rounded-2xl border border-stone-700 bg-stone-900/90 px-4 py-3 text-stone-100 transition placeholder:text-stone-600 focus:border-amber-300";
 const labelClass = "text-xs font-semibold uppercase tracking-[0.2em] text-stone-400";
-const maxReferenceImageCount = 3;
-const maxReferenceImageSizeBytes = 5 * 1024 * 1024;
 const unavailablePublicStatuses = new Set(["PENDING_CONFIRMATION", "OCCUPIED"]);
-const pendingQuoteEmailStorageKey = "webtatuajes.quote.pendingEmail";
-
-const quoteVerificationFallbackMessage =
-  "Hola HuespedTattooStudio, quiero solicitar una cotización de tatuaje, pero no pude completar la verificación por email en el sitio.";
-const requiredEmailVerificationMessage = "Verificación de email obligatoria.";
 
 type PublicCalendarDate = {
   date: string;
@@ -177,152 +161,19 @@ function PreferredDateCalendar({ error }: { error?: string }) {
   );
 }
 
-export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEnabled?: boolean }) {
-  const [auth] = useState(() => getFirebaseAuth());
+type CreatedQuoteResponse = {
+  quoteCode?: string;
+  whatsappMessage?: string;
+  errors?: QuoteFormErrors;
+};
+
+export function QuoteRequestForm({ fileUploadsEnabled: _fileUploadsEnabled = false }: { fileUploadsEnabled?: boolean }) {
+  void _fileUploadsEnabled;
   const [errors, setErrors] = useState<QuoteFormErrors>({});
   const [createdQuoteCode, setCreatedQuoteCode] = useState<string | null>(null);
+  const [createdWhatsAppUrl, setCreatedWhatsAppUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [email, setEmail] = useState("");
-  const [verifiedUser, setVerifiedUser] = useState<User | null>(null);
-  const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
-  const [showVerificationFallback, setShowVerificationFallback] = useState(false);
-  const [sendingVerification, setSendingVerification] = useState(false);
-
-  const verifiedEmail = verifiedUser?.email?.toLowerCase() ?? "";
-  const emailMatchesVerifiedUser = Boolean(verifiedEmail && email.toLowerCase() === verifiedEmail);
-  const verificationFallbackUrl = hasWhatsAppConfig(appConfig.whatsappPhone)
-    ? buildWhatsAppUrl({
-        phone: appConfig.whatsappPhone,
-        message: quoteVerificationFallbackMessage,
-      })
-    : null;
-
-  useEffect(() => {
-    if (!auth) return;
-
-    return onAuthStateChanged(auth, (currentUser) => {
-      const hasVerifiedEmail = Boolean(currentUser?.email && currentUser.emailVerified);
-      setVerifiedUser(hasVerifiedEmail ? currentUser : null);
-      if (currentUser?.email && currentUser.emailVerified) {
-        setEmail(currentUser.email.toLowerCase());
-      }
-    });
-  }, [auth]);
-
-  useEffect(() => {
-    if (!auth || typeof window === "undefined") return;
-
-    const href = window.location.href;
-    if (!isSignInWithEmailLink(auth, href)) return;
-
-    const pendingEmail = window.localStorage.getItem(pendingQuoteEmailStorageKey);
-    if (!pendingEmail) {
-      void Promise.resolve().then(() => {
-        setErrors({
-          email: "Abre el enlace en el mismo navegador donde solicitaste la verificación.",
-        });
-        setShowVerificationFallback(true);
-      });
-      return;
-    }
-
-    void signInWithEmailLink(auth, pendingEmail, href)
-      .then((credential) => {
-        window.localStorage.removeItem(pendingQuoteEmailStorageKey);
-        setVerifiedUser(credential.user.emailVerified ? credential.user : null);
-        setEmail(credential.user.email?.toLowerCase() ?? pendingEmail.toLowerCase());
-        setVerificationMessage(
-          credential.user.emailVerified
-            ? "Email verificado. Ya puedes enviar tu cotización."
-            : "Recibimos el enlace, pero Firebase aún no marcó el email como verificado.",
-        );
-        setShowVerificationFallback(!credential.user.emailVerified);
-        window.history.replaceState({}, "", window.location.pathname);
-      })
-      .catch(() => {
-        setErrors({ email: "No pudimos completar la verificación. Solicita un nuevo enlace." });
-        setShowVerificationFallback(true);
-      });
-  }, [auth]);
-
-  async function sendVerificationLink() {
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (!auth) {
-      setErrors({ email: "La verificación por Firebase Auth no está configurada." });
-      setShowVerificationFallback(true);
-      return;
-    }
-
-    if (!cleanEmail) {
-      setErrors({ email: "Ingresa tu email para enviar el enlace de verificación." });
-      setShowVerificationFallback(false);
-      return;
-    }
-
-    setSendingVerification(true);
-    setErrors((current) => ({ ...current, email: "" }));
-    setShowVerificationFallback(false);
-    try {
-      const actionUrl = process.env.NEXT_PUBLIC_SITE_URL
-        ? `${process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")}/quote`
-        : window.location.origin + window.location.pathname;
-
-      await sendSignInLinkToEmail(auth, cleanEmail, {
-        url: actionUrl,
-        handleCodeInApp: true,
-      });
-      window.localStorage.setItem(pendingQuoteEmailStorageKey, cleanEmail);
-      setVerificationMessage(
-        "Te enviamos un enlace. Ábrelo en este navegador para verificar tu email.",
-      );
-    } catch {
-      setErrors({ email: "No pudimos enviar el enlace. Revisa el email e inténtalo nuevamente." });
-      setShowVerificationFallback(true);
-    } finally {
-      setSendingVerification(false);
-    }
-  }
-
-  async function useAnotherEmail() {
-    setVerifiedUser(null);
-    setEmail("");
-    setVerificationMessage(null);
-    setShowVerificationFallback(false);
-    setErrors((current) => ({ ...current, email: "" }));
-
-    if (!auth) return;
-
-    try {
-      await signOut(auth);
-    } catch {
-      setErrors({ email: "No pudimos cerrar la verificación actual. Recarga la página e inténtalo nuevamente." });
-    }
-  }
-
-  function validateReferenceImages(files: FileList | null) {
-    const nextErrors: QuoteFormErrors = {};
-
-    if (!files || files.length === 0) {
-      return nextErrors;
-    }
-
-    if (files.length > maxReferenceImageCount) {
-      nextErrors.referenceImages = `Puedes adjuntar hasta ${maxReferenceImageCount} imágenes.`;
-    }
-
-    Array.from(files).forEach((file, index) => {
-      if (!file.type.startsWith("image/")) {
-        nextErrors[`referenceImages.${index}`] = "Solo se permiten archivos de imagen.";
-      }
-
-      if (file.size > maxReferenceImageSizeBytes) {
-        nextErrors[`referenceImages.${index}`] = "Cada imagen debe pesar 5 MB o menos.";
-      }
-    });
-
-    return nextErrors;
-  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -330,41 +181,16 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
     setSubmitting(true);
     setErrors({});
     setCreatedQuoteCode(null);
+    setCreatedWhatsAppUrl(null);
 
     const formData = new FormData(form);
 
-    const imageErrors = fileUploadsEnabled
-      ? validateReferenceImages(
-          form.querySelector<HTMLInputElement>('input[name="referenceImages"]')?.files ?? null,
-        )
-      : {};
-
-    if (Object.keys(imageErrors).length > 0) {
-      setErrors(imageErrors);
-      setSubmitting(false);
-      return;
-    }
-
-    if (!verifiedUser || !emailMatchesVerifiedUser) {
-      setErrors({
-        email: `${requiredEmailVerificationMessage} Verifica tu correo antes de enviar la cotización.`,
-      });
-      setShowVerificationFallback(true);
-      setSubmitting(false);
-      return;
-    }
-
     try {
-      const idToken = await verifiedUser.getIdToken();
-      const headers: Record<string, string> = { Authorization: `Bearer ${idToken}` };
-      formData.set("email", verifiedEmail);
-
       const response = await fetch("/api/quotes", {
         method: "POST",
-        headers,
         body: formData,
       });
-      const result = (await response.json()) as { quoteCode?: string; errors?: QuoteFormErrors };
+      const result = (await response.json()) as CreatedQuoteResponse;
 
       if (!response.ok) {
         setErrors(result.errors ?? { form: "No se pudo enviar la solicitud." });
@@ -372,8 +198,16 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
       }
 
       form.reset();
-      setEmail(verifiedEmail || "");
+      setEmail("");
       setCreatedQuoteCode(result.quoteCode ?? "código por confirmar");
+      if (result.whatsappMessage && hasWhatsAppConfig(appConfig.whatsappPhone)) {
+        const whatsappUrl = buildWhatsAppUrl({
+          phone: appConfig.whatsappPhone,
+          message: result.whatsappMessage,
+        });
+        setCreatedWhatsAppUrl(whatsappUrl);
+        window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      }
     } catch {
       setErrors({ form: "No pudimos procesar la solicitud. Inténtalo nuevamente." });
     } finally {
@@ -409,57 +243,14 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
             className={fieldClass}
             name="email"
             onChange={(event) => setEmail(event.target.value)}
-            readOnly={Boolean(verifiedEmail)}
             required
             type="email"
             value={email}
           />
           <span className="mt-1 block text-xs text-stone-500">
-            Puedes verificar este email con un enlace seguro para asociar la cotización a tu correo.
+            Usaremos este email solo para registrar tu solicitud y que el estudio pueda identificarla.
           </span>
-          <button
-            className="mt-2 rounded-full border border-amber-300/50 px-4 py-2 text-xs font-semibold text-amber-100 transition hover:border-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={sendingVerification || emailMatchesVerifiedUser}
-            onClick={sendVerificationLink}
-            type="button"
-          >
-            {emailMatchesVerifiedUser
-              ? "Email verificado"
-              : sendingVerification
-                ? "Enviando enlace…"
-                : "Verificar email"}
-          </button>
-          {emailMatchesVerifiedUser ? (
-            <button
-              className="ml-2 mt-2 rounded-full border border-stone-700 px-4 py-2 text-xs font-semibold text-stone-200 transition hover:border-amber-300/50"
-              onClick={useAnotherEmail}
-              type="button"
-            >
-              Usar otro email
-            </button>
-          ) : null}
-          {verificationMessage ? (
-            <span className="mt-2 block text-sm text-emerald-200">{verificationMessage}</span>
-          ) : null}
           {errors.email ? <span className="text-sm text-red-300">{errors.email}</span> : null}
-          {showVerificationFallback ? (
-            <div className="mt-3 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm leading-6 text-amber-100">
-              <p>
-                Verificación de email obligatoria. Si la verificación por email no funciona,
-                contacta al estudio para continuar por un canal directo.
-              </p>
-              {verificationFallbackUrl ? (
-                <a
-                  className="mt-2 inline-flex rounded-full bg-amber-300 px-4 py-2 text-xs font-semibold text-stone-950 transition hover:bg-amber-200"
-                  href={verificationFallbackUrl}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Contactar por WhatsApp
-                </a>
-              ) : null}
-            </div>
-          ) : null}
         </label>
         <label className="block">
           <span className={labelClass}>Teléfono opcional</span>
@@ -519,64 +310,10 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
 
       <PreferredDateCalendar error={errors.preferredTattooDate} />
 
-      <label className="block">
-        <span className={labelClass}>Enlaces de referencia opcionales</span>
-        <textarea
-          className={fieldClass}
-          name="referenceUrls"
-          placeholder="Pega un enlace por línea a referencias públicas de estilo, composición o inspiración."
-          rows={4}
-        />
-        <span className="mt-1 block text-xs text-stone-500">
-          Máximo 5 enlaces. No pegues fotos corporales, documentos privados ni enlaces que contengan
-          datos personales.
-        </span>
-        {errors.referenceUrls ? (
-          <span className="text-sm text-red-300">{errors.referenceUrls}</span>
-        ) : null}
-        {Object.entries(errors)
-          .filter(([key]) => key.startsWith("referenceUrls."))
-          .map(([key, message]) => (
-            <span className="block text-sm text-red-300" key={key}>
-              {message}
-            </span>
-          ))}
-      </label>
-
-      {fileUploadsEnabled ? (
-        <label className="block">
-          <span className={labelClass}>Imágenes de referencia opcionales</span>
-          <input
-            accept="image/jpeg,image/png,image/webp"
-            className={fieldClass}
-            multiple
-            name="referenceImages"
-            type="file"
-          />
-          <span className="mt-1 block text-xs text-stone-500">
-            Hasta 3 imágenes JPG, PNG o WEBP para referencias no sensibles o inspiración. Máximo 5
-            MB cada una. GIF no está soportado. Si necesitas compartir fotos corporales sensibles,
-            envíalas más adelante por el canal privado acordado hasta que habilitemos almacenamiento
-            privado.
-          </span>
-          {errors.referenceImages ? (
-            <span className="text-sm text-red-300">{errors.referenceImages}</span>
-          ) : null}
-          {Object.entries(errors)
-            .filter(([key]) => key.startsWith("referenceImages."))
-            .map(([key, message]) => (
-              <span className="block text-sm text-red-300" key={key}>
-                {message}
-              </span>
-            ))}
-        </label>
-      ) : (
-        <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">
-          La carga directa de imágenes requiere un proveedor externo configurado. Puedes agregar
-          enlaces públicos de inspiración o coordinar el envío de referencias privadas directamente
-          con HuespedTattooStudio después de enviar la cotización.
-        </div>
-      )}
+      <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">
+        Las referencias, fotos o enlaces se envían directamente por WhatsApp después de registrar la
+        solicitud. Así evitamos subir imágenes al formulario público.
+      </div>
 
       <fieldset className="space-y-3 rounded-3xl border border-stone-800 bg-stone-900/50 p-4">
         <legend className={labelClass}>Autorizaciones</legend>
@@ -593,10 +330,8 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
         <label className="flex gap-3 text-sm leading-6 text-stone-300">
           <input className="mt-1" name="imageHandlingConsent" required type="checkbox" />
           <span>
-            Entiendo que las imágenes o enlaces enviados son voluntarios, deben ser referencias no
-            sensibles o de inspiración, y pueden quedar disponibles mediante un enlace externo no
-            listado. Para fotos corporales sensibles, las enviaré después por el canal privado
-            acordado. Reviso el <a className="underline underline-offset-4" href="/manejo-imagenes">manejo de imágenes</a>.
+            Entiendo que las imágenes o enlaces de referencia se enviarán después por WhatsApp o por
+            el canal privado acordado. Reviso el <a className="underline underline-offset-4" href="/manejo-imagenes">manejo de imágenes</a>.
           </span>
         </label>
         {errors.imageHandlingConsent ? (
@@ -627,8 +362,18 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
           <p className="mt-1 text-emerald-200">
             Registramos tu cotización con el código{" "}
             <span className="font-mono">{createdQuoteCode}</span>. La fecha solicitada queda por
-            confirmar; el estudio revisará tu idea y responderá por el canal indicado.
+            confirmar; ahora puedes enviar las referencias por WhatsApp con este código.
           </p>
+          {createdWhatsAppUrl ? (
+            <a
+              className="mt-3 inline-flex rounded-full bg-emerald-200 px-4 py-2 font-semibold text-emerald-950 transition hover:bg-emerald-100"
+              href={createdWhatsAppUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Abrir WhatsApp con la cotización
+            </a>
+          ) : null}
           <a
             className="mt-3 inline-flex font-semibold text-emerald-50 underline underline-offset-4"
             href={`/quote/status?code=${encodeURIComponent(createdQuoteCode)}`}

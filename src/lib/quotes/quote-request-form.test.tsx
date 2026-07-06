@@ -1,121 +1,88 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sendSignInLinkToEmail, signOut } from "firebase/auth";
 import { QuoteRequestForm } from "./quote-request-form";
 
-const authState = vi.hoisted(() => ({
-  currentUser: null as null | { email: string; emailVerified: boolean; getIdToken: () => Promise<string> },
-}));
+function mockCalendarFetchWithQuoteResponse(quoteResponse: Record<string, unknown>) {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    void init;
+    const url = String(input);
+    if (url.startsWith("/api/calendar/availability")) {
+      return { ok: true, json: async () => ({ dates: [] }) };
+    }
+    if (url === "/api/quotes") {
+      return { ok: true, json: async () => quoteResponse };
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  });
+}
 
-vi.mock("@/lib/firebase/client", () => ({
-  getFirebaseAuth: () => ({ app: { name: "test" } }),
-}));
+function fillRequiredQuoteFields(container: HTMLElement) {
+  fireEvent.change(container.querySelector<HTMLInputElement>('input[name="customerName"]')!, {
+    target: { value: "Ana" },
+  });
+  fireEvent.change(container.querySelector<HTMLInputElement>('input[name="email"]')!, {
+    target: { value: "ana@example.test" },
+  });
+  fireEvent.change(container.querySelector<HTMLTextAreaElement>('textarea[name="description"]')!, {
+    target: { value: "Flores nativas en línea fina" },
+  });
+  fireEvent.change(container.querySelector<HTMLInputElement>('input[name="bodyPlacement"]')!, {
+    target: { value: "Antebrazo" },
+  });
+  fireEvent.change(container.querySelector<HTMLInputElement>('input[name="approximateSize"]')!, {
+    target: { value: "10 cm" },
+  });
+  fireEvent.click(container.querySelector<HTMLInputElement>('input[name="dataProcessingConsent"]')!);
+  fireEvent.click(container.querySelector<HTMLInputElement>('input[name="imageHandlingConsent"]')!);
+  fireEvent.click(container.querySelector<HTMLInputElement>('input[name="privacyTermsConsent"]')!);
+}
 
-vi.mock("firebase/auth", () => ({
-  isSignInWithEmailLink: () => false,
-  onAuthStateChanged: (_auth: unknown, callback: (user: typeof authState.currentUser) => void) => {
-    callback(authState.currentUser);
-    return () => undefined;
-  },
-  sendSignInLinkToEmail: vi.fn(),
-  signOut: vi.fn().mockResolvedValue(undefined),
-  signInWithEmailLink: vi.fn(),
-}));
-
-describe("QuoteRequestForm email verification", () => {
+describe("QuoteRequestForm public quote flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    authState.currentUser = null;
+    vi.stubGlobal("open", vi.fn());
   });
 
-  it("shows an actionable WhatsApp fallback when sending the email link fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ dates: [] }) }),
-    );
-    vi.mocked(sendSignInLinkToEmail).mockRejectedValueOnce(new Error("auth configuration error"));
+  it("does not render Firebase email verification controls", () => {
+    vi.stubGlobal("fetch", mockCalendarFetchWithQuoteResponse({}));
 
-    const { container } = render(<QuoteRequestForm />);
-    const emailInput = container.querySelector<HTMLInputElement>('input[name="email"]');
+    render(<QuoteRequestForm />);
 
-    expect(emailInput).not.toBeNull();
-    fireEvent.change(emailInput!, { target: { value: "ana@example.test" } });
-    fireEvent.click(screen.getByRole("button", { name: "Verificar email" }));
-
-    expect(await screen.findByText(/No pudimos enviar el enlace/)).toBeInTheDocument();
-    expect(screen.getByText(/Verificación de email obligatoria/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Contactar por WhatsApp" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("https://wa.me/"),
-    );
-    expect(screen.queryByText("Solicitud recibida correctamente.")).not.toBeInTheDocument();
-    await waitFor(() => expect(sendSignInLinkToEmail).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("button", { name: "Verificar email" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Usar otro email" })).not.toBeInTheDocument();
   });
 
-  it("blocks submission without verified email before posting", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-
-      if (url.startsWith("/api/calendar/availability")) {
-        return { ok: true, json: async () => ({ dates: [] }) };
-      }
-
-      throw new Error(`Unexpected fetch: ${url}`);
+  it("posts public quote data without an Authorization header and opens WhatsApp", async () => {
+    const fetchMock = mockCalendarFetchWithQuoteResponse({
+      quoteCode: "COT-2026-ABCDE",
+      whatsappMessage: "Hola, código COT-2026-ABCDE",
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const { container } = render(<QuoteRequestForm />);
+    fillRequiredQuoteFields(container);
 
-    fireEvent.change(container.querySelector<HTMLInputElement>('input[name="customerName"]')!, {
-      target: { value: "Ana" },
-    });
-    fireEvent.change(container.querySelector<HTMLInputElement>('input[name="email"]')!, {
-      target: { value: "ana@example.test" },
-    });
-    fireEvent.change(container.querySelector<HTMLTextAreaElement>('textarea[name="description"]')!, {
-      target: { value: "Flores nativas en línea fina" },
-    });
-    fireEvent.change(container.querySelector<HTMLInputElement>('input[name="bodyPlacement"]')!, {
-      target: { value: "Antebrazo" },
-    });
-    fireEvent.change(container.querySelector<HTMLInputElement>('input[name="approximateSize"]')!, {
-      target: { value: "10 cm" },
-    });
-    fireEvent.click(container.querySelector<HTMLInputElement>('input[name="dataProcessingConsent"]')!);
-    fireEvent.click(container.querySelector<HTMLInputElement>('input[name="imageHandlingConsent"]')!);
-    fireEvent.click(container.querySelector<HTMLInputElement>('input[name="privacyTermsConsent"]')!);
+    fireEvent.click(screen.getByRole("button", { name: "Enviar solicitud" }));
 
-    const submitButton = screen.getByRole("button", { name: "Enviar solicitud" });
-    expect(submitButton).toBeEnabled();
-    fireEvent.click(submitButton);
-
-    expect(await screen.findAllByText(/Verificación de email obligatoria/)).toHaveLength(2);
-    expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/quotes")).toBe(false);
-    expect(screen.queryByText("Solicitud recibida correctamente.")).not.toBeInTheDocument();
+    expect(await screen.findByText("Solicitud recibida correctamente.")).toBeInTheDocument();
+    const quoteCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/quotes");
+    expect(quoteCall?.[1]).toMatchObject({ method: "POST" });
+    expect((quoteCall?.[1] as RequestInit).headers).toBeUndefined();
+    expect(globalThis.open).toHaveBeenCalledWith(
+      expect.stringContaining("https://wa.me/"),
+      "_blank",
+      "noopener,noreferrer",
+    );
   });
 
-  it("allows switching away from a verified email stored in the browser session", async () => {
-    authState.currentUser = {
-      email: "owner@example.test",
-      emailVerified: true,
-      getIdToken: async () => "verified-token",
-    };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ dates: [] }) }),
-    );
+  it("removes reference URL and image inputs from the public form", async () => {
+    vi.stubGlobal("fetch", mockCalendarFetchWithQuoteResponse({}));
 
-    const { container } = render(<QuoteRequestForm />);
-    const emailInput = container.querySelector<HTMLInputElement>('input[name="email"]');
+    const { container } = render(<QuoteRequestForm fileUploadsEnabled />);
 
-    expect(emailInput).toHaveValue("owner@example.test");
-    expect(emailInput).toHaveAttribute("readonly");
-
-    fireEvent.click(screen.getByRole("button", { name: "Usar otro email" }));
-
-    await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
-    expect(emailInput).toHaveValue("");
-    expect(emailInput).not.toHaveAttribute("readonly");
-    expect(screen.getByRole("button", { name: "Verificar email" })).toBeEnabled();
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(container.querySelector('[name="referenceUrls"]')).toBeNull();
+    expect(container.querySelector('[name="referenceImages"]')).toBeNull();
+    expect(screen.getByText(/Las referencias, fotos o enlaces/)).toBeInTheDocument();
   });
 });

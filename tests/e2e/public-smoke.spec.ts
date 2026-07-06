@@ -18,7 +18,7 @@ test.describe("public smoke navigation", () => {
     await expect(
       page.getByRole("heading", { name: "Cuéntanos tu idea con contexto." }),
     ).toBeVisible();
-    await expect(page.getByText(/verificaremos tu email/i)).toBeVisible();
+    await expect(page.getByText(/abriremos WhatsApp/i)).toBeVisible();
   });
 
   test("shop renders a deterministic empty or fallback catalog state", async ({ page }) => {
