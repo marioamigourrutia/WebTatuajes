@@ -23,6 +23,7 @@ vi.mock("@/lib/quotes/quote-request", () => ({
 const getServerAuthStatusFromIdTokenMock = vi.mocked(getServerAuthStatusFromIdToken);
 const getFirebaseAdminFirestoreMock = vi.mocked(getFirebaseAdminFirestore);
 const confirmQuoteReservationMock = vi.mocked(confirmQuoteReservation);
+const addAuditLogMock = vi.fn();
 
 function request(body: unknown) {
   return new Request("http://localhost/api/admin/quotes/confirm-reservation", {
@@ -39,7 +40,9 @@ describe("admin quote reservation confirmation route", () => {
       admin: true,
       profile: { uid: "admin-a", email: "admin@example.test", emailVerified: true, role: "admin" },
     });
-    getFirebaseAdminFirestoreMock.mockReturnValue({ collection: vi.fn() } as never);
+    getFirebaseAdminFirestoreMock.mockReturnValue({
+      collection: vi.fn((path: string) => (path === "audit_logs" ? { add: addAuditLogMock } : {})),
+    } as never);
     confirmQuoteReservationMock.mockResolvedValue({
       ok: true,
       quoteId: "quote-1",
@@ -73,5 +76,21 @@ describe("admin quote reservation confirmation route", () => {
     expect(response.status).toBe(403);
     expect(getFirebaseAdminFirestoreMock).not.toHaveBeenCalled();
     expect(confirmQuoteReservationMock).not.toHaveBeenCalled();
+  });
+
+  it("records an audit entry after confirming a reservation", async () => {
+    const response = await POST(request({ quoteId: "quote-1" }));
+
+    expect(response.status).toBe(200);
+    expect(confirmQuoteReservationMock).toHaveBeenCalledWith(expect.anything(), "quote-1");
+    expect(addAuditLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "quote.reservation_confirmed",
+        actor_uid: "admin-a",
+        target_type: "quote",
+        target_id: "quote-1",
+        metadata: { calendarDateStatus: "CONFIRMED" },
+      }),
+    );
   });
 });

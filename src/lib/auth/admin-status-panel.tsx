@@ -90,6 +90,17 @@ type RecentCommunityMember = {
   unsubscribedAt: string | null;
 };
 
+type RecentAuditLog = {
+  id: string;
+  action: string;
+  actorUid: string | null;
+  actorEmail: string | null;
+  targetType: string;
+  targetId: string;
+  createdAt: string | null;
+  metadata: Record<string, string | number | boolean | null>;
+};
+
 type AdminCalendarDateStatus = "AVAILABLE" | "PENDING_CONFIRMATION" | "OCCUPIED";
 
 type AdminCalendarDate = {
@@ -198,6 +209,16 @@ function formatFileSize(sizeBytes: number) {
   return `${(sizeBytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+function formatAuditMetadata(metadata: RecentAuditLog["metadata"]) {
+  const entries = Object.entries(metadata);
+
+  if (entries.length === 0) {
+    return "sin metadata visible";
+  }
+
+  return entries.map(([key, value]) => `${key}: ${String(value)}`).join(" · ");
+}
+
 export function AdminStatusPanel({
   initialStatus,
   imageUploadsEnabled = false,
@@ -210,6 +231,7 @@ export function AdminStatusPanel({
   const [quotes, setQuotes] = useState<RecentQuoteRequest[]>([]);
   const [purchaseRequests, setPurchaseRequests] = useState<RecentPurchaseRequest[]>([]);
   const [communityMembers, setCommunityMembers] = useState<RecentCommunityMember[]>([]);
+  const [auditLogs, setAuditLogs] = useState<RecentAuditLog[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -316,6 +338,7 @@ export function AdminStatusPanel({
         setQuotes([]);
         setPurchaseRequests([]);
         setCommunityMembers([]);
+        setAuditLogs([]);
         return;
       }
 
@@ -324,6 +347,7 @@ export function AdminStatusPanel({
         setQuotes([]);
         setPurchaseRequests([]);
         setCommunityMembers([]);
+        setAuditLogs([]);
         return;
       }
 
@@ -340,7 +364,7 @@ export function AdminStatusPanel({
         return;
       }
 
-      const [quotesResponse, purchaseRequestsResponse, communityMembersResponse] =
+      const [quotesResponse, purchaseRequestsResponse, communityMembersResponse, auditLogsResponse] =
         await Promise.all([
           fetch("/api/admin/quotes", {
             method: "POST",
@@ -354,6 +378,10 @@ export function AdminStatusPanel({
             method: "POST",
             headers: { Authorization: `Bearer ${idToken}` },
           }),
+          fetch("/api/admin/audit-logs", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${idToken}` },
+          }),
         ]);
       const quotesBody = (await quotesResponse.json()) as { quotes?: RecentQuoteRequest[] };
       const purchaseRequestsBody = (await purchaseRequestsResponse.json()) as {
@@ -362,12 +390,14 @@ export function AdminStatusPanel({
       const communityMembersBody = (await communityMembersResponse.json()) as {
         communityMembers?: RecentCommunityMember[];
       };
+      const auditLogsBody = (await auditLogsResponse.json()) as { auditLogs?: RecentAuditLog[] };
 
       if (!quotesResponse.ok) {
         setError("El servidor no pudo listar solicitudes de cotización.");
         setQuotes([]);
         setPurchaseRequests([]);
         setCommunityMembers([]);
+        setAuditLogs([]);
         return;
       }
 
@@ -376,6 +406,7 @@ export function AdminStatusPanel({
         setQuotes([]);
         setPurchaseRequests([]);
         setCommunityMembers([]);
+        setAuditLogs([]);
         return;
       }
 
@@ -384,6 +415,16 @@ export function AdminStatusPanel({
         setQuotes([]);
         setPurchaseRequests([]);
         setCommunityMembers([]);
+        setAuditLogs([]);
+        return;
+      }
+
+      if (!auditLogsResponse.ok) {
+        setError("El servidor no pudo listar auditoría reciente.");
+        setQuotes([]);
+        setPurchaseRequests([]);
+        setCommunityMembers([]);
+        setAuditLogs([]);
         return;
       }
 
@@ -391,6 +432,7 @@ export function AdminStatusPanel({
       setQuotes(nextQuotes);
       setPurchaseRequests(purchaseRequestsBody.purchaseRequests ?? []);
       setCommunityMembers(communityMembersBody.communityMembers ?? []);
+      setAuditLogs(auditLogsBody.auditLogs ?? []);
       setNoteDrafts(
         Object.fromEntries(nextQuotes.map((quote) => [quote.id, quote.internalNote ?? ""])),
       );
@@ -821,6 +863,7 @@ export function AdminStatusPanel({
           setQuotes([]);
           setPurchaseRequests([]);
           setCommunityMembers([]);
+          setAuditLogs([]);
         }}
         onSessionEstablished={setStatus}
       />
@@ -860,6 +903,47 @@ export function AdminStatusPanel({
           <AdminInstagramMediaPanel enabled={status.admin} />
           <AdminSponsorsPanel enabled={status.admin} />
           <AdminReviewsPanel enabled={status.admin} />
+
+          <section className="space-y-3 rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
+            <div>
+              <h3 className="text-xl font-bold text-stone-50">Auditoría reciente</h3>
+              <p className="mt-1 text-sm text-stone-400">
+                Últimas acciones administrativas registradas server-side. La metadata se muestra
+                filtrada para no exponer secretos ni credenciales.
+              </p>
+            </div>
+            {auditLogs.length === 0 ? (
+              <p className="rounded-2xl border border-stone-800 bg-stone-950/70 p-4 text-sm text-stone-400">
+                Todavía no hay eventos de auditoría visibles.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {auditLogs.map((log) => (
+                  <li className="rounded-2xl border border-stone-800 bg-stone-950/70 p-4" key={log.id}>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-semibold text-stone-100">{log.action}</p>
+                        <p className="text-sm text-stone-400">
+                          Actor: {log.actorEmail ?? log.actorUid ?? "sin actor"}
+                        </p>
+                      </div>
+                      <p className="text-sm text-stone-400 sm:text-right">{formatDate(log.createdAt)}</p>
+                    </div>
+                    <div className="mt-3 grid gap-2 text-sm text-stone-300 sm:grid-cols-2">
+                      <p>
+                        <span className="font-semibold text-stone-100">Recurso:</span>{" "}
+                        {log.targetType}/{log.targetId}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-stone-100">Metadata:</span>{" "}
+                        {formatAuditMetadata(log.metadata)}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
           <section className="space-y-3 rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

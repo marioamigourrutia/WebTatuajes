@@ -16,6 +16,7 @@ Plataforma web profesional para un estudio de tatuajes en Chile. La aplicación 
 - Hay una página pública estática en `/contacto` con contacto, ubicación por reserva, higiene, soporte posterior y CTA hacia cotización.
 - Hay metadata base, `robots.txt` y `sitemap.xml` para descubrimiento público inicial en Vercel; incluye `/`, `/quote`, `/portfolio`, `/servicios` y `/contacto`.
 - El flujo de cotización y el portafolio admin soportan modo Firebase Spark sin Storage: si no hay proveedor externo de imágenes configurado, se usan enlaces de referencia/URL pública; si se configura Supabase Storage, el servidor sube imágenes y guarda metadata. Las imágenes de cotización pueden vivir en bucket privado y se sirven al admin con URLs firmadas de corta duración.
+- Estado de entrega: hay headers de seguridad/CSP, rate limit configurable con fallback en memoria, páginas legales y auditoría visible en `/admin`. Antes de producción real, validar dominios CSP, configurar credenciales externas y reforzar rate limiting con firewall/KV/shared storage si habrá más de una instancia.
 
 ## Requisitos
 

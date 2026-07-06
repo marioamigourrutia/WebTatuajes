@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
 import { stripBotProtectionFields, validateBotProtection } from "@/lib/bot-protection";
 import { unsubscribeCommunityMember } from "@/lib/community/member";
+import { checkRateLimit, getRateLimitOptions, getRequestRateLimitKey } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(
+    getRequestRateLimitKey(request, "community-members-unsubscribe"),
+    getRateLimitOptions("community-members-unsubscribe"),
+  );
+  if (!rateLimit.ok) {
+    return NextResponse.json({ errors: { form: rateLimit.message } }, { status: 429 });
+  }
+
   let body: unknown;
 
   try {

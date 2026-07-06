@@ -25,6 +25,7 @@ const pendingQuoteEmailStorageKey = "webtatuajes.quote.pendingEmail";
 
 const quoteVerificationFallbackMessage =
   "Hola HuespedTattooStudio, quiero solicitar una cotización de tatuaje, pero no pude completar la verificación por email en el sitio.";
+const requiredEmailVerificationMessage = "Verificación de email obligatoria.";
 
 type PublicCalendarDate = {
   date: string;
@@ -314,11 +315,6 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
     setCreatedQuoteCode(null);
 
     const formData = new FormData(form);
-    if (!verifiedUser || !emailMatchesVerifiedUser) {
-      setErrors({ email: "Verifica este email antes de enviar la cotización." });
-      setSubmitting(false);
-      return;
-    }
 
     const imageErrors = fileUploadsEnabled
       ? validateReferenceImages(
@@ -332,12 +328,23 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
       return;
     }
 
+    if (!verifiedUser || !emailMatchesVerifiedUser) {
+      setErrors({
+        email: `${requiredEmailVerificationMessage} Verifica tu correo antes de enviar la cotización.`,
+      });
+      setShowVerificationFallback(true);
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const idToken = await verifiedUser.getIdToken();
+      const headers: Record<string, string> = { Authorization: `Bearer ${idToken}` };
       formData.set("email", verifiedEmail);
+
       const response = await fetch("/api/quotes", {
         method: "POST",
-        headers: { Authorization: `Bearer ${idToken}` },
+        headers,
         body: formData,
       });
       const result = (await response.json()) as { quoteCode?: string; errors?: QuoteFormErrors };
@@ -348,7 +355,7 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
       }
 
       form.reset();
-      setEmail(verifiedEmail);
+      setEmail(verifiedEmail || "");
       setCreatedQuoteCode(result.quoteCode ?? "código por confirmar");
     } catch {
       setErrors({ form: "No pudimos procesar la solicitud. Inténtalo nuevamente." });
@@ -391,7 +398,7 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
             value={email}
           />
           <span className="mt-1 block text-xs text-stone-500">
-            Verificaremos este email con un enlace seguro antes de recibir tu cotización.
+            Puedes verificar este email con un enlace seguro para asociar la cotización a tu correo.
           </span>
           <button
             className="mt-2 rounded-full border border-amber-300/50 px-4 py-2 text-xs font-semibold text-amber-100 transition hover:border-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
@@ -412,8 +419,8 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
           {showVerificationFallback ? (
             <div className="mt-3 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm leading-6 text-amber-100">
               <p>
-                Si la verificación por email no funciona, la cotización no se ha enviado. Puedes
-                intentarlo nuevamente o contactar al estudio para continuar por un canal directo.
+                Verificación de email obligatoria. Si la verificación por email no funciona,
+                contacta al estudio para continuar por un canal directo.
               </p>
               {verificationFallbackUrl ? (
                 <a
@@ -551,7 +558,7 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
           <input className="mt-1" name="dataProcessingConsent" required type="checkbox" />
           <span>
             Autorizo el uso de mis datos para gestionar esta cotización y recibir respuesta del
-            estudio.
+            estudio según la <a className="underline underline-offset-4" href="/privacidad">política de privacidad</a>.
           </span>
         </label>
         {errors.dataProcessingConsent ? (
@@ -563,7 +570,7 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
             Entiendo que las imágenes o enlaces enviados son voluntarios, deben ser referencias no
             sensibles o de inspiración, y pueden quedar disponibles mediante un enlace externo no
             listado. Para fotos corporales sensibles, las enviaré después por el canal privado
-            acordado.
+            acordado. Reviso el <a className="underline underline-offset-4" href="/manejo-imagenes">manejo de imágenes</a>.
           </span>
         </label>
         {errors.imageHandlingConsent ? (
@@ -572,8 +579,8 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
         <label className="flex gap-3 text-sm leading-6 text-stone-300">
           <input className="mt-1" name="privacyTermsConsent" required type="checkbox" />
           <span>
-            Acepto las condiciones de privacidad y entiendo que cualquier reserva o fecha queda por
-            confirmar directamente con el estudio.
+            Acepto las condiciones de privacidad, la <a className="underline underline-offset-4" href="/solicitud-datos">solicitud de datos</a> y entiendo que cualquier reserva o fecha queda por
+            confirmar directamente con el estudio según los <a className="underline underline-offset-4" href="/terminos-reserva">términos de reserva</a>.
           </span>
         </label>
         {errors.privacyTermsConsent ? (
@@ -607,7 +614,7 @@ export function QuoteRequestForm({ fileUploadsEnabled = false }: { fileUploadsEn
 
       <button
         className="rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/30 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={submitting || !emailMatchesVerifiedUser}
+        disabled={submitting}
         type="submit"
       >
         {submitting ? "Enviando…" : "Enviar solicitud"}

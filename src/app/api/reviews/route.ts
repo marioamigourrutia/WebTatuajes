@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { stripBotProtectionFields, validateBotProtection } from "@/lib/bot-protection";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
+import { checkRateLimit, getRateLimitOptions, getRequestRateLimitKey } from "@/lib/rate-limit";
 import { listPublishedReviews, submitReviewWithToken } from "@/lib/reviews/review";
 
 export const runtime = "nodejs";
@@ -14,6 +15,14 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(
+    getRequestRateLimitKey(request, "reviews"),
+    getRateLimitOptions("reviews"),
+  );
+  if (!rateLimit.ok) {
+    return NextResponse.json({ errors: { form: rateLimit.message } }, { status: 429 });
+  }
+
   const firestore = getFirebaseAdminFirestore();
   if (!firestore) {
     return NextResponse.json(

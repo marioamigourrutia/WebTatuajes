@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { verifyCustomerIdToken } from "@/lib/auth/customer-token";
+import { resetRateLimitForTests } from "@/lib/rate-limit";
 import { createQuoteRequestFromFormData } from "@/lib/quotes/quote-request";
 import { POST } from "./route";
 
@@ -15,7 +16,7 @@ vi.mock("@/lib/quotes/quote-request", () => ({
 const verifyCustomerIdTokenMock = vi.mocked(verifyCustomerIdToken);
 const createQuoteRequestFromFormDataMock = vi.mocked(createQuoteRequestFromFormData);
 
-function multipartRequest(token?: string) {
+function multipartRequest(token?: string, authorization?: string) {
   const formData = new FormData();
   formData.set("email", "ana@example.test");
   formData.set("companyWebsite", "");
@@ -23,7 +24,12 @@ function multipartRequest(token?: string) {
 
   return new Request("http://localhost/api/quotes", {
     method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    headers:
+      authorization !== undefined
+        ? { Authorization: authorization }
+        : token
+          ? { Authorization: `Bearer ${token}` }
+          : undefined,
     body: formData,
   });
 }
@@ -44,6 +50,7 @@ function botMultipartRequest(token?: string) {
 describe("quote creation route", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    resetRateLimitForTests();
     verifyCustomerIdTokenMock.mockResolvedValue({
       ok: true,
       customer: { uid: "firebase-uid-1", email: "ana@example.test", emailVerified: true },
@@ -55,14 +62,25 @@ describe("quote creation route", () => {
     });
   });
 
-  it("rejects quote creation without a bearer token", async () => {
-    verifyCustomerIdTokenMock.mockResolvedValue({
+  it("rejects quote creation without a bearer token before writing", async () => {
+    const response = await POST(multipartRequest());
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      errors: { email: "Verificación de email obligatoria." },
+    });
+    expect(verifyCustomerIdTokenMock).not.toHaveBeenCalled();
+    expect(createQuoteRequestFromFormDataMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a present blank bearer token before writing", async () => {
+    verifyCustomerIdTokenMock.mockResolvedValueOnce({
       ok: false,
       status: 401,
       errors: { form: "Debes verificar tu email antes de enviar la cotización." },
     });
 
-    const response = await POST(multipartRequest());
+    const response = await POST(multipartRequest(undefined, "Bearer "));
 
     expect(response.status).toBe(401);
     expect(verifyCustomerIdTokenMock).toHaveBeenCalledWith(undefined);

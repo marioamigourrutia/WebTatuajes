@@ -45,6 +45,30 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             </Link>
             <Link
               className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
+              href="/privacidad"
+            >
+              Privacidad
+            </Link>
+            <Link
+              className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
+              href="/terminos-reserva"
+            >
+              Reservas
+            </Link>
+            <Link
+              className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
+              href="/manejo-imagenes"
+            >
+              Imágenes
+            </Link>
+            <Link
+              className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
+              href="/solicitud-datos"
+            >
+              Solicitud de datos
+            </Link>
+            <Link
+              className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
               href="/admin"
             >
               Administración

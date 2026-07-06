@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
 import { stripBotProtectionFields, validateBotProtection } from "@/lib/bot-protection";
+import { checkRateLimit, getRateLimitOptions, getRequestRateLimitKey } from "@/lib/rate-limit";
 import { createPurchaseRequest } from "@/lib/shop/purchase-request";
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(
+    getRequestRateLimitKey(request, "purchase-requests"),
+    getRateLimitOptions("purchase-requests"),
+  );
+  if (!rateLimit.ok) {
+    return NextResponse.json({ errors: { form: rateLimit.message } }, { status: 429 });
+  }
+
   let body: unknown;
 
   try {

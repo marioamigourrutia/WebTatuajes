@@ -2,12 +2,27 @@ import { NextResponse } from "next/server";
 import { getBearerToken } from "@/lib/auth/bearer";
 import { verifyCustomerIdToken } from "@/lib/auth/customer-token";
 import { stripBotProtectionFields, validateBotProtection } from "@/lib/bot-protection";
+import { checkRateLimit, getRateLimitOptions, getRequestRateLimitKey } from "@/lib/rate-limit";
 import { createQuoteRequest, createQuoteRequestFromFormData } from "@/lib/quotes/quote-request";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const tokenVerification = await verifyCustomerIdToken(getBearerToken(request));
+  const rateLimit = checkRateLimit(getRequestRateLimitKey(request, "quotes"), getRateLimitOptions("quotes"));
+  if (!rateLimit.ok) {
+    return NextResponse.json({ errors: { form: rateLimit.message } }, { status: 429 });
+  }
+
+  const authorizationHeader = request.headers.get("authorization");
+  const bearerToken = getBearerToken(request);
+  if (authorizationHeader === null) {
+    return NextResponse.json(
+      { errors: { email: "Verificación de email obligatoria." } },
+      { status: 401 },
+    );
+  }
+
+  const tokenVerification = await verifyCustomerIdToken(bearerToken);
 
   if (!tokenVerification.ok) {
     return NextResponse.json(

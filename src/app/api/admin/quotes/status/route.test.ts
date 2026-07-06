@@ -23,6 +23,7 @@ vi.mock("@/lib/quotes/quote-request", () => ({
 const getServerAuthStatusFromIdTokenMock = vi.mocked(getServerAuthStatusFromIdToken);
 const getFirebaseAdminFirestoreMock = vi.mocked(getFirebaseAdminFirestore);
 const updateQuoteRequestStatusMock = vi.mocked(updateQuoteRequestStatus);
+const addAuditLogMock = vi.fn();
 
 function request(body: unknown) {
   return new Request("http://localhost/api/admin/quotes/status", {
@@ -39,7 +40,9 @@ describe("admin quote status route", () => {
       admin: true,
       profile: { uid: "admin-a", email: "admin@example.test", emailVerified: true, role: "admin" },
     });
-    getFirebaseAdminFirestoreMock.mockReturnValue({ collection: vi.fn() } as never);
+    getFirebaseAdminFirestoreMock.mockReturnValue({
+      collection: vi.fn((path: string) => (path === "audit_logs" ? { add: addAuditLogMock } : {})),
+    } as never);
     updateQuoteRequestStatusMock.mockResolvedValue({
       ok: true,
       quoteId: "quote-1",
@@ -62,6 +65,15 @@ describe("admin quote status route", () => {
       expect.anything(),
       "quote-1",
       "contacted",
+    );
+    expect(addAuditLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "quote.status_updated",
+        actor_uid: "admin-a",
+        target_type: "quote",
+        target_id: "quote-1",
+        metadata: { status: "contacted", calendarDateStatus: "PENDING_CONFIRMATION" },
+      }),
     );
   });
 

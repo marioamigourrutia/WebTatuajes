@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 import { unsubscribeCommunityMember } from "@/lib/community/member";
+import { resetRateLimitForTests } from "@/lib/rate-limit";
 
 vi.mock("@/lib/community/member", () => ({
   unsubscribeCommunityMember: vi.fn(),
@@ -8,9 +9,10 @@ vi.mock("@/lib/community/member", () => ({
 
 const unsubscribeCommunityMemberMock = vi.mocked(unsubscribeCommunityMember);
 
-function request(body: unknown) {
+function request(body: unknown, headers?: HeadersInit) {
   return new Request("http://localhost/api/community-members/unsubscribe", {
     method: "POST",
+    headers,
     body: JSON.stringify(body),
   });
 }
@@ -22,6 +24,9 @@ function botFields() {
 describe("community member unsubscribe route", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    resetRateLimitForTests();
+    delete process.env.RATE_LIMIT_COMMUNITY_MEMBERS_UNSUBSCRIBE_LIMIT;
+    delete process.env.RATE_LIMIT_COMMUNITY_MEMBERS_UNSUBSCRIBE_WINDOW_MS;
     unsubscribeCommunityMemberMock.mockResolvedValue({ ok: true });
   });
 
@@ -106,5 +111,21 @@ describe("community member unsubscribe route", () => {
       errors: { form: "No pudimos procesar la solicitud. Intenta nuevamente." },
     });
     expect(unsubscribeCommunityMemberMock).not.toHaveBeenCalled();
+  });
+
+  it("rate limits repeated unsubscribe attempts", async () => {
+    process.env.RATE_LIMIT_COMMUNITY_MEMBERS_UNSUBSCRIBE_LIMIT = "1";
+    process.env.RATE_LIMIT_COMMUNITY_MEMBERS_UNSUBSCRIBE_WINDOW_MS = "60000";
+    const body = { email: "ana@example.test", confirmation: true, ...botFields() };
+
+    expect((await POST(request(body, { "x-forwarded-for": "203.0.113.10" }))).status).toBe(200);
+
+    const response = await POST(request(body, { "x-forwarded-for": "203.0.113.10" }));
+
+    expect(response.status).toBe(429);
+    await expect(response.json()).resolves.toEqual({
+      errors: { form: "Demasiadas solicitudes. Intenta nuevamente en unos minutos." },
+    });
+    expect(unsubscribeCommunityMemberMock).toHaveBeenCalledTimes(1);
   });
 });
