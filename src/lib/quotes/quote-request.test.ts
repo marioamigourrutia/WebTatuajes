@@ -990,8 +990,11 @@ describe("quote request firestore helpers", () => {
       ],
     });
     const where = vi.fn().mockReturnValue({ get: getImages });
+    const getCalendarDates = vi.fn().mockResolvedValue({ docs: [] });
+    const calendarWhere = vi.fn().mockReturnValue({ get: getCalendarDates });
     const collection = vi.fn((name: string) => {
       if (name === "quotes") return { orderBy };
+      if (name === "calendar_dates") return { where: calendarWhere };
       if (name === "quote_images") return { where };
       throw new Error(`Unexpected collection ${name}`);
     });
@@ -1046,6 +1049,213 @@ describe("quote request firestore helpers", () => {
     expect(where).toHaveBeenCalledWith("quote_id", "==", "quote-1");
   });
 
+  it("includes pending calendar quote requests even when created_at ordering omits them", async () => {
+    const pendingQuote = {
+      id: "quote-pending-18",
+      data: () => ({
+        customer_name: "Cliente Pendiente",
+        customer_email: "pendiente@example.test",
+        preferred_contact_method: "whatsapp",
+        status: "pending",
+        body_area: "Brazo",
+        size_description: "8 cm",
+        description: "Solicitud con fecha preferida pendiente.",
+        quote_code: "COT-2026-AAAAA",
+        preferred_tattoo_date: "2026-07-18",
+        calendar_date_id: "2026-07-18",
+        calendar_date_status: "PENDING_CONFIRMATION",
+      }),
+    };
+    const getQuotes = vi.fn().mockResolvedValue({ docs: [] });
+    const quotesLimit = vi.fn().mockReturnValue({ get: getQuotes });
+    const orderBy = vi.fn().mockReturnValue({ limit: quotesLimit });
+    const getPendingCalendarDates = vi.fn().mockResolvedValue({
+      docs: [
+        {
+          id: "2026-07-18",
+          data: () => ({
+            date: "2026-07-18",
+            status: "PENDING_CONFIRMATION",
+            quote_id: "quote-pending-18",
+          }),
+        },
+      ],
+    });
+    const calendarWhere = vi.fn().mockReturnValue({ get: getPendingCalendarDates });
+    const quoteDocGet = vi.fn().mockResolvedValue({ exists: true, ...pendingQuote });
+    const quoteDoc = vi.fn().mockReturnValue({ get: quoteDocGet });
+    const getImages = vi.fn().mockResolvedValue({ docs: [] });
+    const imageWhere = vi.fn().mockReturnValue({ get: getImages });
+    const collection = vi.fn((name: string) => {
+      if (name === "quotes") return { orderBy, doc: quoteDoc };
+      if (name === "calendar_dates") return { where: calendarWhere };
+      if (name === "quote_images") return { where: imageWhere };
+      throw new Error(`Unexpected collection ${name}`);
+    });
+
+    const result = await listRecentQuoteRequests({ collection } as never, 5);
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: "quote-pending-18",
+        quoteCode: "COT-2026-AAAAA",
+        customerName: "Cliente Pendiente",
+        status: "pending",
+        preferredTattooDate: "2026-07-18",
+        calendarDateStatus: "PENDING_CONFIRMATION",
+      }),
+    ]);
+    expect(calendarWhere).toHaveBeenCalledWith("status", "==", "PENDING_CONFIRMATION");
+    expect(quoteDoc).toHaveBeenCalledWith("quote-pending-18");
+    expect(imageWhere).toHaveBeenCalledWith("quote_id", "==", "quote-pending-18");
+  });
+
+  it("deduplicates quote requests already returned by the recent quotes query", async () => {
+    const existingQuote = {
+      id: "quote-duplicate",
+      data: () => ({
+        created_at: new Date("2026-07-20T10:00:00.000Z"),
+        customer_name: "Cliente Duplicada",
+        customer_email: "duplicada@example.test",
+        preferred_contact_method: "email",
+        status: "pending",
+        preferred_tattoo_date: "2026-07-20",
+        calendar_date_status: "PENDING_CONFIRMATION",
+      }),
+    };
+    const getQuotes = vi.fn().mockResolvedValue({ docs: [existingQuote] });
+    const quotesLimit = vi.fn().mockReturnValue({ get: getQuotes });
+    const orderBy = vi.fn().mockReturnValue({ limit: quotesLimit });
+    const getPendingCalendarDates = vi.fn().mockResolvedValue({
+      docs: [
+        {
+          id: "2026-07-20",
+          data: () => ({ status: "PENDING_CONFIRMATION", quote_id: "quote-duplicate" }),
+        },
+      ],
+    });
+    const calendarWhere = vi.fn().mockReturnValue({ get: getPendingCalendarDates });
+    const quoteDoc = vi.fn();
+    const getImages = vi.fn().mockResolvedValue({ docs: [] });
+    const imageWhere = vi.fn().mockReturnValue({ get: getImages });
+    const collection = vi.fn((name: string) => {
+      if (name === "quotes") return { orderBy, doc: quoteDoc };
+      if (name === "calendar_dates") return { where: calendarWhere };
+      if (name === "quote_images") return { where: imageWhere };
+      throw new Error(`Unexpected collection ${name}`);
+    });
+
+    const result = await listRecentQuoteRequests({ collection } as never, 5);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(expect.objectContaining({ id: "quote-duplicate" }));
+    expect(quoteDoc).not.toHaveBeenCalled();
+    expect(imageWhere).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces pending calendar dates whose linked quote document is missing", async () => {
+    const getQuotes = vi.fn().mockResolvedValue({ docs: [] });
+    const quotesLimit = vi.fn().mockReturnValue({ get: getQuotes });
+    const orderBy = vi.fn().mockReturnValue({ limit: quotesLimit });
+    const getPendingCalendarDates = vi.fn().mockResolvedValue({
+      docs: [
+        {
+          id: "2026-07-21",
+          data: () => ({
+            date: "2026-07-21",
+            status: "PENDING_CONFIRMATION",
+            quote_id: "quote-deleted-21",
+          }),
+        },
+      ],
+    });
+    const calendarWhere = vi.fn().mockReturnValue({ get: getPendingCalendarDates });
+    const quoteDocGet = vi.fn().mockResolvedValue({ exists: false });
+    const quoteDoc = vi.fn().mockReturnValue({ get: quoteDocGet });
+    const getImages = vi.fn().mockResolvedValue({ docs: [] });
+    const imageWhere = vi.fn().mockReturnValue({ get: getImages });
+    const collection = vi.fn((name: string) => {
+      if (name === "quotes") return { orderBy, doc: quoteDoc };
+      if (name === "calendar_dates") return { where: calendarWhere };
+      if (name === "quote_images") return { where: imageWhere };
+      throw new Error(`Unexpected collection ${name}`);
+    });
+
+    const result = await listRecentQuoteRequests({ collection } as never, 5);
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: "quote-deleted-21",
+        quoteCode: "quote-deleted-21",
+        customerName: "Linked quote missing",
+        email: "",
+        status: "missing_quote",
+        preferredTattooDate: "2026-07-21",
+        calendarDateStatus: "PENDING_CONFIRMATION",
+        internalNote: expect.stringContaining("linked to a quote that no longer exists"),
+        referenceImages: [],
+      }),
+    ]);
+    expect(JSON.stringify(result)).not.toContain("quote-images/");
+  });
+
+  it("reads every pending calendar date instead of capping the merge at the recent quote limit", async () => {
+    const omittedPendingQuote = {
+      id: "quote-over-limit-25",
+      data: () => ({
+        created_at: new Date("2026-07-25T10:00:00.000Z"),
+        customer_name: "Cliente Sobre Límite",
+        customer_email: "sobre-limite@example.test",
+        preferred_contact_method: "whatsapp",
+        status: "pending",
+        preferred_tattoo_date: "2026-07-25",
+        calendar_date_status: "PENDING_CONFIRMATION",
+      }),
+    };
+    const getQuotes = vi.fn().mockResolvedValue({ docs: [] });
+    const quotesLimit = vi.fn().mockReturnValue({ get: getQuotes });
+    const orderBy = vi.fn().mockReturnValue({ limit: quotesLimit });
+    const pendingCalendarDocs = Array.from({ length: 25 }, (_, index) => {
+      const day = String(index + 1).padStart(2, "0");
+      const quoteId = index === 24 ? "quote-over-limit-25" : `quote-existing-${day}`;
+
+      return {
+        id: `2026-07-${day}`,
+        data: () => ({ status: "PENDING_CONFIRMATION", quote_id: quoteId }),
+      };
+    });
+    const getPendingCalendarDates = vi.fn().mockResolvedValue({ docs: pendingCalendarDocs });
+    const calendarQuery = { get: getPendingCalendarDates };
+    const calendarWhere = vi.fn().mockReturnValue(calendarQuery);
+    const quoteDocGet = vi.fn((quoteId: string) =>
+      Promise.resolve(
+        quoteId === "quote-over-limit-25"
+          ? { exists: true, ...omittedPendingQuote }
+          : { exists: false },
+      ),
+    );
+    const quoteDoc = vi.fn((quoteId: string) => ({ get: () => quoteDocGet(quoteId) }));
+    const getImages = vi.fn().mockResolvedValue({ docs: [] });
+    const imageWhere = vi.fn().mockReturnValue({ get: getImages });
+    const collection = vi.fn((name: string) => {
+      if (name === "quotes") return { orderBy, doc: quoteDoc };
+      if (name === "calendar_dates") return { where: calendarWhere };
+      if (name === "quote_images") return { where: imageWhere };
+      throw new Error(`Unexpected collection ${name}`);
+    });
+
+    const result = await listRecentQuoteRequests({ collection } as never, 20);
+
+    expect(calendarQuery).not.toHaveProperty("limit");
+    expect(quoteDoc).toHaveBeenCalledWith("quote-over-limit-25");
+    expect(result).toContainEqual(
+      expect.objectContaining({
+        id: "quote-over-limit-25",
+        customerName: "Cliente Sobre Límite",
+      }),
+    );
+  });
+
   it("serializes external quote image URLs directly when present", async () => {
     const getQuotes = vi.fn().mockResolvedValue({
       docs: [
@@ -1080,8 +1290,11 @@ describe("quote request firestore helpers", () => {
       ],
     });
     const where = vi.fn().mockReturnValue({ get: getImages });
+    const getCalendarDates = vi.fn().mockResolvedValue({ docs: [] });
+    const calendarWhere = vi.fn().mockReturnValue({ get: getCalendarDates });
     const collection = vi.fn((name: string) => {
       if (name === "quotes") return { orderBy };
+      if (name === "calendar_dates") return { where: calendarWhere };
       if (name === "quote_images") return { where };
       throw new Error(`Unexpected collection ${name}`);
     });

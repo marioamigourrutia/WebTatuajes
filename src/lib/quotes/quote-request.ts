@@ -134,6 +134,8 @@ export const clientQuoteStatusLookupError =
 
 type FirestoreLike = NonNullable<ReturnType<typeof getFirebaseAdminFirestore>>;
 type StorageBucketLike = NonNullable<ReturnType<typeof getFirebaseAdminStorageBucket>>;
+type QuoteDocumentSnapshotLike = { id: string; data: () => Record<string, unknown> };
+type CalendarDateDocumentSnapshotLike = { id: string; data: () => Record<string, unknown> };
 type TransactionLike = {
   get: (reference: unknown) => Promise<{ exists: boolean; data?: () => Record<string, unknown> }>;
   update: (reference: unknown, data: Record<string, unknown>) => unknown;
@@ -1003,6 +1005,39 @@ async function listReferenceImagesByQuoteId(firestore: FirestoreLike, quoteIds: 
   return imagesByQuoteId;
 }
 
+function buildMissingLinkedQuoteDocument(
+  calendarDocument: CalendarDateDocumentSnapshotLike,
+  quoteId: string,
+): QuoteDocumentSnapshotLike {
+  const data = calendarDocument.data();
+  const calendarDate = cleanString(data.date) || calendarDocument.id;
+  const description = `Active pending calendar date ${calendarDate} is linked to a quote that no longer exists. Review the calendar date before accepting another booking for this day.`;
+
+  return {
+    id: quoteId,
+    data: () => ({
+      quote_code: quoteId,
+      customer_name: "Linked quote missing",
+      customer_email: "",
+      preferred_contact_method: "email",
+      status: "missing_quote",
+      body_area: "Calendar remediation needed",
+      size_description: "",
+      description,
+      preferred_tattoo_date: calendarDate,
+      calendar_date_id: calendarDocument.id,
+      calendar_date_status: "PENDING_CONFIRMATION",
+      admin_note: description,
+      consents: {
+        data_processing: false,
+        image_handling: false,
+        privacy_terms: false,
+        marketing_opt_in: false,
+      },
+    }),
+  };
+}
+
 export async function listRecentQuoteRequests(firestore: FirestoreLike, limit = 20) {
   const snapshot = await firestore
     .collection("quotes")
@@ -1010,12 +1045,43 @@ export async function listRecentQuoteRequests(firestore: FirestoreLike, limit = 
     .limit(limit)
     .get();
 
-  const referenceImagesByQuoteId = await listReferenceImagesByQuoteId(
-    firestore,
-    snapshot.docs.map((document) => document.id),
+  const documentsById = new Map<string, QuoteDocumentSnapshotLike>(
+    snapshot.docs.map((document) => [document.id, document]),
   );
 
-  return snapshot.docs.map((document): RecentQuoteRequest => {
+  const pendingCalendarSnapshot = await firestore
+    .collection("calendar_dates")
+    .where("status", "==", "PENDING_CONFIRMATION")
+    .get();
+
+  await Promise.all(
+    pendingCalendarSnapshot.docs.map(async (calendarDocument) => {
+      const quoteId = cleanString(calendarDocument.data().quote_id);
+
+      if (!quoteId || documentsById.has(quoteId) || !isValidQuoteId(quoteId)) {
+        return;
+      }
+
+      const quoteSnapshot = await firestore.collection("quotes").doc(quoteId).get();
+
+      if (quoteSnapshot.exists) {
+        documentsById.set(quoteSnapshot.id, {
+          id: quoteSnapshot.id,
+          data: () => quoteSnapshot.data() ?? {},
+        });
+        return;
+      }
+
+      documentsById.set(quoteId, buildMissingLinkedQuoteDocument(calendarDocument, quoteId));
+    }),
+  );
+
+  const referenceImagesByQuoteId = await listReferenceImagesByQuoteId(
+    firestore,
+    Array.from(documentsById.keys()),
+  );
+
+  return Array.from(documentsById.values()).map((document): RecentQuoteRequest => {
     const data = document.data();
 
     return {
@@ -1053,6 +1119,15 @@ export async function listRecentQuoteRequests(firestore: FirestoreLike, limit = 
       referenceImages: referenceImagesByQuoteId.get(document.id) ?? [],
       referenceUrls: serializeQuoteReferenceUrls(data.reference_urls),
     };
+  }).sort((a, b) => {
+    if (a.createdAt && b.createdAt) {
+      return b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id);
+    }
+
+    if (a.createdAt) return -1;
+    if (b.createdAt) return 1;
+
+    return a.id.localeCompare(b.id);
   });
 }
 
