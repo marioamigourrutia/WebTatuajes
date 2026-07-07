@@ -1038,6 +1038,53 @@ function buildMissingLinkedQuoteDocument(
   };
 }
 
+function getCalendarLinkedQuoteId(calendarData: Record<string, unknown>) {
+  return cleanString(calendarData.quote_id || calendarData.quoteId || calendarData.request_id);
+}
+
+async function listPendingCalendarDateDocuments(firestore: FirestoreLike) {
+  const documentsById = new Map<string, CalendarDateDocumentSnapshotLike>();
+
+  await Promise.all(
+    ["PENDING_CONFIRMATION", "pending"].map(async (status) => {
+      const snapshot = await firestore.collection("calendar_dates").where("status", "==", status).get();
+
+      snapshot.docs.forEach((document) => {
+        documentsById.set(document.id, document);
+      });
+    }),
+  );
+
+  return Array.from(documentsById.values());
+}
+
+function buildCalendarLinkedQuoteDocument(
+  calendarDocument: CalendarDateDocumentSnapshotLike,
+  quoteDocument: QuoteDocumentSnapshotLike,
+): QuoteDocumentSnapshotLike {
+  const calendarData = calendarDocument.data();
+  const calendarDate = cleanString(calendarData.date) || calendarDocument.id;
+  const calendarStatus = "PENDING_CONFIRMATION" satisfies CalendarDateStatus;
+
+  return {
+    id: quoteDocument.id,
+    data: () => {
+      const quoteData = quoteDocument.data();
+      const quoteCalendarDateStatus = cleanString(quoteData.calendar_date_status);
+
+      return {
+        ...quoteData,
+        preferred_tattoo_date: cleanString(quoteData.preferred_tattoo_date) || calendarDate,
+        calendar_date_id: cleanString(quoteData.calendar_date_id) || calendarDate,
+        calendar_date_status:
+          quoteCalendarDateStatus === "pending"
+            ? calendarStatus
+            : quoteCalendarDateStatus || calendarStatus,
+      };
+    },
+  };
+}
+
 export async function listRecentQuoteRequests(firestore: FirestoreLike, limit = 20) {
   const snapshot = await firestore
     .collection("quotes")
@@ -1049,26 +1096,35 @@ export async function listRecentQuoteRequests(firestore: FirestoreLike, limit = 
     snapshot.docs.map((document) => [document.id, document]),
   );
 
-  const pendingCalendarSnapshot = await firestore
-    .collection("calendar_dates")
-    .where("status", "==", "PENDING_CONFIRMATION")
-    .get();
+  const pendingCalendarDocuments = await listPendingCalendarDateDocuments(firestore);
 
   await Promise.all(
-    pendingCalendarSnapshot.docs.map(async (calendarDocument) => {
-      const quoteId = cleanString(calendarDocument.data().quote_id);
+    pendingCalendarDocuments.map(async (calendarDocument) => {
+      const quoteId = getCalendarLinkedQuoteId(calendarDocument.data());
 
-      if (!quoteId || documentsById.has(quoteId) || !isValidQuoteId(quoteId)) {
+      if (!quoteId || !isValidQuoteId(quoteId)) {
+        return;
+      }
+
+      const existingQuoteDocument = documentsById.get(quoteId);
+      if (existingQuoteDocument) {
+        documentsById.set(
+          quoteId,
+          buildCalendarLinkedQuoteDocument(calendarDocument, existingQuoteDocument),
+        );
         return;
       }
 
       const quoteSnapshot = await firestore.collection("quotes").doc(quoteId).get();
 
       if (quoteSnapshot.exists) {
-        documentsById.set(quoteSnapshot.id, {
-          id: quoteSnapshot.id,
-          data: () => quoteSnapshot.data() ?? {},
-        });
+        documentsById.set(
+          quoteSnapshot.id,
+          buildCalendarLinkedQuoteDocument(calendarDocument, {
+            id: quoteSnapshot.id,
+            data: () => quoteSnapshot.data() ?? {},
+          }),
+        );
         return;
       }
 
