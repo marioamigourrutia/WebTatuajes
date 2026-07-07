@@ -1,9 +1,15 @@
-import { parseFirebaseServiceAccountJson } from "../config/firebase-admin";
+import {
+  parseFirebaseServiceAccountJson,
+  parseFirebaseSplitServiceAccountEnv,
+} from "../config/firebase-admin";
 
 export const firstAdminConfirmationValue = "assign-first-admin";
 
 type FirstAdminAssignmentInput = {
   serviceAccountJson?: string;
+  firebaseProjectId?: string;
+  firebaseClientEmail?: string;
+  firebasePrivateKey?: string;
   targetUid?: string;
   targetEmail?: string;
   confirmation?: string;
@@ -18,10 +24,18 @@ export type FirstAdminAssignmentPlan = {
 export function createFirstAdminAssignmentPlan(
   input: FirstAdminAssignmentInput,
 ): FirstAdminAssignmentPlan {
-  const serviceAccount = parseFirebaseServiceAccountJson(input.serviceAccountJson);
+  const serviceAccount =
+    parseFirebaseServiceAccountJson(input.serviceAccountJson) ??
+    parseFirebaseSplitServiceAccountEnv({
+      FIREBASE_PROJECT_ID: input.firebaseProjectId,
+      FIREBASE_CLIENT_EMAIL: input.firebaseClientEmail,
+      FIREBASE_PRIVATE_KEY: input.firebasePrivateKey,
+    });
 
   if (!serviceAccount) {
-    throw new Error("A valid server-only FIREBASE_SERVICE_ACCOUNT_JSON is required.");
+    throw new Error(
+      "Valid server-only Firebase Admin credentials are required: FIREBASE_SERVICE_ACCOUNT_JSON or the complete FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY set.",
+    );
   }
 
   const targetUid = input.targetUid?.trim();

@@ -8,11 +8,44 @@ const serviceAccountJson = JSON.stringify({
 });
 
 describe("first admin assignment guard", () => {
-  it("requires a real server-only service account and explicit target", () => {
+  it("requires real server-only Firebase Admin credentials and explicit target", () => {
     expect(() =>
       createFirstAdminAssignmentPlan({ serviceAccountJson: "{}", targetUid: "admin-a" }),
-    ).toThrow("FIREBASE_SERVICE_ACCOUNT_JSON");
+    ).toThrow("Firebase Admin credentials");
     expect(() => createFirstAdminAssignmentPlan({ serviceAccountJson })).toThrow("FIRST_ADMIN_UID");
+  });
+
+  it("allows dry-run planning with split Firebase Admin credentials", () => {
+    expect(
+      createFirstAdminAssignmentPlan({
+        firebaseProjectId: "webtatuajes-test",
+        firebaseClientEmail: "firebase-adminsdk@example.iam.gserviceaccount.com",
+        firebasePrivateKey: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",
+        targetUid: "admin-a",
+      }),
+    ).toEqual({
+      dryRun: true,
+      target: { uid: "admin-a" },
+    });
+  });
+
+  it("rejects incomplete or placeholder split Firebase Admin credentials", () => {
+    expect(() =>
+      createFirstAdminAssignmentPlan({
+        firebaseProjectId: "webtatuajes-test",
+        firebaseClientEmail: "firebase-adminsdk@example.iam.gserviceaccount.com",
+        targetUid: "admin-a",
+      }),
+    ).toThrow("Firebase Admin credentials");
+
+    expect(() =>
+      createFirstAdminAssignmentPlan({
+        firebaseProjectId: "your-project-id",
+        firebaseClientEmail: "firebase-adminsdk@example.iam.gserviceaccount.com",
+        firebasePrivateKey: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",
+        targetUid: "admin-a",
+      }),
+    ).toThrow("Firebase Admin credentials");
   });
 
   it("allows dry-run planning with exactly one target", () => {

@@ -1,31 +1,88 @@
+import { pathToFileURL } from "node:url";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 const confirmationValue = "assign-first-admin";
 
-function parseServiceAccount() {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+function isPlaceholderCredential(value) {
+  const trimmed = value.trim();
 
-  if (!raw || raw.trim() === "{}" || raw.includes("your-")) {
+  return (
+    trimmed === "" ||
+    trimmed === "{}" ||
+    trimmed === "{ }" ||
+    trimmed === "..." ||
+    trimmed.startsWith("replace-with-") ||
+    trimmed.includes("your-")
+  );
+}
+
+function parseServiceAccountJson(raw) {
+  if (!raw || isPlaceholderCredential(raw)) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+
+    if (
+      typeof parsed.project_id !== "string" ||
+      typeof parsed.client_email !== "string" ||
+      typeof parsed.private_key !== "string"
+    ) {
+      return null;
+    }
+
+    const projectId = parsed.project_id.trim();
+    const clientEmail = parsed.client_email.trim();
+    const privateKey = parsed.private_key.replace(/\\n/g, "\n").trim();
+
+    if (
+      isPlaceholderCredential(projectId) ||
+      isPlaceholderCredential(clientEmail) ||
+      isPlaceholderCredential(privateKey)
+    ) {
+      return null;
+    }
+
+    return { projectId, clientEmail, privateKey };
+  } catch {
+    return null;
+  }
+}
+
+function parseSplitServiceAccountEnv(env) {
+  const projectId = env.FIREBASE_PROJECT_ID?.trim();
+  const clientEmail = env.FIREBASE_CLIENT_EMAIL?.trim();
+  const privateKey = env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
+
+  if (!projectId || !clientEmail || !privateKey) {
+    return null;
+  }
+
+  if (
+    isPlaceholderCredential(projectId) ||
+    isPlaceholderCredential(clientEmail) ||
+    isPlaceholderCredential(privateKey)
+  ) {
+    return null;
+  }
+
+  return { projectId, clientEmail, privateKey };
+}
+
+export function parseFirstAdminServiceAccount(env = process.env) {
+  const serviceAccount =
+    parseServiceAccountJson(env.FIREBASE_SERVICE_ACCOUNT_JSON) ?? parseSplitServiceAccountEnv(env);
+
+  if (!serviceAccount) {
     throw new Error(
-      "Set a real server-only FIREBASE_SERVICE_ACCOUNT_JSON before running this script.",
+      "Set real server-only Firebase Admin credentials before running this script: FIREBASE_SERVICE_ACCOUNT_JSON or the complete FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY set.",
     );
   }
 
-  const parsed = JSON.parse(raw);
-
-  if (!parsed.project_id || !parsed.client_email || !parsed.private_key) {
-    throw new Error(
-      "FIREBASE_SERVICE_ACCOUNT_JSON must include project_id, client_email, and private_key.",
-    );
-  }
-
-  return {
-    projectId: parsed.project_id,
-    clientEmail: parsed.client_email,
-    privateKey: parsed.private_key.replace(/\\n/g, "\n"),
-  };
+  return serviceAccount;
 }
 
 async function resolveTargetUid(auth) {
@@ -50,7 +107,7 @@ async function resolveTargetUid(auth) {
 }
 
 async function main() {
-  const serviceAccount = parseServiceAccount();
+  const serviceAccount = parseFirstAdminServiceAccount();
   const dryRun = process.env.FIREBASE_ADMIN_CONFIRM_ASSIGNMENT !== confirmationValue;
 
   if (getApps().length === 0) {
@@ -88,7 +145,9 @@ async function main() {
   console.log("First admin assignment completed.");
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}

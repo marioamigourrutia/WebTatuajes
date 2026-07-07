@@ -98,7 +98,7 @@ No se deben commitear valores reales de:
 
 Se recomienda documentar variables esperadas en un archivo de ejemplo sin valores reales cuando se cree la aplicación.
 
-En Vercel, `NEXT_PUBLIC_FIREBASE_*` puede configurarse como variables públicas del cliente. `FIREBASE_SERVICE_ACCOUNT_JSON` debe ser server-only y nunca debe aparecer en bundles cliente, logs ni documentación con valores reales.
+In Vercel, `NEXT_PUBLIC_FIREBASE_*` may be configured as public client variables. Firebase Admin credentials must be server-only: use `FIREBASE_SERVICE_ACCOUNT_JSON` or the complete `FIREBASE_PROJECT_ID`/`FIREBASE_CLIENT_EMAIL`/`FIREBASE_PRIVATE_KEY` set. Incomplete or placeholder credentials are invalid and must never appear in client bundles, logs, or documentation with real values.
 
 ## Alineación Supabase/PostgreSQL/RLS → Firebase
 

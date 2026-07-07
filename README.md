@@ -132,42 +132,44 @@ npm run admin:seed-local # crea admin@example.test en emuladores locales
 
 ## Variables de entorno
 
-| Variable                                     | Uso                                                                                                                                                                                                         |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`                       | URL pública canónica del sitio para metadata, sitemap, enlaces y callbacks internos. En local puede usar `http://localhost:3000`; en Vercel debe apuntar al dominio público final. |
-| `NEXT_PUBLIC_STUDIO_NAME`                    | Nombre público del estudio. Por defecto `HuespedTattooStudio`.                                                                                                                                              |
-| `NEXT_PUBLIC_ARTIST_NAME`                    | Nombre público del artista. Por defecto `Mario Amigo Urrutia`.                                                                                                                                              |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`               | API key pública del proyecto Firebase.                                                                                                                                                                      |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`           | Auth domain público de Firebase.                                                                                                                                                                            |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`            | ID público del proyecto Firebase.                                                                                                                                                                           |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`        | Bucket público configurado en Firebase.                                                                                                                                                                     |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`   | Sender ID público de Firebase.                                                                                                                                                                              |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`                | App ID público de Firebase.                                                                                                                                                                                 |
-| `NEXT_PUBLIC_QUOTE_FILE_UPLOADS_ENABLED`     | Legacy: ya no habilita uploads en cotizaciones públicas. Las referencias/fotos se envían por WhatsApp.                                                                                                      |
-| `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_ENABLED` | Opt-in explícito para conectar Firebase Auth cliente al emulador; ignorado en producción.                                                                                                                   |
-| `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL`     | URL del Auth Emulator para cliente local, por defecto `http://127.0.0.1:9099`.                                                                                                                              |
-| `FIREBASE_PROJECT_ID`                        | Project id server-side para emuladores/Admin SDK local.                                                                                                                                                     |
-| `FIREBASE_AUTH_EMULATOR_HOST`                | Host server-side del Auth Emulator, sin protocolo.                                                                                                                                                          |
-| `FIRESTORE_EMULATOR_HOST`                    | Host server-side del Firestore Emulator, sin protocolo.                                                                                                                                                     |
-| `FIREBASE_STORAGE_EMULATOR_HOST`             | Host server-side del Storage Emulator, sin protocolo; necesario para que Admin Storage apunte al emulador local. Si ya tienes `.env.local`, agrégalo manualmente.                                           |
-| `FIREBASE_SERVICE_ACCOUNT_JSON`              | JSON server-only de Firebase Admin. No usar valores reales en git ni exponer al cliente.                                                                                                                    |
-| `FIRST_ADMIN_UID`                            | UID objetivo para el script controlado de primer admin. Usar este valor o email, no ambos.                                                                                                                  |
-| `FIRST_ADMIN_EMAIL`                          | Email objetivo para resolver el UID del primer admin. Usar este valor o UID, no ambos.                                                                                                                      |
-| `FIREBASE_ADMIN_CONFIRM_ASSIGNMENT`          | Debe valer `assign-first-admin` para escribir; vacío ejecuta dry-run.                                                                                                                                       |
-| `NEXT_PUBLIC_WHATSAPP_PHONE`                 | Número para enlace click-to-chat.                                                                                                                                                                           |
-| `NEXT_PUBLIC_WHATSAPP_MESSAGE`               | Mensaje prellenado de WhatsApp.                                                                                                                                                                             |
-| `NEXT_PUBLIC_APP_LOCALE`                     | Locale de la app, por defecto `es-CL`.                                                                                                                                                                      |
-| `NEXT_PUBLIC_APP_TIME_ZONE`                  | Zona horaria, por defecto `America/Santiago`.                                                                                                                                                               |
-| `IMAGE_UPLOAD_PROVIDER`                      | Proveedor externo de imágenes: `disabled` o `cloudinary` si ya existe configuración. Por defecto `disabled`; no requiere Supabase.                                                                            |
-| `IMAGE_UPLOAD_MAX_SIZE_BYTES`                | Tamaño máximo server-side por imagen. Por defecto `5242880` (5 MB).                                                                                                                                         |
-| `CLOUDINARY_CLOUD_NAME`                      | Legacy Cloudinary, server-side. Mantener vacío salvo que se siga usando compatibilidad previa.                                                                                                              |
-| `CLOUDINARY_API_KEY`                         | Legacy Cloudinary API key server-side. No exponer en cliente.                                                                                                                                               |
-| `CLOUDINARY_API_SECRET`                      | Legacy Cloudinary API secret server-side. Nunca commitear ni usar con prefijo `NEXT_PUBLIC_`.                                                                                                               |
-| `CLOUDINARY_UPLOAD_FOLDER`                   | Carpeta base legacy para uploads Cloudinary, por defecto `webtatuajes`.                                                                                                                                     |
-| `INSTAGRAM_IG_USER_ID`                       | ID de usuario profesional/creator de Instagram para la API oficial. Server-only.                                                                                                                            |
-| `INSTAGRAM_ACCESS_TOKEN`                     | Token server-only para consultar `/{ig-user-id}/media`. Nunca usar browser tokens, scraping ni prefijo `NEXT_PUBLIC_`.                                                                                      |
-| `INSTAGRAM_APP_ID`                           | App ID de Meta server-only para preparar integración oficial.                                                                                                                                               |
-| `INSTAGRAM_APP_SECRET`                       | App secret de Meta server-only. Nunca commitear ni exponer al cliente.                                                                                                                                      |
+| Variable                                     | Uso                                                                                                                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_SITE_URL`                       | URL pública canónica del sitio para metadata, sitemap, enlaces y callbacks internos. En local puede usar `http://localhost:3000`; en Vercel debe apuntar al dominio público final.         |
+| `NEXT_PUBLIC_STUDIO_NAME`                    | Nombre público del estudio. Por defecto `HuespedTattooStudio`.                                                                                                                             |
+| `NEXT_PUBLIC_ARTIST_NAME`                    | Nombre público del artista. Por defecto `Mario Amigo Urrutia`.                                                                                                                             |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`               | API key pública del proyecto Firebase.                                                                                                                                                     |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`           | Auth domain público de Firebase.                                                                                                                                                           |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`            | ID público del proyecto Firebase.                                                                                                                                                          |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`        | Bucket público configurado en Firebase.                                                                                                                                                    |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`   | Sender ID público de Firebase.                                                                                                                                                             |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`                | App ID público de Firebase.                                                                                                                                                                |
+| `NEXT_PUBLIC_QUOTE_FILE_UPLOADS_ENABLED`     | Legacy: ya no habilita uploads en cotizaciones públicas. Las referencias/fotos se envían por WhatsApp.                                                                                     |
+| `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_ENABLED` | Opt-in explícito para conectar Firebase Auth cliente al emulador; ignorado en producción.                                                                                                  |
+| `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL`     | URL del Auth Emulator para cliente local, por defecto `http://127.0.0.1:9099`.                                                                                                             |
+| `FIREBASE_PROJECT_ID`                        | Project id server-side para emuladores o para credenciales Admin SDK divididas.                                                                                                            |
+| `FIREBASE_CLIENT_EMAIL`                      | Client email server-only de Firebase Admin cuando se usan credenciales divididas. No exponer al cliente.                                                                                   |
+| `FIREBASE_PRIVATE_KEY`                       | Private key server-only de Firebase Admin cuando se usan credenciales divididas. Acepta `\\n` escapados. No exponer al cliente.                                                            |
+| `FIREBASE_AUTH_EMULATOR_HOST`                | Host server-side del Auth Emulator, sin protocolo.                                                                                                                                         |
+| `FIRESTORE_EMULATOR_HOST`                    | Host server-side del Firestore Emulator, sin protocolo.                                                                                                                                    |
+| `FIREBASE_STORAGE_EMULATOR_HOST`             | Host server-side del Storage Emulator, sin protocolo; necesario para que Admin Storage apunte al emulador local. Si ya tienes `.env.local`, agrégalo manualmente.                          |
+| `FIREBASE_SERVICE_ACCOUNT_JSON`              | JSON server-only de Firebase Admin. Alternativa al set dividido `FIREBASE_PROJECT_ID`/`FIREBASE_CLIENT_EMAIL`/`FIREBASE_PRIVATE_KEY`. No usar valores reales en git ni exponer al cliente. |
+| `FIRST_ADMIN_UID`                            | UID objetivo para el script controlado de primer admin. Usar este valor o email, no ambos.                                                                                                 |
+| `FIRST_ADMIN_EMAIL`                          | Email objetivo para resolver el UID del primer admin. Usar este valor o UID, no ambos.                                                                                                     |
+| `FIREBASE_ADMIN_CONFIRM_ASSIGNMENT`          | Debe valer `assign-first-admin` para escribir; vacío ejecuta dry-run.                                                                                                                      |
+| `NEXT_PUBLIC_WHATSAPP_PHONE`                 | Número para enlace click-to-chat.                                                                                                                                                          |
+| `NEXT_PUBLIC_WHATSAPP_MESSAGE`               | Mensaje prellenado de WhatsApp.                                                                                                                                                            |
+| `NEXT_PUBLIC_APP_LOCALE`                     | Locale de la app, por defecto `es-CL`.                                                                                                                                                     |
+| `NEXT_PUBLIC_APP_TIME_ZONE`                  | Zona horaria, por defecto `America/Santiago`.                                                                                                                                              |
+| `IMAGE_UPLOAD_PROVIDER`                      | Proveedor externo de imágenes: `disabled` o `cloudinary` si ya existe configuración. Por defecto `disabled`; no requiere Supabase.                                                         |
+| `IMAGE_UPLOAD_MAX_SIZE_BYTES`                | Tamaño máximo server-side por imagen. Por defecto `5242880` (5 MB).                                                                                                                        |
+| `CLOUDINARY_CLOUD_NAME`                      | Legacy Cloudinary, server-side. Mantener vacío salvo que se siga usando compatibilidad previa.                                                                                             |
+| `CLOUDINARY_API_KEY`                         | Legacy Cloudinary API key server-side. No exponer en cliente.                                                                                                                              |
+| `CLOUDINARY_API_SECRET`                      | Legacy Cloudinary API secret server-side. Nunca commitear ni usar con prefijo `NEXT_PUBLIC_`.                                                                                              |
+| `CLOUDINARY_UPLOAD_FOLDER`                   | Carpeta base legacy para uploads Cloudinary, por defecto `webtatuajes`.                                                                                                                    |
+| `INSTAGRAM_IG_USER_ID`                       | ID de usuario profesional/creator de Instagram para la API oficial. Server-only.                                                                                                           |
+| `INSTAGRAM_ACCESS_TOKEN`                     | Token server-only para consultar `/{ig-user-id}/media`. Nunca usar browser tokens, scraping ni prefijo `NEXT_PUBLIC_`.                                                                     |
+| `INSTAGRAM_APP_ID`                           | App ID de Meta server-only para preparar integración oficial.                                                                                                                              |
+| `INSTAGRAM_APP_SECRET`                       | App secret de Meta server-only. Nunca commitear ni exponer al cliente.                                                                                                                     |
 
 ### Instagram oficial y fallback manual
 
@@ -204,12 +206,24 @@ Firebase Auth sigue usándose para administración. No habilites email-link como
 
 ### Asignación controlada del primer admin
 
-El repositorio incluye `npm run admin:assign-first-admin` para preparar la primera cuenta administradora sin abrir una ruta pública ni permitir self-service desde cliente. El script exige `FIREBASE_SERVICE_ACCOUNT_JSON` server-only y exactamente un objetivo: `FIRST_ADMIN_UID` o `FIRST_ADMIN_EMAIL`.
+The repository includes `npm run admin:assign-first-admin` to prepare the first admin account without opening a public route or allowing client-side self-service. The script requires valid server-only Firebase Admin credentials through `FIREBASE_SERVICE_ACCOUNT_JSON` or the complete `FIREBASE_PROJECT_ID`/`FIREBASE_CLIENT_EMAIL`/`FIREBASE_PRIVATE_KEY` set, plus exactly one target: `FIRST_ADMIN_UID` or `FIRST_ADMIN_EMAIL`. Incomplete or placeholder credentials are invalid.
 
 Por defecto corre en dry-run y no escribe cambios:
 
 ```bash
-FIREBASE_SERVICE_ACCOUNT_JSON='{"project_id":"...","client_email":"...","private_key":"..."}' \
+FIREBASE_SERVICE_ACCOUNT_JSON='{"project_id":"replace-with-project-id","client_email":"replace-with-client-email","private_key":"replace-with-private-key"}' \
+FIRST_ADMIN_EMAIL=owner@example.com \
+npm run admin:assign-first-admin
+```
+
+Replace every `replace-with-*` value with real Firebase Admin credentials before running; placeholder values are rejected.
+
+You can also use split server-only variables:
+
+```bash
+FIREBASE_PROJECT_ID='replace-with-project-id' \
+FIREBASE_CLIENT_EMAIL='replace-with-client-email' \
+FIREBASE_PRIVATE_KEY='replace-with-private-key' \
 FIRST_ADMIN_EMAIL=owner@example.com \
 npm run admin:assign-first-admin
 ```
@@ -217,7 +231,7 @@ npm run admin:assign-first-admin
 Para escribir el rol `admin` en `profiles/{uid}` y sincronizar el custom claim, agrega la confirmación explícita:
 
 ```bash
-FIREBASE_SERVICE_ACCOUNT_JSON='{"project_id":"...","client_email":"...","private_key":"..."}' \
+FIREBASE_SERVICE_ACCOUNT_JSON='{"project_id":"replace-with-project-id","client_email":"replace-with-client-email","private_key":"replace-with-private-key"}' \
 FIRST_ADMIN_EMAIL=owner@example.com \
 FIREBASE_ADMIN_CONFIRM_ASSIGNMENT=assign-first-admin \
 npm run admin:assign-first-admin

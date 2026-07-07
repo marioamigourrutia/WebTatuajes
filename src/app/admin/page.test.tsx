@@ -42,7 +42,7 @@ describe("admin page initial status", () => {
       admin: false,
       profile: null,
       configurationMessage:
-        "Firebase Admin no está configurado en este entorno. Configura FIREBASE_SERVICE_ACCOUNT_JSON en Vercel para habilitar la validación server-side del panel admin.",
+        "Firebase Admin is not configured in this environment. Configure server-only FIREBASE_SERVICE_ACCOUNT_JSON or the complete FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY set in Vercel to enable server-side admin validation.",
     });
     expect(getServerAuthStatusFromSessionCookieMock).not.toHaveBeenCalled();
   });
@@ -55,7 +55,7 @@ describe("admin page initial status", () => {
       admin: false,
       profile: null,
       configurationMessage:
-        "No se pudo inicializar Firebase Admin con la configuración actual. Revisa FIREBASE_SERVICE_ACCOUNT_JSON en Vercel antes de usar el panel admin.",
+        "Firebase Admin could not initialize with the current configuration. Check that Vercel has either valid FIREBASE_SERVICE_ACCOUNT_JSON or the complete FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY set before using the admin panel.",
     });
   });
 });

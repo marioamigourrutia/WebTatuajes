@@ -95,7 +95,7 @@ Para desarrollo local:
 3. Mantener credenciales reales fuera de git.
 4. Ejecutar pruebas de reglas antes de habilitar o modificar flujos privados.
 
-En Vercel se deben configurar las mismas `NEXT_PUBLIC_FIREBASE_*` para cliente y `FIREBASE_SERVICE_ACCOUNT_JSON` solo como variable server-side. No exponer service accounts en código, logs, bundles cliente ni documentación pública. El helper Admin no inicializa Firebase si `FIREBASE_SERVICE_ACCOUNT_JSON` falta, es `{}` o contiene placeholders.
+En Vercel se deben configurar las mismas `NEXT_PUBLIC_FIREBASE_*` para cliente y credenciales Admin SDK solo server-side. El helper acepta `FIREBASE_SERVICE_ACCOUNT_JSON` o el set dividido `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`. No exponer service accounts en código, logs, bundles cliente ni documentación pública. El helper Admin no inicializa Firebase si las credenciales faltan, están incompletas o contienen placeholders.
 
 ## Nota de alineación: Supabase/PostgreSQL/RLS → Firebase
 

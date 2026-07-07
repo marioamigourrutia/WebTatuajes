@@ -2,7 +2,7 @@
 
 ## Variables y servicios
 
-- Configurar Firebase client/admin: `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`.
+- Configurar Firebase client/admin: `NEXT_PUBLIC_FIREBASE_*` y credenciales server-only de Admin SDK. Se admite `FIREBASE_SERVICE_ACCOUNT_JSON` o el set dividido `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`.
 - Configurar `NEXT_PUBLIC_SITE_URL`, WhatsApp público y credenciales de Instagram si se usa sincronización.
 - No configurar Supabase para el flujo actual. Las cotizaciones públicas envían referencias por WhatsApp y la estrategia de imágenes es URL-only/manual salvo proveedor compatible ya existente.
 - Ajustar límites base por entorno: `RATE_LIMIT_*_LIMIT` y `RATE_LIMIT_*_WINDOW_MS`, incluyendo el bucket dedicado de bajas de comunidad `RATE_LIMIT_COMMUNITY_MEMBERS_UNSUBSCRIBE_*`. El fallback en memoria sigue activo aunque no se configuren.

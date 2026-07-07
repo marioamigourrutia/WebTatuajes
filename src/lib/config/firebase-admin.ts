@@ -4,7 +4,7 @@ export type FirebaseAdminServiceAccount = {
   privateKey: string;
 };
 
-const placeholderServiceAccountValues = new Set(["", "{}", "{ }"]);
+const placeholderServiceAccountValues = new Set(["", "{}", "{ }", "..."]);
 
 type RawServiceAccount = {
   project_id?: unknown;
@@ -12,10 +12,16 @@ type RawServiceAccount = {
   private_key?: unknown;
 };
 
+type FirebaseAdminEnvironment = Record<string, string | undefined>;
+
 function isPlaceholderServiceAccount(value: string): boolean {
   const trimmed = value.trim();
 
-  return placeholderServiceAccountValues.has(trimmed) || trimmed.includes("your-");
+  return (
+    placeholderServiceAccountValues.has(trimmed) ||
+    trimmed.startsWith("replace-with-") ||
+    trimmed.includes("your-")
+  );
 }
 
 export function parseFirebaseServiceAccountJson(
@@ -45,7 +51,33 @@ export function parseFirebaseServiceAccountJson(
   const clientEmail = parsed.client_email.trim();
   const privateKey = parsed.private_key.replace(/\\n/g, "\n").trim();
 
+  if (
+    isPlaceholderServiceAccount(projectId) ||
+    isPlaceholderServiceAccount(clientEmail) ||
+    isPlaceholderServiceAccount(privateKey)
+  ) {
+    return null;
+  }
+
+  return { projectId, clientEmail, privateKey };
+}
+
+export function parseFirebaseSplitServiceAccountEnv(
+  env: FirebaseAdminEnvironment,
+): FirebaseAdminServiceAccount | null {
+  const projectId = env.FIREBASE_PROJECT_ID?.trim();
+  const clientEmail = env.FIREBASE_CLIENT_EMAIL?.trim();
+  const privateKey = env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
+
   if (!projectId || !clientEmail || !privateKey) {
+    return null;
+  }
+
+  if (
+    isPlaceholderServiceAccount(projectId) ||
+    isPlaceholderServiceAccount(clientEmail) ||
+    isPlaceholderServiceAccount(privateKey)
+  ) {
     return null;
   }
 
@@ -53,7 +85,10 @@ export function parseFirebaseServiceAccountJson(
 }
 
 export function getFirebaseAdminServiceAccount(): FirebaseAdminServiceAccount | null {
-  return parseFirebaseServiceAccountJson(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  return (
+    parseFirebaseServiceAccountJson(process.env.FIREBASE_SERVICE_ACCOUNT_JSON) ??
+    parseFirebaseSplitServiceAccountEnv(process.env)
+  );
 }
 
 export function isFirebaseAdminEmulatorEnabled(): boolean {
@@ -79,7 +114,7 @@ export function requireFirebaseAdminServiceAccount(): FirebaseAdminServiceAccoun
 
   if (!serviceAccount) {
     throw new Error(
-      "Firebase Admin service account is missing or still a placeholder. Set FIREBASE_SERVICE_ACCOUNT_JSON only in a server environment.",
+      "Firebase Admin service account is missing, incomplete, or still a placeholder. Set server-only FIREBASE_SERVICE_ACCOUNT_JSON or the complete FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY set.",
     );
   }
 

@@ -3,6 +3,7 @@ import {
   getFirebaseAdminProjectId,
   isFirebaseAdminBackendConfigured,
   isFirebaseAdminEmulatorEnabled,
+  parseFirebaseSplitServiceAccountEnv,
   parseFirebaseServiceAccountJson,
 } from "./firebase-admin";
 
@@ -28,12 +29,80 @@ describe("firebase admin configuration", () => {
     expect(parseFirebaseServiceAccountJson(JSON.stringify({ project_id: "demo" }))).toBeNull();
   });
 
+  it("rejects ellipsis placeholders in service account JSON fields", () => {
+    expect(
+      parseFirebaseServiceAccountJson(
+        JSON.stringify({
+          project_id: "...",
+          client_email: "firebase-adminsdk@example.iam.gserviceaccount.com",
+          private_key: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects documented replace-with placeholders in service account JSON fields", () => {
+    expect(
+      parseFirebaseServiceAccountJson(
+        JSON.stringify({
+          project_id: "replace-with-project-id",
+          client_email: "firebase-adminsdk@example.iam.gserviceaccount.com",
+          private_key: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",
+        }),
+      ),
+    ).toBeNull();
+  });
+
   it("normalizes a valid service account without exposing secrets", () => {
     expect(parseFirebaseServiceAccountJson(validServiceAccount)).toEqual({
       projectId: "webtatuajes-test",
       clientEmail: "firebase-adminsdk@example.iam.gserviceaccount.com",
       privateKey: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----",
     });
+  });
+
+  it("normalizes split Firebase Admin environment variables", () => {
+    expect(
+      parseFirebaseSplitServiceAccountEnv({
+        FIREBASE_PROJECT_ID: "webtatuajes-prod",
+        FIREBASE_CLIENT_EMAIL: "firebase-adminsdk@example.iam.gserviceaccount.com",
+        FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",
+      }),
+    ).toEqual({
+      projectId: "webtatuajes-prod",
+      clientEmail: "firebase-adminsdk@example.iam.gserviceaccount.com",
+      privateKey: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----",
+    });
+  });
+
+  it("rejects incomplete or placeholder split Firebase Admin environment variables", () => {
+    expect(
+      parseFirebaseSplitServiceAccountEnv({
+        FIREBASE_PROJECT_ID: "webtatuajes-prod",
+        FIREBASE_CLIENT_EMAIL: "firebase-adminsdk@example.iam.gserviceaccount.com",
+      }),
+    ).toBeNull();
+    expect(
+      parseFirebaseSplitServiceAccountEnv({
+        FIREBASE_PROJECT_ID: "your-project-id",
+        FIREBASE_CLIENT_EMAIL: "firebase-adminsdk@example.iam.gserviceaccount.com",
+        FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",
+      }),
+    ).toBeNull();
+    expect(
+      parseFirebaseSplitServiceAccountEnv({
+        FIREBASE_PROJECT_ID: "...",
+        FIREBASE_CLIENT_EMAIL: "firebase-adminsdk@example.iam.gserviceaccount.com",
+        FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",
+      }),
+    ).toBeNull();
+    expect(
+      parseFirebaseSplitServiceAccountEnv({
+        FIREBASE_PROJECT_ID: "replace-with-project-id",
+        FIREBASE_CLIENT_EMAIL: "firebase-adminsdk@example.iam.gserviceaccount.com",
+        FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",
+      }),
+    ).toBeNull();
   });
 
   it("allows Admin SDK emulator mode only outside production with both emulator hosts", () => {
@@ -60,6 +129,18 @@ describe("firebase admin configuration", () => {
     vi.stubEnv("FIREBASE_SERVICE_ACCOUNT_JSON", validServiceAccount);
 
     expect(isFirebaseAdminBackendConfigured()).toBe(true);
+  });
+
+  it("marks the Admin backend configured with split service account variables", () => {
+    vi.stubEnv("FIREBASE_PROJECT_ID", "webtatuajes-prod");
+    vi.stubEnv("FIREBASE_CLIENT_EMAIL", "firebase-adminsdk@example.iam.gserviceaccount.com");
+    vi.stubEnv(
+      "FIREBASE_PRIVATE_KEY",
+      "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",
+    );
+
+    expect(isFirebaseAdminBackendConfigured()).toBe(true);
+    expect(getFirebaseAdminProjectId()).toBe("webtatuajes-prod");
   });
 
   it("does not allow Admin SDK emulator mode in production", () => {

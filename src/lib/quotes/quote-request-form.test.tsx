@@ -16,6 +16,30 @@ function mockCalendarFetchWithQuoteResponse(quoteResponse: Record<string, unknow
   });
 }
 
+function mockCalendarFetchWithDates(dates: Array<{ date: string; status: string }>) {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    void init;
+    const url = String(input);
+    if (url.startsWith("/api/calendar/availability")) {
+      return { ok: true, json: async () => ({ dates }) };
+    }
+    if (url === "/api/quotes") {
+      return { ok: true, json: async () => ({}) };
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  });
+}
+
+function addMonths(month: string, offset: number) {
+  const [year = new Date().getUTCFullYear(), monthNumber = 1] = month.split("-").map(Number);
+  const date = new Date(Date.UTC(year, monthNumber - 1 + offset, 1, 12));
+  return date.toISOString().slice(0, 7);
+}
+
+function dateInMonth(month: string, day: number) {
+  return `${month}-${String(day).padStart(2, "0")}`;
+}
+
 function fillRequiredQuoteFields(container: HTMLElement) {
   fireEvent.change(container.querySelector<HTMLInputElement>('input[name="customerName"]')!, {
     target: { value: "Ana" },
@@ -32,7 +56,9 @@ function fillRequiredQuoteFields(container: HTMLElement) {
   fireEvent.change(container.querySelector<HTMLInputElement>('input[name="approximateSize"]')!, {
     target: { value: "10 cm" },
   });
-  fireEvent.click(container.querySelector<HTMLInputElement>('input[name="dataProcessingConsent"]')!);
+  fireEvent.click(
+    container.querySelector<HTMLInputElement>('input[name="dataProcessingConsent"]')!,
+  );
   fireEvent.click(container.querySelector<HTMLInputElement>('input[name="imageHandlingConsent"]')!);
   fireEvent.click(container.querySelector<HTMLInputElement>('input[name="privacyTermsConsent"]')!);
 }
@@ -43,11 +69,12 @@ describe("QuoteRequestForm public quote flow", () => {
     vi.stubGlobal("open", vi.fn());
   });
 
-  it("does not render Firebase email verification controls", () => {
+  it("does not render Firebase email verification controls", async () => {
     vi.stubGlobal("fetch", mockCalendarFetchWithQuoteResponse({}));
 
     render(<QuoteRequestForm />);
 
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
     expect(screen.queryByRole("button", { name: "Verificar email" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Usar otro email" })).not.toBeInTheDocument();
   });
@@ -84,5 +111,64 @@ describe("QuoteRequestForm public quote flow", () => {
     expect(container.querySelector('[name="referenceUrls"]')).toBeNull();
     expect(container.querySelector('[name="referenceImages"]')).toBeNull();
     expect(screen.getByText(/Las referencias, fotos o enlaces/)).toBeInTheDocument();
+  });
+
+  it("renders available calendar dates, disables unavailable dates, and stores the selected date", async () => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const availableDay = dateInMonth(currentMonth, 15);
+    vi.stubGlobal(
+      "fetch",
+      mockCalendarFetchWithDates([
+        { date: availableDay, status: "AVAILABLE" },
+        { date: dateInMonth(currentMonth, 16), status: "PENDING_CONFIRMATION" },
+        { date: dateInMonth(currentMonth, 17), status: "OCCUPIED" },
+      ]),
+    );
+
+    const { container } = render(<QuoteRequestForm />);
+
+    const availableDate = (await screen.findByText("Libre")).closest("button");
+    const pendingDate = screen.getByText("Por confirmar").closest("button");
+    const occupiedDate = screen.getByText("Ocupado").closest("button");
+
+    expect(availableDate).not.toBeNull();
+    expect(pendingDate).not.toBeNull();
+    expect(occupiedDate).not.toBeNull();
+
+    if (!availableDate || !pendingDate || !occupiedDate) {
+      throw new Error("Expected calendar date buttons to render.");
+    }
+
+    expect(availableDate).toBeEnabled();
+    expect(pendingDate).toBeDisabled();
+    expect(occupiedDate).toBeDisabled();
+
+    fireEvent.click(availableDate);
+
+    expect(availableDate).toHaveAttribute("aria-pressed", "true");
+    expect(
+      container.querySelector<HTMLInputElement>('input[name="preferredTattooDate"]')?.value,
+    ).toBe(availableDay);
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  });
+
+  it("loads availability for the next month when navigating the public calendar", async () => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const fetchMock = mockCalendarFetchWithDates([
+      { date: dateInMonth(currentMonth, 15), status: "AVAILABLE" },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    const nextMonth = addMonths(currentMonth, 1);
+
+    render(<QuoteRequestForm />);
+
+    await screen.findByText("Libre");
+    fireEvent.click(screen.getByRole("button", { name: "Mes siguiente" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/calendar/availability?month=${encodeURIComponent(nextMonth)}`,
+      ),
+    );
   });
 });
