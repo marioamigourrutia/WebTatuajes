@@ -247,6 +247,7 @@ export function AdminStatusPanel({
   const [confirmingReservationQuoteId, setConfirmingReservationQuoteId] = useState<string | null>(
     null,
   );
+  const [decidingAppointmentQuoteId, setDecidingAppointmentQuoteId] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [depositDrafts, setDepositDrafts] = useState<Record<string, DepositDraft>>({});
   const [imagePreviewUrls, setImagePreviewUrls] = useState<Record<string, string>>({});
@@ -593,6 +594,61 @@ export function AdminStatusPanel({
       setError("No se pudo conectar con la ruta server-side de confirmación.");
     } finally {
       setConfirmingReservationQuoteId(null);
+    }
+  }
+
+  async function decideAppointment(quote: RecentQuoteRequest, action: "approve" | "reject") {
+    if (!user) {
+      setError("Inicia sesión antes de aprobar o rechazar una cita.");
+      return;
+    }
+
+    setDecidingAppointmentQuoteId(quote.id);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch("/api/admin/quotes/appointment", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ quoteId: quote.id, action }),
+      });
+      const body = (await response.json()) as {
+        error?: string;
+        status?: string;
+        calendarDateStatus?: string | null;
+      };
+
+      if (!response.ok || !body.status) {
+        setError(body.error ?? "No se pudo actualizar la cita.");
+        return;
+      }
+
+      setQuotes((currentQuotes) =>
+        currentQuotes.map((currentQuote) =>
+          currentQuote.id === quote.id
+            ? {
+                ...currentQuote,
+                status: body.status ?? currentQuote.status,
+                calendarDateStatus: body.calendarDateStatus ?? currentQuote.calendarDateStatus,
+              }
+            : currentQuote,
+        ),
+      );
+      setNotice(
+        action === "approve"
+          ? "Cita aprobada y fecha ocupada."
+          : "Cita rechazada y fecha liberada.",
+      );
+      await loadAdminCalendarMonth(calendarMonth);
+    } catch {
+      setError("No se pudo conectar con la ruta server-side de citas.");
+    } finally {
+      setDecidingAppointmentQuoteId(null);
     }
   }
 
@@ -1435,6 +1491,37 @@ export function AdminStatusPanel({
                     {quote.preferredTattooDate &&
                     quote.calendarDateStatus === "PENDING_CONFIRMATION" ? (
                       <div className="mt-4 space-y-3 rounded-xl border border-amber-300/30 bg-amber-950/20 p-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
+                            Decisión de cita
+                          </p>
+                          <p className="mt-1 text-sm text-stone-400">
+                            Aprobar ocupa la fecha; rechazar libera la fecha solo si sigue asociada
+                            a esta solicitud.
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            className="rounded-full bg-emerald-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={decidingAppointmentQuoteId === quote.id}
+                            onClick={() => decideAppointment(quote, "approve")}
+                            type="button"
+                          >
+                            {decidingAppointmentQuoteId === quote.id
+                              ? "Actualizando…"
+                              : "Aprobar cita"}
+                          </button>
+                          <button
+                            className="rounded-full border border-red-300/60 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-300 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={decidingAppointmentQuoteId === quote.id}
+                            onClick={() => decideAppointment(quote, "reject")}
+                            type="button"
+                          >
+                            {decidingAppointmentQuoteId === quote.id
+                              ? "Actualizando…"
+                              : "Rechazar cita"}
+                          </button>
+                        </div>
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
                             Abono manual

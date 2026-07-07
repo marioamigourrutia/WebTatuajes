@@ -19,6 +19,8 @@ export const quoteStatuses = ["pending", "contacted", "closed", "spam"] as const
 export type PreferredContactMethod = (typeof preferredContactMethods)[number];
 export type QuoteStatus = (typeof quoteStatuses)[number];
 const quoteStatusesThatReleasePendingCalendarDate: readonly QuoteStatus[] = ["closed", "spam"];
+export const quoteAppointmentActions = ["approve", "reject"] as const;
+export type QuoteAppointmentAction = (typeof quoteAppointmentActions)[number];
 
 export type QuoteRequestInput = {
   customerName: string;
@@ -1305,7 +1307,14 @@ function getOwnedPendingCalendarDate(
     calendarDateData.quote_id === quoteId &&
     (!calendarQuoteCode || (quoteCode !== "" && calendarQuoteCode === quoteCode));
 
-  return isOwnedByQuote && calendarDateStatus === "PENDING_CONFIRMATION";
+  return (
+    isOwnedByQuote &&
+    (calendarDateStatus === "PENDING_CONFIRMATION" || calendarDateStatus === "pending")
+  );
+}
+
+function isQuoteAppointmentAction(value: string): value is QuoteAppointmentAction {
+  return quoteAppointmentActions.includes(value as QuoteAppointmentAction);
 }
 
 function getQuoteCalendarDateId(quoteData: Record<string, unknown>) {
@@ -1401,6 +1410,97 @@ export async function updateQuoteRequestStatus(
   });
 
   return result;
+}
+
+export async function decideQuoteAppointment(
+  firestore: FirestoreLike,
+  quoteId: unknown,
+  action: unknown,
+) {
+  const cleanQuoteId = cleanString(quoteId);
+  const cleanAction = cleanString(action);
+
+  if (!cleanQuoteId) {
+    return { ok: false as const, status: 400, error: "Falta el ID de la solicitud." };
+  }
+
+  if (!isValidQuoteId(cleanQuoteId)) {
+    return { ok: false as const, status: 400, error: "ID de solicitud inválido." };
+  }
+
+  if (!isQuoteAppointmentAction(cleanAction)) {
+    return { ok: false as const, status: 400, error: "Acción de cita no permitida." };
+  }
+
+  const quoteReference = firestore.collection("quotes").doc(cleanQuoteId);
+
+  return firestore.runTransaction(async (transaction) => {
+    const transactionLike = transaction as TransactionLike;
+    const quoteSnapshot = await transactionLike.get(quoteReference);
+
+    if (!quoteSnapshot.exists) {
+      return { ok: false as const, status: 404, error: "La solicitud no existe." };
+    }
+
+    const quoteData = quoteSnapshot.data?.() ?? {};
+    const calendarDateId = getQuoteCalendarDateId(quoteData);
+
+    if (!calendarDateId) {
+      return {
+        ok: false as const,
+        status: 409,
+        error: "La solicitud no tiene una fecha preferida para decidir.",
+      };
+    }
+
+    const calendarDateReference = firestore.collection("calendar_dates").doc(calendarDateId);
+    const calendarDateSnapshot = await transactionLike.get(calendarDateReference);
+    const calendarDateData = calendarDateSnapshot.data?.() ?? {};
+
+    if (
+      !calendarDateSnapshot.exists ||
+      !getOwnedPendingCalendarDate(quoteData, calendarDateData, cleanQuoteId)
+    ) {
+      return {
+        ok: false as const,
+        status: 409,
+        error: "La fecha ya no está pendiente o pertenece a otra cotización.",
+      };
+    }
+
+    const calendarDateStatus =
+      cleanAction === "approve"
+        ? ("CONFIRMED" satisfies CalendarDateStatus)
+        : ("RELEASED" satisfies CalendarDateStatus);
+    const quoteStatus = cleanAction === "approve" ? "contacted" : "closed";
+    const timestampField = cleanAction === "approve" ? "approved_at" : "rejected_at";
+    const calendarTimestampField = cleanAction === "approve" ? "confirmed_at" : "released_at";
+
+    transactionLike.set(
+      calendarDateReference,
+      {
+        ...calendarDateData,
+        status: calendarDateStatus,
+        [calendarTimestampField]: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+    transactionLike.update(quoteReference, {
+      status: quoteStatus,
+      calendar_date_status: calendarDateStatus,
+      [timestampField]: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
+    });
+
+    return {
+      ok: true as const,
+      quoteId: cleanQuoteId,
+      action: cleanAction,
+      quoteStatus,
+      calendarDateStatus,
+    };
+  });
 }
 
 export async function recordQuoteDeposit(

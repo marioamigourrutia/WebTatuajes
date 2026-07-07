@@ -7,6 +7,7 @@ import {
   createQuoteRequest,
   createQuoteRequestFromFormData,
   createQuoteRequestWithReferenceImages,
+  decideQuoteAppointment,
   getAdminQuoteReferenceImageFile,
   getClientQuoteStatusByCode,
   listClientQuoteStatusesByCustomerId,
@@ -1814,6 +1815,125 @@ describe("quote request firestore helpers", () => {
         updated_at: expect.anything(),
       }),
     );
+  });
+
+  it("approves a pending appointment and marks its calendar date confirmed", async () => {
+    const { firestore, set, update } = mockReservationConfirmationFirestore({
+      quoteData: {
+        quote_code: "COT-2026-ABCDE",
+        calendar_date_id: "2026-07-15",
+        calendar_date_status: "PENDING_CONFIRMATION",
+      },
+      calendarData: {
+        date: "2026-07-15",
+        status: "PENDING_CONFIRMATION",
+        quote_id: "quote-1",
+        quote_code: "COT-2026-ABCDE",
+      },
+    });
+
+    await expect(decideQuoteAppointment(firestore as never, "quote-1", "approve")).resolves.toEqual(
+      {
+        ok: true,
+        quoteId: "quote-1",
+        action: "approve",
+        quoteStatus: "contacted",
+        calendarDateStatus: "CONFIRMED",
+      },
+    );
+
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "2026-07-15" }),
+      expect.objectContaining({
+        date: "2026-07-15",
+        status: "CONFIRMED",
+        quote_id: "quote-1",
+        confirmed_at: expect.anything(),
+        updated_at: expect.anything(),
+      }),
+      { merge: true },
+    );
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "quote-1" }),
+      expect.objectContaining({
+        status: "contacted",
+        calendar_date_status: "CONFIRMED",
+        approved_at: expect.anything(),
+        updated_at: expect.anything(),
+      }),
+    );
+  });
+
+  it("rejects a pending appointment and releases only its own calendar date", async () => {
+    const { firestore, set, update } = mockReservationConfirmationFirestore({
+      quoteData: {
+        quote_code: "COT-2026-ABCDE",
+        calendar_date_id: "2026-07-15",
+        calendar_date_status: "PENDING_CONFIRMATION",
+      },
+      calendarData: {
+        date: "2026-07-15",
+        status: "PENDING_CONFIRMATION",
+        quote_id: "quote-1",
+        quote_code: "COT-2026-ABCDE",
+      },
+    });
+
+    await expect(decideQuoteAppointment(firestore as never, "quote-1", "reject")).resolves.toEqual({
+      ok: true,
+      quoteId: "quote-1",
+      action: "reject",
+      quoteStatus: "closed",
+      calendarDateStatus: "RELEASED",
+    });
+
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "2026-07-15" }),
+      expect.objectContaining({
+        date: "2026-07-15",
+        status: "RELEASED",
+        quote_id: "quote-1",
+        released_at: expect.anything(),
+        updated_at: expect.anything(),
+      }),
+      { merge: true },
+    );
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "quote-1" }),
+      expect.objectContaining({
+        status: "closed",
+        calendar_date_status: "RELEASED",
+        rejected_at: expect.anything(),
+        updated_at: expect.anything(),
+      }),
+    );
+  });
+
+  it("does not approve an appointment date owned by another quote", async () => {
+    const { firestore, set, update } = mockReservationConfirmationFirestore({
+      quoteData: {
+        quote_code: "COT-2026-ABCDE",
+        calendar_date_id: "2026-07-15",
+        calendar_date_status: "PENDING_CONFIRMATION",
+      },
+      calendarData: {
+        date: "2026-07-15",
+        status: "PENDING_CONFIRMATION",
+        quote_id: "quote-2",
+        quote_code: "COT-2026-ZZZZZ",
+      },
+    });
+
+    await expect(decideQuoteAppointment(firestore as never, "quote-1", "approve")).resolves.toEqual(
+      {
+        ok: false,
+        status: 409,
+        error: "La fecha ya no está pendiente o pertenece a otra cotización.",
+      },
+    );
+
+    expect(set).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it("does not confirm a reservation before deposit verification", async () => {
