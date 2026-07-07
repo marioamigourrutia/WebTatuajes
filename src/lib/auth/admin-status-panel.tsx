@@ -314,6 +314,35 @@ export function AdminStatusPanel({
     };
   }, [quotes, user]);
 
+  async function loadRecentQuotes(idToken: string) {
+    const response = await fetch("/api/admin/quotes", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${idToken}` },
+    });
+    const body = (await response.json()) as { quotes?: RecentQuoteRequest[]; error?: string };
+
+    if (!response.ok) {
+      setError(body.error ?? "El servidor no pudo listar solicitudes de cotización.");
+      setQuotes([]);
+      return false;
+    }
+
+    if (!Array.isArray(body.quotes)) {
+      setError("La ruta de cotizaciones respondió con un formato inesperado.");
+      setQuotes([]);
+      return false;
+    }
+
+    setQuotes(body.quotes);
+    setNoteDrafts(
+      Object.fromEntries(body.quotes.map((quote) => [quote.id, quote.internalNote ?? ""])),
+    );
+    setDepositDrafts(
+      Object.fromEntries(body.quotes.map((quote) => [quote.id, getEmptyDepositDraft()])),
+    );
+    return true;
+  }
+
   async function checkServerStatus() {
     if (!user) {
       setError("Inicia sesión antes de validar el rol en el servidor.");
@@ -364,12 +393,9 @@ export function AdminStatusPanel({
         return;
       }
 
-      const [quotesResponse, purchaseRequestsResponse, communityMembersResponse, auditLogsResponse] =
+      const [quotesLoaded, purchaseRequestsResponse, communityMembersResponse, auditLogsResponse] =
         await Promise.all([
-          fetch("/api/admin/quotes", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${idToken}` },
-          }),
+          loadRecentQuotes(idToken),
           fetch("/api/admin/purchase-requests", {
             method: "POST",
             headers: { Authorization: `Bearer ${idToken}` },
@@ -383,7 +409,6 @@ export function AdminStatusPanel({
             headers: { Authorization: `Bearer ${idToken}` },
           }),
         ]);
-      const quotesBody = (await quotesResponse.json()) as { quotes?: RecentQuoteRequest[] };
       const purchaseRequestsBody = (await purchaseRequestsResponse.json()) as {
         purchaseRequests?: RecentPurchaseRequest[];
       };
@@ -392,9 +417,7 @@ export function AdminStatusPanel({
       };
       const auditLogsBody = (await auditLogsResponse.json()) as { auditLogs?: RecentAuditLog[] };
 
-      if (!quotesResponse.ok) {
-        setError("El servidor no pudo listar solicitudes de cotización.");
-        setQuotes([]);
+      if (!quotesLoaded) {
         setPurchaseRequests([]);
         setCommunityMembers([]);
         setAuditLogs([]);
@@ -428,17 +451,9 @@ export function AdminStatusPanel({
         return;
       }
 
-      const nextQuotes = quotesBody.quotes ?? [];
-      setQuotes(nextQuotes);
       setPurchaseRequests(purchaseRequestsBody.purchaseRequests ?? []);
       setCommunityMembers(communityMembersBody.communityMembers ?? []);
       setAuditLogs(auditLogsBody.auditLogs ?? []);
-      setNoteDrafts(
-        Object.fromEntries(nextQuotes.map((quote) => [quote.id, quote.internalNote ?? ""])),
-      );
-      setDepositDrafts(
-        Object.fromEntries(nextQuotes.map((quote) => [quote.id, getEmptyDepositDraft()])),
-      );
     } catch {
       setError("No se pudo consultar el estado de admin en el servidor.");
       setQuotes([]);
@@ -742,6 +757,7 @@ export function AdminStatusPanel({
 
       setCalendarDates(body.dates ?? []);
       setSelectedCalendarDates([]);
+      await loadRecentQuotes(idToken);
     } catch {
       setError("No se pudo conectar con la ruta server-side de calendario.");
       setCalendarDates([]);
