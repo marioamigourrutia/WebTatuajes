@@ -100,10 +100,10 @@ export const defaultHomePageContent: HomePageContent = {
   ],
   sections: {
     reviews: true,
-    portfolio: true,
-    shop: true,
+    portfolio: false,
+    shop: false,
     sponsors: true,
-    services: true,
+    services: false,
     process: true,
     community: true,
     contact: true,
@@ -190,12 +190,19 @@ function cleanProcessSteps(input: unknown): string[] {
 function cleanSections(input: unknown): HomeSectionVisibility {
   const record = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
 
-  return Object.fromEntries(
+  const sections = Object.fromEntries(
     Object.entries(defaultHomePageContent.sections).map(([key, fallback]) => [
       key,
       typeof record[key] === "boolean" ? record[key] : fallback,
     ]),
   ) as HomeSectionVisibility;
+
+  return {
+    ...sections,
+    portfolio: false,
+    shop: false,
+    services: false,
+  };
 }
 
 export function interpolateSiteText(value: string, settings: SiteSettings): string {
