@@ -12,6 +12,18 @@ function resolveWhatsAppPhone(value: string | undefined): string {
   return trimmedValue;
 }
 
+function resolvePublicUrl(value: string | undefined): string {
+  const trimmedValue = value?.trim();
+  if (!trimmedValue) return "";
+
+  try {
+    const url = new URL(trimmedValue);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
 export const appConfig = {
   studioName: process.env.NEXT_PUBLIC_STUDIO_NAME ?? "HuespedTattooStudio",
   artistName: process.env.NEXT_PUBLIC_ARTIST_NAME ?? "Mario Amigo Urrutia",
@@ -22,4 +34,6 @@ export const appConfig = {
   whatsappMessage:
     process.env.NEXT_PUBLIC_WHATSAPP_MESSAGE ??
     "Hola HuespedTattooStudio, quiero consultar por un tatuaje.",
+  contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ?? "",
+  instagramUrl: resolvePublicUrl(process.env.NEXT_PUBLIC_INSTAGRAM_URL),
 } as const;
