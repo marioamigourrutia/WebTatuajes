@@ -59,42 +59,43 @@ export type SiteContent = {
 
 const maxProcessCardItems = 4;
 const maxProcessSteps = 5;
+const legacyStudioNames = new Set(["huespedtattoostudio", "huesped tattoo studio"]);
 
 export const defaultSiteSettings: SiteSettings = {
-  studioName: appConfig.studioName,
+  studioName: appConfig.brandName,
   artistName: appConfig.artistName,
   whatsappPhone: appConfig.whatsappPhone,
   whatsappMessage: appConfig.whatsappMessage,
-  instagramUrl: null,
-  footerText: appConfig.studioName,
+  instagramUrl: appConfig.instagramUrl || null,
+  footerText: appConfig.brandName,
 };
 
 export const defaultHomePageContent: HomePageContent = {
-  heroEyebrow: "Estudio profesional en Chile",
-  heroKicker: "Dirección artística · {artistName}",
+  heroEyebrow: "Realismo black & grey en Chile",
+  heroKicker: "Mario Amigo Tattoo · {artistName}",
   heroTitle: "Tatuajes con diseño, criterio y una experiencia segura.",
   heroDescription:
-    "{studioName} convierte ideas en piezas pensadas para tu cuerpo, tu ritmo y tu historia. El primer contacto parte con una cotización clara, privada y revisada por el estudio.",
+    "{studioName} convierte ideas en piezas pensadas para tu cuerpo, tu ritmo y tu historia. El primer contacto parte con una cotización clara, privada y revisada personalmente.",
   primaryCtaLabel: "Solicitar cotización",
   primaryCtaHref: "/quote",
   secondaryCtaLabel: "Escribir por WhatsApp",
   secondaryCtaType: "whatsapp",
   secondaryCtaHref: "/contacto",
-  heroHint: "Respuesta con evaluación profesional.",
-  processCardEyebrow: "Diseño personalizado premium",
-  processCardTitle: "De la idea al diseño viable",
+  heroHint: "Evaluación directa y personalizada.",
+  processCardEyebrow: "Diseño personalizado",
+  processCardTitle: "De la idea a una pieza viable",
   processCardSubtitle:
-    "Revisamos zona, tamaño, estilo, cicatrización esperada y referencias antes de avanzar. Sin promesas automáticas: cada proyecto se evalúa con criterio profesional.",
+    "Revisamos zona, tamaño, estilo, composición y referencias antes de avanzar. Cada proyecto se evalúa de forma individual.",
   processCardItems: [
-    { term: "Privado", description: "Tus datos se tratan con reserva durante la evaluación." },
-    { term: "Ordenado", description: "Cada solicitud se revisa con contexto antes de responder." },
-    { term: "Claro", description: "La cotización define viabilidad antes de reservar una sesión." },
+    { term: "Privado", description: "Tus datos y referencias se tratan con reserva durante la evaluación." },
+    { term: "Personal", description: "Cada solicitud se revisa según tu idea, anatomía y estilo buscado." },
+    { term: "Claro", description: "La cotización define viabilidad y próximos pasos antes de reservar." },
   ],
   processSectionEyebrow: "Proceso",
-  processSectionTitle: "Cotizar primero evita improvisar después.",
+  processSectionTitle: "Cotizar primero permite diseñar con criterio.",
   processSectionSteps: [
-    "Cuéntanos la idea, zona, tamaño y presupuesto estimado.",
-    "Revisamos viabilidad, estilo y próximos pasos de diseño.",
+    "Cuéntame la idea, zona, tamaño y presupuesto estimado.",
+    "Reviso viabilidad, composición y próximos pasos de diseño.",
     "Coordinamos contacto y agenda cuando el proyecto esté claro.",
   ],
   sections: {
@@ -123,6 +124,10 @@ function getString(input: unknown): string | null {
 
 function cleanText(input: unknown, fallback: string, maxLength = 280): string {
   return getString(input)?.slice(0, maxLength) ?? fallback;
+}
+
+function normalizeBrandName(value: string): string {
+  return legacyStudioNames.has(value.toLowerCase()) ? appConfig.brandName : value;
 }
 
 function cleanOptionalUrl(input: unknown): string | null {
@@ -195,19 +200,20 @@ function cleanSections(input: unknown): HomeSectionVisibility {
 
 export function interpolateSiteText(value: string, settings: SiteSettings): string {
   return value
-    .replaceAll("{studioName}", settings.studioName)
+    .replaceAll("{studioName}", normalizeBrandName(settings.studioName))
     .replaceAll("{artistName}", settings.artistName);
 }
 
 export function normalizeSiteSettings(input: unknown): SiteSettings {
   const record = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
+  const storedStudioName = cleanText(
+    record.studioName ?? record.studio_name,
+    defaultSiteSettings.studioName,
+    80,
+  );
 
   return {
-    studioName: cleanText(
-      record.studioName ?? record.studio_name,
-      defaultSiteSettings.studioName,
-      80,
-    ),
+    studioName: normalizeBrandName(storedStudioName),
     artistName: cleanText(
       record.artistName ?? record.artist_name,
       defaultSiteSettings.artistName,
@@ -223,11 +229,10 @@ export function normalizeSiteSettings(input: unknown): SiteSettings {
       defaultSiteSettings.whatsappMessage,
       220,
     ),
-    instagramUrl: cleanOptionalUrl(record.instagramUrl ?? record.instagram_url),
-    footerText: cleanText(
-      record.footerText ?? record.footer_text,
-      defaultSiteSettings.footerText,
-      120,
+    instagramUrl:
+      cleanOptionalUrl(record.instagramUrl ?? record.instagram_url) ?? defaultSiteSettings.instagramUrl,
+    footerText: normalizeBrandName(
+      cleanText(record.footerText ?? record.footer_text, defaultSiteSettings.footerText, 120),
     ),
   };
 }
