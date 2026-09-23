@@ -6,16 +6,23 @@ import { BotProtectionFields } from "@/lib/bot-protection-fields";
 import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
 type QuoteFormErrors = Record<string, string>;
+type HandoffChannel = "whatsapp" | "email" | "instagram";
 
-const fieldClass =
-  "mt-1 w-full rounded-2xl border border-stone-700 bg-stone-900/90 px-4 py-3 text-stone-100 transition placeholder:text-stone-600 focus:border-amber-300";
-const labelClass = "text-xs font-semibold uppercase tracking-[0.2em] text-stone-400";
-const unavailablePublicStatuses = new Set(["PENDING_CONFIRMATION", "OCCUPIED"]);
+type CreatedQuoteResponse = {
+  quoteCode?: string;
+  whatsappMessage?: string;
+  errors?: QuoteFormErrors;
+};
 
 type PublicCalendarDate = {
   date: string;
   status: "AVAILABLE" | "PENDING_CONFIRMATION" | "OCCUPIED";
 };
+
+const fieldClass =
+  "mt-1 w-full rounded-2xl border border-white/10 bg-zinc-950/90 px-4 py-3 text-zinc-100 shadow-inner shadow-black/20 transition placeholder:text-zinc-700 focus:border-zinc-400 focus:outline-none";
+const labelClass = "text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500";
+const unavailablePublicStatuses = new Set(["PENDING_CONFIRMATION", "OCCUPIED"]);
 
 function getCurrentMonth() {
   return new Date().toISOString().slice(0, 7);
@@ -28,32 +35,35 @@ function addMonths(month: string, offset: number) {
 }
 
 function formatCalendarDay(date: string) {
-  return new Intl.DateTimeFormat("es-CL", { day: "numeric", timeZone: "America/Santiago" }).format(
-    new Date(`${date}T12:00:00.000Z`),
-  );
+  return new Intl.DateTimeFormat("es-CL", {
+    weekday: "short",
+    day: "numeric",
+    timeZone: "America/Santiago",
+  }).format(new Date(`${date}T12:00:00.000Z`));
 }
 
 function getPublicStatusLabel(status: PublicCalendarDate["status"]) {
-  const labels = {
+  return {
     AVAILABLE: "Libre",
     PENDING_CONFIRMATION: "Por confirmar",
     OCCUPIED: "Ocupado",
   } satisfies Record<PublicCalendarDate["status"], string>;
-
-  return labels[status];
 }
 
 function PreferredDateCalendar({ error }: { error?: string }) {
-  const [month, setMonth] = useState(getCurrentMonth);
+  const currentMonth = getCurrentMonth();
+  const [month, setMonth] = useState(currentMonth);
   const [dates, setDates] = useState<PublicCalendarDate[]>([]);
   const [selectedDate, setSelectedDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const monthLabel = useMemo(
     () =>
-      new Intl.DateTimeFormat("es-CL", { month: "long", year: "numeric", timeZone: "UTC" }).format(
-        new Date(`${month}-01T12:00:00.000Z`),
-      ),
+      new Intl.DateTimeFormat("es-CL", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(new Date(`${month}-01T12:00:00.000Z`)),
     [month],
   );
 
@@ -63,10 +73,9 @@ function PreferredDateCalendar({ error }: { error?: string }) {
     async function loadAvailability() {
       setLoading(true);
       setCalendarError(null);
+
       try {
-        const response = await fetch(
-          `/api/calendar/availability?month=${encodeURIComponent(month)}`,
-        );
+        const response = await fetch(`/api/calendar/availability?month=${encodeURIComponent(month)}`);
         const body = (await response.json()) as { dates?: PublicCalendarDate[]; error?: string };
 
         if (!response.ok || !body.dates) {
@@ -75,17 +84,16 @@ function PreferredDateCalendar({ error }: { error?: string }) {
 
         if (!cancelled) {
           setDates(body.dates);
-          if (selectedDate) {
-            const selected = body.dates.find((date) => date.date === selectedDate);
-            if (selected && unavailablePublicStatuses.has(selected.status)) setSelectedDate("");
-          }
+          setSelectedDate((current) => {
+            if (!current) return current;
+            const selected = body.dates?.find((date) => date.date === current);
+            return selected && unavailablePublicStatuses.has(selected.status) ? "" : current;
+          });
         }
       } catch {
         if (!cancelled) {
           setDates([]);
-          setCalendarError(
-            "No pudimos cargar la disponibilidad. Puedes enviar la solicitud sin fecha.",
-          );
+          setCalendarError("No pudimos cargar la disponibilidad. Puedes enviar la solicitud sin fecha.");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -96,100 +104,148 @@ function PreferredDateCalendar({ error }: { error?: string }) {
     return () => {
       cancelled = true;
     };
-  }, [month, selectedDate]);
+  }, [month]);
 
   return (
-    <div className="rounded-3xl border border-stone-800 bg-stone-900/50 p-4 shadow-inner shadow-black/20">
+    <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-4 shadow-inner shadow-black/30 sm:p-5" aria-labelledby="calendar-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <span className={labelClass}>Fecha preferida para tatuarte</span>
-          <p className="mt-1 text-sm capitalize text-stone-200">{monthLabel}</p>
+          <span className={labelClass}>Calendario interactivo</span>
+          <h3 className="mt-1 text-lg font-semibold capitalize text-zinc-100" id="calendar-title">{monthLabel}</h3>
+          <p className="mt-1 text-xs text-zinc-500">Selecciona una fecha libre. La reserva se confirma posteriormente con el estudio.</p>
         </div>
         <div className="flex gap-2">
           <button
-            className="rounded-full border border-stone-700 px-3 py-1 text-sm text-stone-200 transition hover:border-amber-300/50"
+            className="rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-white/30 disabled:cursor-not-allowed disabled:opacity-35"
+            disabled={month <= currentMonth}
             onClick={() => setMonth(addMonths(month, -1))}
             type="button"
           >
-            Mes anterior
+            Anterior
           </button>
           <button
-            className="rounded-full border border-stone-700 px-3 py-1 text-sm text-stone-200 transition hover:border-amber-300/50"
+            className="rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-white/30"
             onClick={() => setMonth(addMonths(month, 1))}
             type="button"
           >
-            Mes siguiente
+            Siguiente
           </button>
         </div>
       </div>
+
       <input name="preferredTattooDate" type="hidden" value={selectedDate} />
-      <div
-        aria-label="Disponibilidad mensual"
-        className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-7"
-        role="list"
-      >
+
+      <div aria-label="Disponibilidad mensual" className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-7" role="list">
         {dates.map((date) => {
           const unavailable = unavailablePublicStatuses.has(date.status);
           const selected = selectedDate === date.date;
+
           return (
             <button
               aria-pressed={selected}
-              className={`rounded-xl border px-2 py-3 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              className={`rounded-2xl border px-3 py-3 text-left text-sm transition disabled:cursor-not-allowed ${
                 selected
-                  ? "border-amber-300 bg-amber-300 text-stone-950"
-                  : "border-stone-700 bg-stone-950 text-stone-200 hover:border-amber-300/60"
+                  ? "border-white bg-white text-black shadow-lg shadow-white/10"
+                  : unavailable
+                    ? "border-white/5 bg-black/35 text-zinc-600"
+                    : "border-white/10 bg-zinc-950 text-zinc-200 hover:-translate-y-0.5 hover:border-white/35 hover:bg-zinc-900"
               }`}
               disabled={unavailable}
               key={date.date}
               onClick={() => setSelectedDate(date.date)}
               type="button"
             >
-              <span className="block font-semibold">{formatCalendarDay(date.date)}</span>
-              <span className="block text-xs">{getPublicStatusLabel(date.status)}</span>
+              <span className="block font-semibold capitalize">{formatCalendarDay(date.date)}</span>
+              <span className="mt-1 block text-[11px] opacity-75">{getPublicStatusLabel(date.status)}</span>
             </button>
           );
         })}
       </div>
-      {loading ? <p className="mt-2 text-xs text-stone-500">Cargando disponibilidad…</p> : null}
-      {calendarError ? <p className="mt-2 text-xs text-amber-200">{calendarError}</p> : null}
-      <span className="mt-2 block text-xs text-stone-500">
-        La fecha es tentativa y queda por confirmar con el estudio. No se muestran detalles privados
-        de otras reservas.
-      </span>
-      {error ? <span className="text-sm text-red-300">{error}</span> : null}
-    </div>
+
+      {loading ? <p className="mt-3 text-xs text-zinc-500">Actualizando disponibilidad…</p> : null}
+      {calendarError ? <p className="mt-3 text-xs text-zinc-300">{calendarError}</p> : null}
+      {error ? <span className="mt-2 block text-sm text-red-300">{error}</span> : null}
+    </section>
   );
 }
 
-type CreatedQuoteResponse = {
-  quoteCode?: string;
-  whatsappMessage?: string;
-  errors?: QuoteFormErrors;
-};
+function getString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function buildClientHandoffMessage(formData: FormData, quoteCode: string, channel: HandoffChannel) {
+  const budget = getString(formData, "budgetClp");
+  const date = getString(formData, "preferredTattooDate");
+  const phone = getString(formData, "phone");
+  const channelLabel = channel === "whatsapp" ? "WhatsApp" : channel === "email" ? "Email" : "Instagram";
+  const lines = [
+    `Hola ${appConfig.studioName}, envié una cotización desde la web.`,
+    `Código: ${quoteCode}`,
+    `Nombre: ${getString(formData, "customerName")}`,
+    `Email: ${getString(formData, "email")}`,
+    phone ? `Teléfono: ${phone}` : null,
+    `Canal elegido: ${channelLabel}`,
+    `Idea: ${getString(formData, "description")}`,
+    `Zona: ${getString(formData, "bodyPlacement")}`,
+    `Tamaño aproximado: ${getString(formData, "approximateSize")}`,
+    date ? `Fecha tentativa: ${date}` : null,
+    budget ? `Presupuesto aproximado: $${Number(budget).toLocaleString("es-CL")}` : null,
+    "Adjuntaré las imágenes de referencia por este medio para que puedas evaluar correctamente el diseño.",
+  ];
+
+  return lines.filter((line): line is string => Boolean(line)).join("\n");
+}
+
+function buildEmailUrl(message: string, quoteCode: string) {
+  if (!appConfig.contactEmail) return null;
+  const subject = `Cotización ${quoteCode} · ${appConfig.studioName}`;
+  return `mailto:${encodeURIComponent(appConfig.contactEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
+}
 
 export function QuoteRequestForm({ fileUploadsEnabled: _fileUploadsEnabled = false }: { fileUploadsEnabled?: boolean }) {
   void _fileUploadsEnabled;
   const [errors, setErrors] = useState<QuoteFormErrors>({});
-  const [createdQuoteCode, setCreatedQuoteCode] = useState<string | null>(null);
-  const [createdWhatsAppUrl, setCreatedWhatsAppUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [email, setEmail] = useState("");
+  const [channel, setChannel] = useState<HandoffChannel>("whatsapp");
+  const [createdQuoteCode, setCreatedQuoteCode] = useState<string | null>(null);
+  const [createdMessage, setCreatedMessage] = useState<string | null>(null);
+  const [createdChannel, setCreatedChannel] = useState<HandoffChannel | null>(null);
+  const [createdHandoffUrl, setCreatedHandoffUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const emailConfigured = Boolean(appConfig.contactEmail);
+  const instagramConfigured = Boolean(appConfig.instagramUrl);
+
+  async function copyMessage(message = createdMessage) {
+    if (!message) return;
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
+    const formData = new FormData(form);
+    formData.set("preferredContactMethod", channel === "email" ? "email" : "whatsapp");
+    formData.set("handoffChannel", channel);
+
     setSubmitting(true);
     setErrors({});
     setCreatedQuoteCode(null);
-    setCreatedWhatsAppUrl(null);
-
-    const formData = new FormData(form);
+    setCreatedMessage(null);
+    setCreatedChannel(null);
+    setCreatedHandoffUrl(null);
+    setCopied(false);
 
     try {
-      const response = await fetch("/api/quotes", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch("/api/quotes", { method: "POST", body: formData });
       const result = (await response.json()) as CreatedQuoteResponse;
 
       if (!response.ok) {
@@ -197,16 +253,28 @@ export function QuoteRequestForm({ fileUploadsEnabled: _fileUploadsEnabled = fal
         return;
       }
 
+      const quoteCode = result.quoteCode ?? "código por confirmar";
+      const message = buildClientHandoffMessage(formData, quoteCode, channel);
+      let handoffUrl: string | null = null;
+
+      if (channel === "whatsapp" && hasWhatsAppConfig(appConfig.whatsappPhone)) {
+        handoffUrl = buildWhatsAppUrl({ phone: appConfig.whatsappPhone, message });
+      } else if (channel === "email") {
+        handoffUrl = buildEmailUrl(message, quoteCode);
+      } else if (channel === "instagram" && appConfig.instagramUrl) {
+        handoffUrl = appConfig.instagramUrl;
+        await copyMessage(message);
+      }
+
+      setCreatedQuoteCode(quoteCode);
+      setCreatedMessage(message);
+      setCreatedChannel(channel);
+      setCreatedHandoffUrl(handoffUrl);
       form.reset();
       setEmail("");
-      setCreatedQuoteCode(result.quoteCode ?? "código por confirmar");
-      if (result.whatsappMessage && hasWhatsAppConfig(appConfig.whatsappPhone)) {
-        const whatsappUrl = buildWhatsAppUrl({
-          phone: appConfig.whatsappPhone,
-          message: result.whatsappMessage,
-        });
-        setCreatedWhatsAppUrl(whatsappUrl);
-        window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+
+      if (handoffUrl) {
+        window.open(handoffUrl, "_blank", "noopener,noreferrer");
       }
     } catch {
       setErrors({ form: "No pudimos procesar la solicitud. Inténtalo nuevamente." });
@@ -216,179 +284,139 @@ export function QuoteRequestForm({ fileUploadsEnabled: _fileUploadsEnabled = fal
   }
 
   return (
-    <form
-      className="space-y-5 rounded-[2rem] border border-amber-100/10 bg-stone-950/75 p-6 shadow-2xl shadow-black/25 sm:p-8"
-      onSubmit={handleSubmit}
-    >
+    <form className="space-y-6 rounded-[2rem] border border-white/10 bg-black/60 p-5 shadow-2xl shadow-black/40 backdrop-blur sm:p-8" onSubmit={handleSubmit}>
       <BotProtectionFields />
-      <div>
-        <h2 className="text-3xl font-black text-stone-50">Formulario de cotización</h2>
-        <p className="mt-2 text-sm leading-6 text-stone-400">
-          Completa los datos clave para que el estudio pueda evaluar tu idea y responder con los
-          próximos pasos. La fecha que indiques es referencial y no confirma una reserva.
+
+      <div className="border-b border-white/10 pb-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Proyecto personalizado</p>
+        <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white sm:text-4xl">Solicita tu cotización</h2>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-400">
+          Cuéntanos la idea con el mayor detalle posible. La solicitud se guarda primero y luego se abre el canal privado que elijas para enviar las imágenes de referencia.
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className={labelClass}>Nombre</span>
-          <input className={fieldClass} name="customerName" required />
-          {errors.customerName ? (
-            <span className="text-sm text-red-300">{errors.customerName}</span>
-          ) : null}
+          <input autoComplete="name" className={fieldClass} name="customerName" required />
+          {errors.customerName ? <span className="text-sm text-red-300">{errors.customerName}</span> : null}
         </label>
+
         <label className="block">
           <span className={labelClass}>Email</span>
-          <input
-            className={fieldClass}
-            name="email"
-            onChange={(event) => setEmail(event.target.value)}
-            required
-            type="email"
-            value={email}
-          />
-          <span className="mt-1 block text-xs text-stone-500">
-            Usaremos este email solo para registrar tu solicitud y que el estudio pueda identificarla.
-          </span>
+          <input autoComplete="email" className={fieldClass} name="email" onChange={(event) => setEmail(event.target.value)} required type="email" value={email} />
           {errors.email ? <span className="text-sm text-red-300">{errors.email}</span> : null}
         </label>
+
         <label className="block">
           <span className={labelClass}>Teléfono opcional</span>
-          <input className={fieldClass} name="phone" type="tel" />
+          <input autoComplete="tel" className={fieldClass} name="phone" type="tel" />
           {errors.phone ? <span className="text-sm text-red-300">{errors.phone}</span> : null}
         </label>
-        <label className="block">
-          <span className={labelClass}>Contacto preferido</span>
-          <select className={fieldClass} defaultValue="email" name="preferredContactMethod">
-            <option value="email">Email</option>
-            <option value="phone">Teléfono</option>
-            <option value="whatsapp">WhatsApp</option>
-          </select>
-          {errors.preferredContactMethod ? (
-            <span className="text-sm text-red-300">{errors.preferredContactMethod}</span>
+
+        <fieldset>
+          <legend className={labelClass}>Continuar después por</legend>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {([
+              ["whatsapp", "WhatsApp", true],
+              ["email", "Email", emailConfigured],
+              ["instagram", "Instagram", instagramConfigured],
+            ] as const).map(([value, label, enabled]) => (
+              <label className={`cursor-pointer rounded-2xl border p-3 text-center text-xs font-semibold transition ${channel === value ? "border-white bg-white text-black" : "border-white/10 bg-zinc-950 text-zinc-300 hover:border-white/30"} ${enabled ? "" : "cursor-not-allowed opacity-40"}`} key={value}>
+                <input className="sr-only" disabled={!enabled} name="handoffChannelChoice" onChange={() => setChannel(value)} type="radio" value={value} checked={channel === value} />
+                {label}
+              </label>
+            ))}
+          </div>
+          {!emailConfigured || !instagramConfigured ? (
+            <p className="mt-2 text-[11px] leading-5 text-zinc-600">Los canales sin configurar se habilitan con sus variables públicas en Vercel.</p>
           ) : null}
-        </label>
+        </fieldset>
       </div>
 
       <label className="block">
         <span className={labelClass}>Idea / descripción</span>
-        <textarea
-          className={fieldClass}
-          name="description"
-          placeholder="Ej.: flores nativas en línea fina, antebrazo interno, referencia en blanco y negro…"
-          required
-          rows={5}
-        />
-        {errors.description ? (
-          <span className="text-sm text-red-300">{errors.description}</span>
-        ) : null}
+        <textarea className={fieldClass} name="description" placeholder="Ej.: retrato realista en negro y grises, antebrazo interno, aproximadamente 18 cm…" required rows={5} />
+        {errors.description ? <span className="text-sm text-red-300">{errors.description}</span> : null}
       </label>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <label className="block">
           <span className={labelClass}>Zona del cuerpo</span>
           <input className={fieldClass} name="bodyPlacement" required />
-          {errors.bodyPlacement ? (
-            <span className="text-sm text-red-300">{errors.bodyPlacement}</span>
-          ) : null}
+          {errors.bodyPlacement ? <span className="text-sm text-red-300">{errors.bodyPlacement}</span> : null}
         </label>
         <label className="block">
           <span className={labelClass}>Tamaño aprox.</span>
           <input className={fieldClass} name="approximateSize" required />
-          {errors.approximateSize ? (
-            <span className="text-sm text-red-300">{errors.approximateSize}</span>
-          ) : null}
+          {errors.approximateSize ? <span className="text-sm text-red-300">{errors.approximateSize}</span> : null}
         </label>
         <label className="block">
           <span className={labelClass}>Presupuesto opcional</span>
-          <input className={fieldClass} min="1" name="budgetClp" type="number" />
-          {errors.budgetClp ? (
-            <span className="text-sm text-red-300">{errors.budgetClp}</span>
-          ) : null}
+          <input className={fieldClass} inputMode="numeric" min="1" name="budgetClp" type="number" />
+          {errors.budgetClp ? <span className="text-sm text-red-300">{errors.budgetClp}</span> : null}
         </label>
       </div>
 
       <PreferredDateCalendar error={errors.preferredTattooDate} />
 
-      <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">
-        Las referencias, fotos o enlaces se envían directamente por WhatsApp después de registrar la
-        solicitud. Así evitamos subir imágenes al formulario público.
+      <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-sm leading-7 text-zinc-300">
+        <strong className="text-white">Imágenes de referencia:</strong> después de registrar la cotización se abrirá {channel === "whatsapp" ? "WhatsApp" : channel === "email" ? "tu correo" : "Instagram"}. Adjunta allí las imágenes que permitan evaluar composición, estilo y nivel de detalle. No se publican en la web.
       </div>
 
-      <fieldset className="space-y-3 rounded-3xl border border-stone-800 bg-stone-900/50 p-4">
+      <fieldset className="space-y-3 rounded-3xl border border-white/10 bg-zinc-950/70 p-4">
         <legend className={labelClass}>Autorizaciones</legend>
-        <label className="flex gap-3 text-sm leading-6 text-stone-300">
+        <label className="flex gap-3 text-sm leading-6 text-zinc-300">
           <input className="mt-1" name="dataProcessingConsent" required type="checkbox" />
-          <span>
-            Autorizo el uso de mis datos para gestionar esta cotización y recibir respuesta del
-            estudio según la <a className="underline underline-offset-4" href="/privacidad">política de privacidad</a>.
-          </span>
+          <span>Autorizo el uso de mis datos para gestionar esta cotización según la <a className="underline underline-offset-4 hover:text-white" href="/privacidad">política de privacidad</a>.</span>
         </label>
-        {errors.dataProcessingConsent ? (
-          <span className="block text-sm text-red-300">{errors.dataProcessingConsent}</span>
-        ) : null}
-        <label className="flex gap-3 text-sm leading-6 text-stone-300">
+        {errors.dataProcessingConsent ? <span className="block text-sm text-red-300">{errors.dataProcessingConsent}</span> : null}
+
+        <label className="flex gap-3 text-sm leading-6 text-zinc-300">
           <input className="mt-1" name="imageHandlingConsent" required type="checkbox" />
-          <span>
-            Entiendo que las imágenes o enlaces de referencia se enviarán después por WhatsApp o por
-            el canal privado acordado. Reviso el <a className="underline underline-offset-4" href="/manejo-imagenes">manejo de imágenes</a>.
-          </span>
+          <span>Entiendo que enviaré las imágenes de referencia por el canal privado elegido después de registrar la solicitud.</span>
         </label>
-        {errors.imageHandlingConsent ? (
-          <span className="block text-sm text-red-300">{errors.imageHandlingConsent}</span>
-        ) : null}
-        <label className="flex gap-3 text-sm leading-6 text-stone-300">
+        {errors.imageHandlingConsent ? <span className="block text-sm text-red-300">{errors.imageHandlingConsent}</span> : null}
+
+        <label className="flex gap-3 text-sm leading-6 text-zinc-300">
           <input className="mt-1" name="privacyTermsConsent" required type="checkbox" />
-          <span>
-            Acepto las condiciones de privacidad, la <a className="underline underline-offset-4" href="/solicitud-datos">solicitud de datos</a> y entiendo que cualquier reserva o fecha queda por
-            confirmar directamente con el estudio según los <a className="underline underline-offset-4" href="/terminos-reserva">términos de reserva</a>.
-          </span>
+          <span>Acepto la política de privacidad y entiendo que la fecha queda sujeta a confirmación según los <a className="underline underline-offset-4 hover:text-white" href="/terminos-reserva">términos de reserva</a>.</span>
         </label>
-        {errors.privacyTermsConsent ? (
-          <span className="block text-sm text-red-300">{errors.privacyTermsConsent}</span>
-        ) : null}
-        <label className="flex gap-3 text-sm leading-6 text-stone-300">
+        {errors.privacyTermsConsent ? <span className="block text-sm text-red-300">{errors.privacyTermsConsent}</span> : null}
+
+        <label className="flex gap-3 text-sm leading-6 text-zinc-400">
           <input className="mt-1" name="marketingOptIn" type="checkbox" />
-          <span>
-            Quiero recibir novedades, contenido de comunidad o disponibilidad futura del estudio.
-          </span>
+          <span>Quiero recibir novedades o disponibilidad futura del estudio.</span>
         </label>
       </fieldset>
 
-      {errors.form ? <p className="text-sm text-red-300">{errors.form}</p> : null}
+      {errors.form ? <p className="rounded-2xl border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-200">{errors.form}</p> : null}
+
       {createdQuoteCode ? (
-        <div className="rounded-2xl border border-emerald-700 bg-emerald-950/50 p-4 text-sm text-emerald-100">
-          <p className="font-semibold">Solicitud recibida correctamente.</p>
-          <p className="mt-1 text-emerald-200">
-            Registramos tu cotización con el código{" "}
-            <span className="font-mono">{createdQuoteCode}</span>. La fecha solicitada queda por
-            confirmar; ahora puedes enviar las referencias por WhatsApp con este código.
+        <section className="rounded-3xl border border-white/15 bg-gradient-to-br from-zinc-900 to-black p-5 text-sm text-zinc-200 shadow-xl shadow-black/30" aria-live="polite">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-zinc-500">Cotización registrada</p>
+          <h3 className="mt-2 text-xl font-black text-white">Código <span className="font-mono">{createdQuoteCode}</span></h3>
+          <p className="mt-2 leading-6 text-zinc-400">
+            Guarda este código. La cotización ya quedó registrada y puedes adjuntar las imágenes de referencia por {createdChannel === "whatsapp" ? "WhatsApp" : createdChannel === "email" ? "email" : "Instagram"}.
           </p>
-          {createdWhatsAppUrl ? (
-            <a
-              className="mt-3 inline-flex rounded-full bg-emerald-200 px-4 py-2 font-semibold text-emerald-950 transition hover:bg-emerald-100"
-              href={createdWhatsAppUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Abrir WhatsApp con la cotización
+          <div className="mt-4 flex flex-wrap gap-2">
+            {createdHandoffUrl ? (
+              <a className="rounded-full bg-white px-4 py-2 font-semibold text-black transition hover:bg-zinc-200" href={createdHandoffUrl} rel="noreferrer" target="_blank">
+                Continuar por {createdChannel === "whatsapp" ? "WhatsApp" : createdChannel === "email" ? "email" : "Instagram"}
+              </a>
+            ) : null}
+            <button className="rounded-full border border-white/15 px-4 py-2 font-semibold text-zinc-100 transition hover:bg-white/10" onClick={() => void copyMessage()} type="button">
+              {copied ? "Mensaje copiado" : "Copiar mensaje completo"}
+            </button>
+            <a className="rounded-full border border-white/15 px-4 py-2 font-semibold text-zinc-100 transition hover:bg-white/10" href={`/quote/status?code=${encodeURIComponent(createdQuoteCode)}`}>
+              Seguimiento de cotización
             </a>
-          ) : null}
-          <a
-            className="mt-3 inline-flex font-semibold text-emerald-50 underline underline-offset-4"
-            href={`/quote/status?code=${encodeURIComponent(createdQuoteCode)}`}
-          >
-            Consultar estado de esta cotización
-          </a>
-        </div>
+          </div>
+        </section>
       ) : null}
 
-      <button
-        className="rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/30 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={submitting}
-        type="submit"
-      >
-        {submitting ? "Enviando…" : "Enviar solicitud"}
+      <button className="w-full rounded-full bg-white px-6 py-3.5 font-semibold text-black shadow-lg shadow-white/5 transition hover:-translate-y-0.5 hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto" disabled={submitting} type="submit">
+        {submitting ? "Registrando cotización…" : "Registrar y continuar"}
       </button>
     </form>
   );
