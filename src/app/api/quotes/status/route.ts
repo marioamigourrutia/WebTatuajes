@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   const rateLimit = checkRateLimit(
     getRequestRateLimitKey(request, "quotes-status"),
-    getRateLimitOptions("quotes"),
+    getRateLimitOptions("quotes-status"),
   );
   if (!rateLimit.ok) {
     return NextResponse.json({ errors: { form: rateLimit.message } }, { status: 429 });
