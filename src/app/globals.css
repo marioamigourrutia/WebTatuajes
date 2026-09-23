@@ -64,3 +64,46 @@ select {
   outline: 2px solid #e4e4e7;
   outline-offset: 3px;
 }
+
+/* Compatibilidad visual con componentes anteriores: conserva su estructura y elimina el dorado. */
+[class~="text-amber-100"],
+[class~="text-amber-200"],
+[class~="text-amber-300"] {
+  color: #e4e4e7;
+}
+
+[class~="border-amber-100/10"],
+[class~="border-amber-200/20"],
+[class~="border-amber-200/25"],
+[class~="border-amber-200/30"],
+[class~="border-amber-200/35"],
+[class~="border-amber-300/30"],
+[class~="border-amber-300/40"],
+[class~="border-amber-300/50"] {
+  border-color: rgb(255 255 255 / 0.16);
+}
+
+[class~="bg-amber-300/10"] {
+  background-color: rgb(255 255 255 / 0.055);
+}
+
+[class~="bg-amber-300"] {
+  background-color: #e4e4e7;
+}
+
+[class~="shadow-amber-950/30"] {
+  --tw-shadow-color: rgb(0 0 0 / 0.45);
+}
+
+[class~="hover:bg-amber-300"]:hover,
+[class~="hover:bg-amber-200"]:hover {
+  background-color: #e4e4e7;
+  color: #09090b;
+}
+
+[class~="hover:border-amber-300/40"]:hover,
+[class~="hover:border-amber-300/50"]:hover,
+[class~="hover:border-amber-300/60"]:hover,
+[class~="hover:border-amber-300/70"]:hover {
+  border-color: rgb(255 255 255 / 0.38);
+}
