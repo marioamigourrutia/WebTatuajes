@@ -48,7 +48,10 @@ export default async function QuoteStatusPage({
   const forwardedFor = requestHeaders?.get("x-forwarded-for")?.split(",")[0]?.trim();
   const realIp = requestHeaders?.get("x-real-ip")?.trim();
   const rateLimit = hasLookupInput
-    ? checkRateLimit(`quotes-status:${forwardedFor || realIp || "unknown"}`, getRateLimitOptions("quotes"))
+    ? checkRateLimit(
+        `quotes-status:${forwardedFor || realIp || "unknown"}`,
+        getRateLimitOptions("quotes-status"),
+      )
     : { ok: true as const };
   const result =
     firestore && hasLookupInput && rateLimit.ok
@@ -63,40 +66,41 @@ export default async function QuoteStatusPage({
         : null;
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-10 sm:px-10">
-      <section className="relative overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/60 p-6 shadow-2xl shadow-black/25 sm:p-8">
-        <div className="pointer-events-none absolute right-0 top-0 h-48 w-48 rounded-full bg-amber-300/10 blur-3xl" />
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
-          Estado de cotización
+    <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-10">
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/60 p-6 shadow-2xl shadow-black/40 sm:p-9">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/[0.06] blur-3xl" />
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-zinc-500">
+          Seguimiento privado
         </p>
-        <h1 className="mt-3 text-5xl font-black leading-tight text-stone-50 sm:text-6xl">
-          Consulta privada de tu solicitud
+        <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] text-white sm:text-6xl">
+          Revisa el estado de tu cotización.
         </h1>
-        <p className="mt-3 text-sm leading-6 text-stone-400">
-          Ingresa el código de cotización y el email usado en la solicitud para revisar el estado
-          general. Esta página no muestra datos personales, notas internas, imágenes ni detalles
-          privados del diseño.
+        <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-400 sm:text-base">
+          Ingresa el código de cotización y el email usado en la solicitud. Por privacidad no mostramos
+          notas internas, referencias, imágenes ni datos personales adicionales.
         </p>
 
-        <div className="mt-6">
+        <div className="mt-7">
           <QuoteStatusPanel initialQuoteCode={code} />
         </div>
 
-        <form className="mt-6 grid gap-3 sm:grid-cols-[1fr_1fr_auto]" method="get">
+        <form className="mt-7 grid gap-3 sm:grid-cols-[1fr_1fr_auto]" method="get">
           <label className="block">
             <span className="sr-only">Código de cotización</span>
             <input
-              className="w-full rounded-2xl border border-stone-700 bg-stone-900/90 px-4 py-3 font-mono text-stone-100 transition focus:border-amber-300"
+              autoComplete="off"
+              className="w-full rounded-2xl border border-white/10 bg-zinc-950/90 px-4 py-3 font-mono uppercase text-zinc-100 transition placeholder:text-zinc-700 focus:border-zinc-400 focus:outline-none"
               defaultValue={code}
               name="code"
-              placeholder="COT-2026-ABCDE"
+              placeholder="COT-2026-XXXXXXXXXX"
               required
             />
           </label>
           <label className="block">
             <span className="sr-only">Email de la solicitud</span>
             <input
-              className="w-full rounded-2xl border border-stone-700 bg-stone-900/90 px-4 py-3 text-stone-100 transition focus:border-amber-300"
+              autoComplete="email"
+              className="w-full rounded-2xl border border-white/10 bg-zinc-950/90 px-4 py-3 text-zinc-100 transition placeholder:text-zinc-700 focus:border-zinc-400 focus:outline-none"
               defaultValue={email}
               name="email"
               placeholder="tu@email.cl"
@@ -105,7 +109,7 @@ export default async function QuoteStatusPage({
             />
           </label>
           <button
-            className="rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/30 transition hover:bg-amber-200"
+            className="rounded-full bg-zinc-100 px-6 py-3 font-semibold text-zinc-950 transition hover:bg-white"
             type="submit"
           >
             Consultar
@@ -114,7 +118,7 @@ export default async function QuoteStatusPage({
 
         {safeError ? <p className="mt-4 text-sm text-red-300">{safeError}</p> : null}
         {code && !email ? (
-          <p className="mt-4 text-sm text-stone-300">
+          <p className="mt-4 text-sm text-zinc-300">
             Para proteger tu cotización, confirma el email usado al enviar la solicitud.
           </p>
         ) : null}
@@ -125,41 +129,33 @@ export default async function QuoteStatusPage({
         ) : null}
 
         {quote ? (
-          <article className="mt-6 space-y-4 rounded-3xl border border-amber-100/10 bg-stone-900/70 p-5 text-stone-200 shadow-xl shadow-black/20">
+          <article className="mt-7 space-y-5 rounded-3xl border border-white/10 bg-zinc-950/80 p-5 text-zinc-200 shadow-xl shadow-black/25 sm:p-6">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                Código
-              </p>
-              <p className="mt-1 font-mono text-lg text-amber-200">{quote.quoteCode}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Código</p>
+              <p className="mt-1 font-mono text-lg text-zinc-100">{quote.quoteCode}</p>
             </div>
             <dl className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
                   Fecha solicitada
                 </dt>
-                <dd className="mt-1">{formatPreferredDate(quote.preferredTattooDate)}</dd>
+                <dd className="mt-2">{formatPreferredDate(quote.preferredTattooDate)}</dd>
               </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                  Estado
-                </dt>
-                <dd className="mt-1">{quoteStatusLabels[quote.status] ?? "En revisión"}</dd>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Estado</dt>
+                <dd className="mt-2">{quoteStatusLabels[quote.status] ?? "En revisión"}</dd>
               </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                  Reserva
-                </dt>
-                <dd className="mt-1">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Reserva</dt>
+                <dd className="mt-2">
                   {quote.calendarDateStatus
                     ? (calendarStatusLabels[quote.calendarDateStatus] ?? "En revisión")
                     : "Sin reserva asociada"}
                 </dd>
               </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                  Abono
-                </dt>
-                <dd className="mt-1">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Abono</dt>
+                <dd className="mt-2">
                   {quote.deposit?.verified
                     ? `Verificado por $${quote.deposit.amountClp.toLocaleString("es-CL")}`
                     : "Sin abono verificado publicado"}
@@ -167,14 +163,13 @@ export default async function QuoteStatusPage({
               </div>
             </dl>
             {quote.publicMessage ? (
-              <p className="rounded-xl border border-stone-700 bg-stone-950/70 p-3 text-sm leading-6">
+              <p className="rounded-2xl border border-white/10 bg-black/50 p-4 text-sm leading-6">
                 {quote.publicMessage}
               </p>
             ) : null}
-            <p className="text-sm leading-6 text-stone-400">
-              La fecha queda confirmada solo cuando el estudio lo informa explícitamente. Si
-              necesitas corregir datos, responde por el canal de contacto que indicaste en la
-              cotización.
+            <p className="text-sm leading-6 text-zinc-500">
+              Una fecha queda confirmada únicamente cuando el estudio lo informa explícitamente. Si
+              necesitas corregir datos, utiliza el canal de contacto indicado en tu solicitud.
             </p>
           </article>
         ) : null}
