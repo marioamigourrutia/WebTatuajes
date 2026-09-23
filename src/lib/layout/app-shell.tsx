@@ -22,27 +22,31 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     : null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[size:48px_48px]">
+    <div className="flex min-h-screen flex-col bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:64px_64px]">
       <SiteHeader navItems={navItems} whatsappUrl={whatsappUrl} />
       {children}
-      <footer className="mt-auto border-t border-white/10 bg-black/80">
-        <div className="mx-auto grid w-full max-w-7xl gap-6 px-6 py-9 text-sm text-zinc-500 sm:px-10 md:grid-cols-[1.2fr_0.8fr] md:items-end">
+      <footer className="mt-auto border-t border-white/10 bg-black/90">
+        <div className="mx-auto grid w-full max-w-7xl gap-6 px-6 py-9 text-sm text-zinc-400 sm:px-10 md:grid-cols-[1.2fr_0.8fr] md:items-end">
           <div>
-            <p className="font-semibold tracking-wide text-zinc-200">
-              {appConfig.studioName} · {appConfig.artistName}
+            <p className="font-black uppercase tracking-[0.16em] text-zinc-100">
+              {appConfig.brandName}
             </p>
-            <p className="mt-2 max-w-2xl leading-6">
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+              {appConfig.brandHandle} · {appConfig.artistName}
+            </p>
+            <p className="mt-3 max-w-2xl leading-6 text-zinc-400">
               Realismo en negro y grises, diseño personalizado y atención por agenda. Cada proyecto
               se evalúa antes de confirmar una sesión.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 md:justify-end">
-            <Link className="text-xs hover:text-white" href="/contacto">Contacto</Link>
-            <Link className="text-xs hover:text-white" href="/quote">Cotización</Link>
-            <Link className="text-xs hover:text-white" href="/quote/status">Seguimiento</Link>
-            <Link className="text-xs hover:text-white" href="/privacidad">Privacidad</Link>
-            <Link className="text-xs hover:text-white" href="/terminos-reserva">Términos de reserva</Link>
-            <Link className="text-xs hover:text-white" href="/admin">Panel admin</Link>
+            <a className="text-xs font-semibold text-zinc-300 hover:text-white" href={appConfig.instagramUrl} rel="noreferrer" target="_blank">Instagram</a>
+            <Link className="text-xs font-semibold text-zinc-300 hover:text-white" href="/contacto">Contacto</Link>
+            <Link className="text-xs font-semibold text-zinc-300 hover:text-white" href="/quote">Cotización</Link>
+            <Link className="text-xs font-semibold text-zinc-300 hover:text-white" href="/quote/status">Seguimiento</Link>
+            <Link className="text-xs font-semibold text-zinc-300 hover:text-white" href="/privacidad">Privacidad</Link>
+            <Link className="text-xs font-semibold text-zinc-300 hover:text-white" href="/terminos-reserva">Términos de reserva</Link>
+            <Link className="text-xs font-semibold text-zinc-300 hover:text-white" href="/admin">Panel admin</Link>
           </div>
         </div>
       </footer>
