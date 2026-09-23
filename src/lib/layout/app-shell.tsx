@@ -5,74 +5,44 @@ import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
 const navItems = [
   { href: "/", label: "Inicio" },
-  { href: "/servicios", label: "Servicios" },
-  { href: "/portfolio", label: "Portafolio" },
-  { href: "/colaboradores", label: "Colaboradores" },
-  { href: "/opiniones", label: "Opiniones" },
-  { href: "/tienda", label: "Tienda" },
   { href: "/contacto", label: "Contacto" },
-  { href: "/quote", label: "Cotizar" },
+  { href: "/quote", label: "Cotización" },
+  { href: "/quote/status", label: "Seguimiento" },
+  { href: "/opiniones", label: "Opiniones" },
+  { href: "/comunidad", label: "Comunidad" },
+  { href: "/colaboradores", label: "Colaboradores" },
+  { href: "/privacidad", label: "Privacidad" },
+  { href: "/terminos-reserva", label: "Términos de reserva" },
+  { href: "/admin", label: "Panel admin" },
 ];
 
-const globalWhatsAppPhone = "+56 9 7761 6917";
-
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
-  const whatsappUrl = hasWhatsAppConfig(globalWhatsAppPhone)
-    ? buildWhatsAppUrl({ phone: globalWhatsAppPhone, message: appConfig.whatsappMessage })
+  const whatsappUrl = hasWhatsAppConfig(appConfig.whatsappPhone)
+    ? buildWhatsAppUrl({ phone: appConfig.whatsappPhone, message: appConfig.whatsappMessage })
     : null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:42px_42px]">
+    <div className="flex min-h-screen flex-col bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[size:48px_48px]">
       <SiteHeader navItems={navItems} whatsappUrl={whatsappUrl} />
       {children}
-      <footer className="mt-auto border-t border-amber-100/10 bg-stone-950/80">
-        <div className="mx-auto grid w-full max-w-6xl gap-5 px-6 py-8 text-sm text-stone-400 sm:px-10 md:grid-cols-[1.2fr_0.8fr] md:items-end">
+      <footer className="mt-auto border-t border-white/10 bg-black/80">
+        <div className="mx-auto grid w-full max-w-7xl gap-6 px-6 py-9 text-sm text-zinc-500 sm:px-10 md:grid-cols-[1.2fr_0.8fr] md:items-end">
           <div>
-            <p className="font-semibold text-stone-200">
+            <p className="font-semibold tracking-wide text-zinc-200">
               {appConfig.studioName} · {appConfig.artistName}
             </p>
             <p className="mt-2 max-w-2xl leading-6">
-              Diseño personalizado, evaluación responsable y comunicación clara. Cotizaciones
-              privadas, atención por agenda y coordinación directa por WhatsApp.
+              Realismo en negro y grises, diseño personalizado y atención por agenda. Cada proyecto
+              se evalúa antes de confirmar una sesión.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3 md:justify-end">
-            <Link
-              className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
-              href="/tienda"
-            >
-              Obras disponibles
-            </Link>
-            <Link
-              className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
-              href="/privacidad"
-            >
-              Privacidad
-            </Link>
-            <Link
-              className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
-              href="/terminos-reserva"
-            >
-              Reservas
-            </Link>
-            <Link
-              className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
-              href="/manejo-imagenes"
-            >
-              Imágenes
-            </Link>
-            <Link
-              className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
-              href="/solicitud-datos"
-            >
-              Solicitud de datos
-            </Link>
-            <Link
-              className="text-xs text-stone-500 underline-offset-4 hover:text-stone-300 hover:underline"
-              href="/admin"
-            >
-              Administración
-            </Link>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 md:justify-end">
+            <Link className="text-xs hover:text-white" href="/contacto">Contacto</Link>
+            <Link className="text-xs hover:text-white" href="/quote">Cotización</Link>
+            <Link className="text-xs hover:text-white" href="/quote/status">Seguimiento</Link>
+            <Link className="text-xs hover:text-white" href="/privacidad">Privacidad</Link>
+            <Link className="text-xs hover:text-white" href="/terminos-reserva">Términos de reserva</Link>
+            <Link className="text-xs hover:text-white" href="/admin">Panel admin</Link>
           </div>
         </div>
       </footer>
