@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
 import { listPublicInstagramMedia, type InstagramMediaItem } from "@/lib/instagram/instagram-media";
+import { PortfolioGallery } from "@/lib/portfolio/portfolio-gallery";
 import {
   getPublishedPortfolioItems,
   type FirestorePortfolioItem,
@@ -30,6 +31,34 @@ const getFirebaseAdminFirestoreMock = vi.mocked(getFirebaseAdminFirestore);
 const listPublicInstagramMediaMock = vi.mocked(listPublicInstagramMedia);
 const listPublicBackendPortfolioItemsMock = vi.mocked(listPublicBackendPortfolioItems);
 
+type ReactLikeElement = {
+  type?: unknown;
+  props?: { children?: unknown; items?: PublicPortfolioItem[] };
+};
+
+function findElementByType(node: unknown, targetType: unknown): ReactLikeElement | null {
+  if (!node || typeof node !== "object") return null;
+  const element = node as ReactLikeElement;
+  if (element.type === targetType) return element;
+
+  const children = element.props?.children;
+  if (Array.isArray(children)) {
+    for (const child of children) {
+      const found = findElementByType(child, targetType);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  return findElementByType(children, targetType);
+}
+
+async function getGalleryItems() {
+  const page = await PortfolioPage();
+  const gallery = findElementByType(page, PortfolioGallery);
+  return gallery?.props?.items;
+}
+
 describe("portfolio page rendering", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -43,10 +72,7 @@ describe("portfolio page rendering", () => {
   it("falls back to the static public portfolio when backend loading fails", async () => {
     listPublicBackendPortfolioItemsMock.mockRejectedValueOnce(new Error("Metadata lookup failed"));
 
-    const page = await PortfolioPage();
-    const gallery = Array.isArray(page.props.children) ? page.props.children[1] : null;
-
-    const items = gallery?.props.items as PublicPortfolioItem[] | undefined;
+    const items = await getGalleryItems();
 
     expect(items).toEqual(getPublishedPortfolioItems());
     expect(items?.every((item) => item.published)).toBe(true);
@@ -73,9 +99,7 @@ describe("portfolio page rendering", () => {
       } satisfies FirestorePortfolioItem,
     ]);
 
-    const page = await PortfolioPage();
-    const gallery = Array.isArray(page.props.children) ? page.props.children[1] : null;
-    const items = gallery?.props.items as PublicPortfolioItem[] | undefined;
+    const items = await getGalleryItems();
     const adminItem = items?.find((item) => item.id === "admin-item-1");
 
     expect(adminItem).toMatchObject({
@@ -114,9 +138,7 @@ describe("portfolio page rendering", () => {
     ]);
     listPublicBackendPortfolioItemsMock.mockResolvedValueOnce([]);
 
-    const page = await PortfolioPage();
-    const gallery = Array.isArray(page.props.children) ? page.props.children[1] : null;
-    const items = gallery?.props.items as PublicPortfolioItem[] | undefined;
+    const items = await getGalleryItems();
 
     expect(items?.some((item) => item.id === "instagram-manual-1")).toBe(true);
     expect(items?.some((item) => item.id === "fine-line-botanical-forearm")).toBe(true);
