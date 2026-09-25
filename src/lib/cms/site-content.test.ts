@@ -35,7 +35,10 @@ describe("CMS site content helpers", () => {
   it("normalizes missing or invalid CMS data back to safe defaults", () => {
     expect(
       normalizeSiteSettings({ studio_name: "  Estudio Norte  ", instagram_url: "http://bad" }),
-    ).toMatchObject({ studioName: "Estudio Norte", instagramUrl: null });
+    ).toMatchObject({
+      studioName: "Estudio Norte",
+      instagramUrl: defaultSiteContent.siteSettings.instagramUrl,
+    });
 
     expect(
       normalizeHomePageContent({
