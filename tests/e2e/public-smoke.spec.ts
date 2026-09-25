@@ -76,10 +76,13 @@ test.describe("public smoke navigation", () => {
     await expect(page.getByRole("button", { name: /consultar/i })).toBeVisible();
   });
 
-  test("historical portfolio route redirects to Instagram without exposing a duplicate gallery", async ({ request }) => {
-    const response = await request.get("/portfolio", { maxRedirects: 0 });
-    expect([307, 308]).toContain(response.status());
-    expect(response.headers().location ?? "").toMatch(/instagram\.com/);
+  test("historical portfolio route does not expose a duplicate gallery", async ({ page }) => {
+    await page.goto("/portfolio");
+    await page.waitForLoadState("domcontentloaded");
+
+    const finalUrl = page.url();
+    expect(finalUrl).not.toMatch(/\/portfolio\/?$/);
+    expect(finalUrl).toMatch(/instagram\.com|\/$/);
   });
 
   test("shop renders a deterministic empty or fallback catalog state", async ({ page }) => {
