@@ -5,7 +5,6 @@ import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
 const navItems = [
   { href: "/", label: "Inicio" },
-  { href: "/portfolio", label: "Portfolio" },
   { href: "/quote", label: "Cotización" },
   { href: "/quote/status", label: "Seguimiento" },
   { href: "/opiniones", label: "Opiniones" },
@@ -28,7 +27,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       <footer className="mt-auto pt-12 sm:pt-20">
         <section className="relative overflow-hidden border-y border-[#cec6c2]/20 bg-[#370803] px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
           <div
-            className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 whitespace-nowrap text-center font-[var(--font-display)] text-[clamp(8rem,22vw,22rem)] uppercase leading-[0.72] tracking-[-0.04em] text-[#cec6c2]/90"
+            className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 whitespace-nowrap text-center font-[var(--font-display)] text-[clamp(7rem,20vw,21rem)] uppercase leading-[0.76] tracking-[-0.035em] text-[#cec6c2]/90"
             aria-hidden="true"
           >
             Booking
@@ -40,38 +39,23 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 ¿Tienes una idea? Hablemos.
               </p>
               <div className="mt-5 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                <span className="neo-display text-[clamp(3.8rem,10vw,8rem)] leading-[0.82] text-[#cec6c2]">
+                <span className="neo-display text-[clamp(3.3rem,9vw,7.4rem)] leading-[0.86] text-[#cec6c2]">
                   Contact
                 </span>
                 <Link
+                  aria-label="Ir a contacto"
                   className="grid h-14 w-14 shrink-0 place-items-center border border-[#cec6c2] bg-[#cec6c2] text-2xl text-[#141414] transition hover:-translate-y-1"
                   href="/contacto"
-                  aria-label="Ir a contacto"
                 >
                   →
                 </Link>
               </div>
               <div className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#837f7c]">
-                <Link className="transition hover:text-[#cec6c2]" href="/quote">
-                  Cotización
-                </Link>
-                <Link className="transition hover:text-[#cec6c2]" href="/quote/status">
-                  Seguimiento
-                </Link>
-                <Link className="transition hover:text-[#cec6c2]" href="/privacidad">
-                  Privacidad
-                </Link>
-                <Link className="transition hover:text-[#cec6c2]" href="/terminos-reserva">
-                  Términos
-                </Link>
-                <a
-                  className="transition hover:text-[#cec6c2]"
-                  href={appConfig.instagramUrl}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Instagram ↗
-                </a>
+                <Link className="transition hover:text-[#cec6c2]" href="/quote">Cotización</Link>
+                <Link className="transition hover:text-[#cec6c2]" href="/quote/status">Seguimiento</Link>
+                <Link className="transition hover:text-[#cec6c2]" href="/privacidad">Privacidad</Link>
+                <Link className="transition hover:text-[#cec6c2]" href="/terminos-reserva">Términos</Link>
+                <a className="transition hover:text-[#cec6c2]" href={appConfig.instagramUrl} rel="noreferrer" target="_blank">Instagram ↗</a>
               </div>
             </div>
           </div>
