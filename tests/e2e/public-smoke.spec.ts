@@ -85,6 +85,14 @@ test.describe("public smoke navigation", () => {
     expect(finalUrl).toMatch(/instagram\.com|\/$/);
   });
 
+  test("legacy pages remain compatible but are explicitly excluded from indexing", async ({ request }) => {
+    for (const route of ["/servicios", "/tienda", "/manejo-imagenes"]) {
+      const response = await request.get(route);
+      expect(response.ok()).toBe(true);
+      expect(response.headers()["x-robots-tag"]).toBe("noindex, nofollow, noarchive");
+    }
+  });
+
   test("shop renders a deterministic empty or fallback catalog state", async ({ page }) => {
     await page.goto("/tienda");
 
@@ -113,8 +121,9 @@ test.describe("public smoke navigation", () => {
   });
 
   test("admin route renders its authentication shell without exposing protected data", async ({ page }) => {
-    await page.goto("/admin");
+    const response = await page.goto("/admin");
 
+    expect(response?.headers()["x-robots-tag"]).toBe("noindex, nofollow, noarchive");
     await expect(page.getByRole("heading", { name: /control del estudio/i })).toBeVisible();
     await expect(page.getByText(/panel|gestión operativa/i).first()).toBeVisible();
   });
