@@ -1,3 +1,4 @@
+import { EditorialPageHero } from "@/lib/layout/editorial-page-hero";
 import { ReviewForm } from "@/lib/reviews/review-form";
 
 export default async function SubmitReviewPage({
@@ -9,23 +10,27 @@ export default async function SubmitReviewPage({
   const token = typeof params.token === "string" ? params.token : "";
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-10 sm:px-10">
-      <section className="mb-6 rounded-[2rem] border border-amber-100/10 bg-stone-950/60 p-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
-          Opinión privada
-        </p>
-        <h1 className="mt-3 text-4xl font-black text-stone-50">Comparte tu experiencia</h1>
-        <p className="mt-4 text-stone-300">
-          Este formulario funciona con un enlace privado de un solo uso generado por el estudio.
-        </p>
-      </section>
-      {token ? (
-        <ReviewForm initialToken={token} />
-      ) : (
-        <p className="rounded-3xl border border-red-300/30 bg-red-400/10 p-6 text-red-100">
-          Falta el token privado de opinión.
-        </p>
-      )}
+    <main className="pb-8 pt-4 sm:pt-5">
+      <div className="editorial-page">
+        <EditorialPageHero
+          index="05B"
+          eyebrow="Opinión privada"
+          title="Comparte tu experiencia."
+          description="Este formulario funciona con un enlace privado de un solo uso generado por el estudio."
+          tone="paper"
+          meta={["Enlace privado", "Un solo uso", "Moderación"]}
+        />
+
+        <section className="mt-4 border border-[#cec6c2]/14 bg-[#202020] p-5 sm:p-7 lg:p-9">
+          {token ? (
+            <ReviewForm initialToken={token} />
+          ) : (
+            <p className="border border-red-300/30 bg-red-400/10 p-6 text-sm text-red-100">
+              Falta el token privado de opinión.
+            </p>
+          )}
+        </section>
+      </div>
     </main>
   );
 }
