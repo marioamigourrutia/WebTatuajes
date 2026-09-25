@@ -73,8 +73,8 @@ jobs:
               "quote code compatibility test",
           )
 
-          regex_old = r'^COT-\\d{4}-[A-F0-9]{5}$'
-          regex_new = r'^COT-\\d{4}-[A-F0-9]{10}$'
+          regex_old = r'/^COT-\d{4}-[A-F0-9]{5}$/'
+          regex_new = r'/^COT-\d{4}-[A-F0-9]{10}$/'
           regex_count = tests.count(regex_old)
           if regex_count < 1:
               raise SystemExit("generated-code expectations: no legacy regex expectations found")
