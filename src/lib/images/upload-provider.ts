@@ -1,11 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
 import sharp, { type Metadata } from "sharp";
 
-export const imageUploadProviders = ["cloudinary", "disabled"] as const;
+export const imageUploadProviders = ["cloudinary", "imagekit", "disabled"] as const;
 export type ImageUploadProvider = (typeof imageUploadProviders)[number];
 
 export type UploadedImageMetadata = {
-  provider: "cloudinary";
+  provider: "cloudinary" | "imagekit";
   providerId: string;
   secureUrl: string | null;
   mimeType: string;
@@ -38,12 +38,13 @@ function cleanFolderSegment(value: string): string {
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9/_-]+/g, "-")
+    .replace(/^\/+|\/+$/g, "")
     .replace(/^-+|-+$/g, "")
     .slice(0, 160);
 }
 
 function parseProvider(value = process.env.IMAGE_UPLOAD_PROVIDER): ImageUploadProvider {
-  if (value === "cloudinary") return value;
+  if (value === "cloudinary" || value === "imagekit") return value;
   return "disabled";
 }
 
@@ -69,9 +70,14 @@ export function getImageUploadConfig() {
   const cloudName = cleanString(process.env.CLOUDINARY_CLOUD_NAME);
   const apiKey = cleanString(process.env.CLOUDINARY_API_KEY);
   const apiSecret = cleanString(process.env.CLOUDINARY_API_SECRET);
-  const folder = cleanFolderSegment(process.env.CLOUDINARY_UPLOAD_FOLDER ?? "webtatuajes");
+  const cloudinaryFolder = cleanFolderSegment(process.env.CLOUDINARY_UPLOAD_FOLDER ?? "webtatuajes");
+  const imageKitPrivateKey = cleanString(process.env.IMAGEKIT_PRIVATE_KEY);
+  const imageKitUrlEndpoint = cleanString(process.env.IMAGEKIT_URL_ENDPOINT);
+  const imageKitFolder = cleanFolderSegment(process.env.IMAGEKIT_UPLOAD_FOLDER ?? "webtatuajes");
   const maxSizeBytes = parseMaxSizeBytes();
-  const configured = provider === "cloudinary" && Boolean(cloudName && apiKey && apiSecret);
+  const configured =
+    (provider === "cloudinary" && Boolean(cloudName && apiKey && apiSecret)) ||
+    (provider === "imagekit" && Boolean(imageKitPrivateKey && imageKitUrlEndpoint));
 
   return {
     provider,
@@ -79,7 +85,10 @@ export function getImageUploadConfig() {
     cloudName,
     apiKey,
     apiSecret,
-    folder,
+    cloudinaryFolder,
+    imageKitPrivateKey,
+    imageKitUrlEndpoint,
+    imageKitFolder,
     maxSizeBytes,
   } as const;
 }
@@ -223,6 +232,99 @@ function signCloudinaryParams(params: Record<string, string>, apiSecret: string)
   return createHash("sha1").update(`${payload}${apiSecret}`).digest("hex");
 }
 
+async function uploadToCloudinary(
+  processedImage: ProcessedUploadImage,
+  purpose: ImageUploadPurpose,
+  config: ReturnType<typeof getImageUploadConfig>,
+): Promise<UploadedImageMetadata | null> {
+  const folder = `${config.cloudinaryFolder}/${getPurposeFolder(purpose)}`;
+  const publicId = `${folder}/${randomBytes(16).toString("hex")}`;
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const signature = signCloudinaryParams(
+    { folder, public_id: publicId, timestamp },
+    config.apiSecret,
+  );
+  const formData = new FormData();
+  formData.set(
+    "file",
+    new Blob([bufferToArrayBuffer(processedImage.buffer)], { type: processedImage.mimeType }),
+  );
+  formData.set("api_key", config.apiKey);
+  formData.set("timestamp", timestamp);
+  formData.set("folder", folder);
+  formData.set("public_id", publicId);
+  formData.set("signature", signature);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${encodeURIComponent(config.cloudName)}/image/upload`,
+    { method: "POST", body: formData },
+  );
+  const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+
+  if (!response.ok || typeof body.secure_url !== "string" || typeof body.public_id !== "string") {
+    return null;
+  }
+
+  return {
+    provider: "cloudinary",
+    providerId: body.public_id,
+    secureUrl: body.secure_url,
+    mimeType: processedImage.mimeType,
+    sizeBytes: processedImage.sizeBytes,
+    width: processedImage.width,
+    height: processedImage.height,
+  };
+}
+
+async function uploadToImageKit(
+  processedImage: ProcessedUploadImage,
+  purpose: ImageUploadPurpose,
+  config: ReturnType<typeof getImageUploadConfig>,
+): Promise<UploadedImageMetadata | null> {
+  const folder = `/${[config.imageKitFolder, getPurposeFolder(purpose)].filter(Boolean).join("/")}`;
+  const fileName = `${randomBytes(16).toString("hex")}.webp`;
+  const formData = new FormData();
+  formData.set(
+    "file",
+    new Blob([bufferToArrayBuffer(processedImage.buffer)], { type: processedImage.mimeType }),
+  );
+  formData.set("fileName", fileName);
+  formData.set("folder", folder);
+  formData.set("useUniqueFileName", "true");
+  formData.set("tags", `webtatuajes,${purpose}`);
+
+  const authorization = Buffer.from(`${config.imageKitPrivateKey}:`).toString("base64");
+  const response = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
+    method: "POST",
+    headers: { Authorization: `Basic ${authorization}` },
+    body: formData,
+  });
+  const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+
+  if (!response.ok || typeof body.url !== "string" || typeof body.fileId !== "string") {
+    return null;
+  }
+
+  return {
+    provider: "imagekit",
+    providerId: body.fileId,
+    secureUrl: body.url,
+    mimeType: processedImage.mimeType,
+    sizeBytes:
+      typeof body.size === "number" && Number.isFinite(body.size)
+        ? body.size
+        : processedImage.sizeBytes,
+    width:
+      typeof body.width === "number" && Number.isFinite(body.width)
+        ? body.width
+        : processedImage.width,
+    height:
+      typeof body.height === "number" && Number.isFinite(body.height)
+        ? body.height
+        : processedImage.height,
+  };
+}
+
 export async function uploadImageToExternalProvider(
   file: File,
   purpose: ImageUploadPurpose,
@@ -256,31 +358,12 @@ export async function uploadImageToExternalProvider(
     };
   }
 
-  const folder = `${config.folder}/${getPurposeFolder(purpose)}`;
-  const publicId = `${folder}/${randomBytes(16).toString("hex")}`;
-  const timestamp = String(Math.floor(Date.now() / 1000));
-  const signature = signCloudinaryParams(
-    { folder, public_id: publicId, timestamp },
-    config.apiSecret,
-  );
-  const formData = new FormData();
-  formData.set(
-    "file",
-    new Blob([bufferToArrayBuffer(processedImage.buffer)], { type: processedImage.mimeType }),
-  );
-  formData.set("api_key", config.apiKey);
-  formData.set("timestamp", timestamp);
-  formData.set("folder", folder);
-  formData.set("public_id", publicId);
-  formData.set("signature", signature);
+  const image =
+    config.provider === "imagekit"
+      ? await uploadToImageKit(processedImage, purpose, config)
+      : await uploadToCloudinary(processedImage, purpose, config);
 
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${encodeURIComponent(config.cloudName)}/image/upload`,
-    { method: "POST", body: formData },
-  );
-  const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-
-  if (!response.ok || typeof body.secure_url !== "string" || typeof body.public_id !== "string") {
+  if (!image) {
     return {
       ok: false,
       status: 502,
@@ -288,16 +371,5 @@ export async function uploadImageToExternalProvider(
     };
   }
 
-  return {
-    ok: true,
-    image: {
-      provider: "cloudinary",
-      providerId: body.public_id,
-      secureUrl: body.secure_url,
-      mimeType: processedImage.mimeType,
-      sizeBytes: processedImage.sizeBytes,
-      width: processedImage.width,
-      height: processedImage.height,
-    },
-  };
+  return { ok: true, image };
 }
