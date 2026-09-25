@@ -37,7 +37,17 @@ export function SiteHeader({ navItems, whatsappUrl }: SiteHeaderProps) {
             ))}
         </nav>
 
-        <div className="hidden shrink-0 items-center gap-3 xl:flex">
+        <div className="hidden shrink-0 items-center gap-2 xl:flex">
+          {appConfig.instagramUrl ? (
+            <a
+              className={navLinkClassName}
+              href={appConfig.instagramUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Instagram ↗
+            </a>
+          ) : null}
           <Link className={navLinkClassName} href="/admin">
             Admin
           </Link>
@@ -80,9 +90,20 @@ export function SiteHeader({ navItems, whatsappUrl }: SiteHeaderProps) {
                 </span>
               </Link>
             ))}
+            {appConfig.instagramUrl ? (
+              <a
+                className="mt-4 flex items-center justify-between border border-[#cec6c2]/20 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#cec6c2]"
+                href={appConfig.instagramUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <span>Instagram</span>
+                <span>↗</span>
+              </a>
+            ) : null}
             {whatsappUrl ? (
               <a
-                className="mt-4 neo-button"
+                className="mt-2 neo-button"
                 href={whatsappUrl}
                 rel="noreferrer"
                 target="_blank"
