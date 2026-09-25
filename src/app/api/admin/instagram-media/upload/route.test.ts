@@ -22,10 +22,11 @@ function buildRequest() {
   formData.set("caption", "Hero black and grey");
   formData.set("showOnHome", "on");
   formData.set("pinned", "on");
-  return new Request("http://localhost/api/admin/instagram-media/upload", {
-    method: "POST",
-    body: formData,
-  });
+
+  return {
+    headers: new Headers(),
+    formData: vi.fn(async () => formData),
+  } as unknown as Request;
 }
 
 describe("admin editorial image upload route", () => {
