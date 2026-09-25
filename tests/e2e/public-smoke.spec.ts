@@ -1,5 +1,26 @@
 import { expect, test } from "@playwright/test";
 
+const publicRoutes = [
+  ["/", /tatuajes con diseño, criterio y una experiencia segura/i],
+  ["/quote", /cuéntame tu idea con contexto/i],
+  ["/quote/status", /revisa el estado de tu cotización/i],
+  ["/opiniones", /experiencias publicadas por clientes/i],
+  ["/comunidad", /novedades sin ruido/i],
+  ["/colaboradores", /marcas y aliados del estudio/i],
+  ["/contacto", /hablemos de tu próxima pieza/i],
+  ["/servicios", /información clara antes de cotizar/i],
+  ["/tienda", /obras disponibles/i],
+] as const;
+
+async function expectNoHorizontalOverflow(page: import("@playwright/test").Page) {
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.viewport + 2);
+}
+
 test.describe("public smoke navigation", () => {
   test("home exposes the primary quote path", async ({ page }) => {
     await page.goto("/");
@@ -10,23 +31,31 @@ test.describe("public smoke navigation", () => {
       }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: /solicitar cotización/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /instagram/i }).first()).toBeVisible();
   });
 
   test("primary public navigation pages render", async ({ page }) => {
-    const routes = [
-      ["/quote", /cuéntame tu idea con contexto/i],
-      ["/quote/status", /revisa el estado de tu cotización/i],
-      ["/opiniones", /experiencias publicadas por clientes/i],
-      ["/comunidad", /novedades sin ruido/i],
-      ["/colaboradores", /marcas y aliados del estudio/i],
-      ["/contacto", /hablemos de tu próxima pieza/i],
-      ["/servicios", /información clara antes de cotizar/i],
-      ["/tienda", /obras disponibles/i],
-    ] as const;
-
-    for (const [route, heading] of routes) {
+    for (const [route, heading] of publicRoutes.slice(1)) {
       await page.goto(route);
       await expect(page.getByRole("heading", { name: heading }).first()).toBeVisible();
+    }
+  });
+
+  test("public routes do not create horizontal overflow on desktop", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    for (const [route] of publicRoutes) {
+      await page.goto(route);
+      await expectNoHorizontalOverflow(page);
+    }
+  });
+
+  test("public routes do not create horizontal overflow on mobile", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    for (const [route] of publicRoutes) {
+      await page.goto(route);
+      await expectNoHorizontalOverflow(page);
     }
   });
 
@@ -78,6 +107,6 @@ test.describe("public smoke navigation", () => {
     await page.goto("/admin");
 
     await expect(page.getByRole("heading", { name: /control del estudio/i })).toBeVisible();
-    await expect(page.getByText(/dashboard|gestión operativa/i).first()).toBeVisible();
+    await expect(page.getByText(/panel|gestión operativa/i).first()).toBeVisible();
   });
 });
