@@ -31,4 +31,13 @@ jobs:
         run: npm run typecheck
 
       - name: Unit tests
-        run: npm test -- --run
+        run: npm test -- --run --reporter=json --outputFile=test-results.json
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-results
+          path: test-results.json
+          if-no-files-found: ignore
+          retention-days: 2
