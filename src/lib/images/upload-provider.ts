@@ -14,7 +14,7 @@ export type UploadedImageMetadata = {
   height: number | null;
 };
 
-export type ImageUploadPurpose = "portfolio" | "quote-reference";
+export type ImageUploadPurpose = "portfolio" | "quote-reference" | "editorial";
 
 export const defaultImageUploadMaxSizeBytes = 5 * 1024 * 1024;
 export const allowedImageUploadMimeTypes = ["image/jpeg", "image/png", "image/webp"] as const;
@@ -208,7 +208,9 @@ async function processUploadImage(file: File): Promise<ProcessedUploadImage> {
 }
 
 function getPurposeFolder(purpose: ImageUploadPurpose) {
-  return purpose === "portfolio" ? "portfolio" : "quote-references";
+  if (purpose === "portfolio") return "portfolio";
+  if (purpose === "editorial") return "editorial";
+  return "quote-references";
 }
 
 function signCloudinaryParams(params: Record<string, string>, apiSecret: string) {
