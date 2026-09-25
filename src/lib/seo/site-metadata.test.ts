@@ -13,7 +13,7 @@ describe("site metadata", () => {
     expect(getSiteUrl("not-a-url").toString()).toBe("http://localhost:3000/");
   });
 
-  it("centralizes the current public discovery routes without admin or legacy portfolio", () => {
+  it("centralizes the current public discovery routes without admin or legacy sections", () => {
     expect(publicSiteRoutes).toEqual([
       "/",
       "/contacto",
@@ -27,6 +27,9 @@ describe("site metadata", () => {
     ]);
     expect(publicSiteRoutes.some((route) => route.startsWith("/admin"))).toBe(false);
     expect(publicSiteRoutes).not.toContain("/portfolio");
+    expect(publicSiteRoutes).not.toContain("/servicios");
+    expect(publicSiteRoutes).not.toContain("/tienda");
+    expect(publicSiteRoutes).not.toContain("/manejo-imagenes");
   });
 
   it("builds absolute sitemap entries from the configured site URL", () => {
@@ -41,6 +44,9 @@ describe("site metadata", () => {
       expect.objectContaining({ url: "https://example.cl/contacto", priority: 0.7 }),
     );
     expect(entries.some((entry) => entry.url.endsWith("/portfolio"))).toBe(false);
+    expect(entries.some((entry) => entry.url.endsWith("/servicios"))).toBe(false);
+    expect(entries.some((entry) => entry.url.endsWith("/tienda"))).toBe(false);
+    expect(entries.some((entry) => entry.url.endsWith("/manejo-imagenes"))).toBe(false);
   });
 
   it("provides root metadata with current brand title and social basics", () => {
