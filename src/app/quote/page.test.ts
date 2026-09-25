@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import QuotePage from "./page";
 
-vi.mock("@/lib/images/upload-provider", () => ({
+vi.mock("@/lib/images/upload-config", () => ({
   isExternalImageUploadConfigured: () => false,
 }));
 
