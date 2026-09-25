@@ -53,6 +53,38 @@ describe("CMS site content helpers", () => {
     });
   });
 
+  it("preserves editable homepage visibility flags", () => {
+    const normalized = normalizeHomePageContent({
+      sections: {
+        reviews: false,
+        sponsors: false,
+        process: false,
+        community: false,
+        contact: false,
+        finalCta: false,
+      },
+    });
+
+    expect(normalized.sections).toMatchObject({
+      reviews: false,
+      sponsors: false,
+      process: false,
+      community: false,
+      contact: false,
+      finalCta: false,
+    });
+    expect(mapHomePageContentToFirestore(normalized)).toMatchObject({
+      sections: expect.objectContaining({
+        reviews: false,
+        sponsors: false,
+        process: false,
+        community: false,
+        contact: false,
+        finalCta: false,
+      }),
+    });
+  });
+
   it("maps camelCase app content to snake_case Firestore documents", () => {
     expect(mapSiteSettingsToFirestore(defaultSiteContent.siteSettings)).toMatchObject({
       studio_name: defaultSiteContent.siteSettings.studioName,
@@ -110,6 +142,29 @@ describe("CMS site content helpers", () => {
     });
     expect(set).toHaveBeenCalledTimes(2);
     expect(commit).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes disabled visibility flags to the home document", async () => {
+    const set = vi.fn();
+    const commit = vi.fn();
+    const firestore = {
+      doc: vi.fn((path: string) => ({ path })),
+      batch: vi.fn(() => ({ set, commit })),
+    };
+    const hiddenReviewsContent = {
+      ...defaultSiteContent,
+      home: {
+        ...defaultSiteContent.home,
+        sections: { ...defaultSiteContent.home.sections, reviews: false, community: false },
+      },
+    };
+
+    await saveSiteContent(firestore as never, hiddenReviewsContent);
+
+    expect(set).toHaveBeenCalledTimes(2);
+    expect(set.mock.calls[1]?.[1]).toMatchObject({
+      sections: expect.objectContaining({ reviews: false, community: false }),
+    });
   });
 
   it("interpolates site settings placeholders in public copy", () => {
