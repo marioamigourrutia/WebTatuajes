@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  push:
+    branches: [design/neonink-faithful-v2]
   pull_request:
     branches: [main]
   workflow_dispatch:
