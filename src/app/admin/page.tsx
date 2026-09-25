@@ -51,17 +51,17 @@ export default async function AdminPage() {
       <div className="editorial-page">
         <EditorialPageHero
           index="A1"
-          eyebrow="Administración / privado"
+          eyebrow="Administración · acceso privado"
           title="Control del estudio."
           description="Cotizaciones, calendario, reservas, contenido, imágenes editoriales, opiniones, tienda, comunidad y auditoría en un único panel protegido."
           tone="black"
-          meta={["Acceso restringido", "Firebase", "Server validated"]}
+          meta={["Acceso restringido", "Firebase", "Validación en servidor"]}
         />
 
         <section className="neo-admin mt-4 border border-[#cec6c2]/14 bg-[#181818] p-3 sm:p-5 lg:p-6">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-4 border-b border-[#cec6c2]/14 pb-4">
             <div>
-              <p className="neo-kicker">Dashboard</p>
+              <p className="neo-kicker">Panel</p>
               <h2 className="neo-display mt-3 text-[clamp(2.2rem,5vw,4rem)] text-[#cec6c2]">
                 Gestión operativa
               </h2>
