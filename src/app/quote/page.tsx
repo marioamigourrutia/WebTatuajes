@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { isExternalImageUploadConfigured } from "@/lib/images/upload-provider";
+import { isExternalImageUploadConfigured } from "@/lib/images/upload-config";
 import { EditorialPageHero } from "@/lib/layout/editorial-page-hero";
 import { QuoteRequestForm } from "@/lib/quotes/quote-request-form";
 
