@@ -65,6 +65,9 @@ function resetEnv() {
   delete process.env.CLOUDINARY_API_KEY;
   delete process.env.CLOUDINARY_API_SECRET;
   delete process.env.CLOUDINARY_UPLOAD_FOLDER;
+  delete process.env.IMAGEKIT_PRIVATE_KEY;
+  delete process.env.IMAGEKIT_URL_ENDPOINT;
+  delete process.env.IMAGEKIT_UPLOAD_FOLDER;
   delete process.env.IMAGE_UPLOAD_MAX_SIZE_BYTES;
 }
 
@@ -85,12 +88,9 @@ describe("upload provider config", () => {
     expect(isExternalImageUploadConfigured()).toBe(false);
   });
 
-  it("ignores Supabase provider configuration", () => {
+  it("ignores unsupported provider configuration", () => {
     resetEnv();
     process.env.IMAGE_UPLOAD_PROVIDER = "supabase";
-    process.env.SUPABASE_URL = "https://project.supabase.co";
-    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
-    process.env.SUPABASE_STORAGE_BUCKET = "tattoo-images";
 
     expect(getImageUploadConfig()).toMatchObject({ provider: "disabled", configured: false });
     expect(isExternalImageUploadConfigured()).toBe(false);
@@ -107,8 +107,24 @@ describe("upload provider config", () => {
     expect(getImageUploadConfig()).toMatchObject({
       provider: "cloudinary",
       configured: true,
-      folder: "tattoo-studio/private",
+      cloudinaryFolder: "tattoo-studio/private",
     });
+  });
+
+  it("detects ImageKit only with server private key and URL endpoint", () => {
+    resetEnv();
+    process.env.IMAGE_UPLOAD_PROVIDER = "imagekit";
+    process.env.IMAGEKIT_PRIVATE_KEY = "private_test_key";
+    process.env.IMAGEKIT_URL_ENDPOINT = "https://ik.imagekit.io/example";
+    process.env.IMAGEKIT_UPLOAD_FOLDER = "Mario Gallery/WebTatuajes";
+
+    expect(getImageUploadConfig()).toMatchObject({
+      provider: "imagekit",
+      configured: true,
+      imageKitUrlEndpoint: "https://ik.imagekit.io/example",
+      imageKitFolder: "mario-gallery/webtatuajes",
+    });
+    expect(isExternalImageUploadConfigured()).toBe(true);
   });
 
   it("rejects SVG and oversized files", () => {
@@ -189,10 +205,55 @@ describe("upload provider config", () => {
 
     expect(result).toMatchObject({
       ok: true,
-      image: { providerId: "webtatuajes/portfolio/random-id", mimeType: "image/webp" },
+      image: { provider: "cloudinary", providerId: "webtatuajes/portfolio/random-id", mimeType: "image/webp" },
     });
     const body = fetchMock.mock.calls[0]?.[1]?.body as FormData;
     expect(body.get("public_id")).not.toContain("client-original-name");
+    expect(body.get("file")).toBeInstanceOf(Blob);
+    expect((body.get("file") as Blob).type).toBe("image/webp");
+  });
+
+  it("uploads processed images to ImageKit using server-side basic auth", async () => {
+    resetEnv();
+    process.env.IMAGE_UPLOAD_PROVIDER = "imagekit";
+    process.env.IMAGEKIT_PRIVATE_KEY = "private_test_key";
+    process.env.IMAGEKIT_URL_ENDPOINT = "https://ik.imagekit.io/example";
+    process.env.IMAGEKIT_UPLOAD_FOLDER = "webtatuajes";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        fileId: "file_123",
+        url: "https://ik.imagekit.io/example/webtatuajes/editorial/random.webp",
+        size: 2200,
+        width: 1080,
+        height: 1440,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await uploadImageToExternalProvider(
+      await createImageFile({ width: 800, height: 1200, name: "portrait-client-name.png" }),
+      "editorial",
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      image: {
+        provider: "imagekit",
+        providerId: "file_123",
+        secureUrl: "https://ik.imagekit.io/example/webtatuajes/editorial/random.webp",
+        mimeType: "image/webp",
+      },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://upload.imagekit.io/api/v1/files/upload");
+    const options = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect((options.headers as Record<string, string>).Authorization).toMatch(/^Basic /);
+    expect((options.headers as Record<string, string>).Authorization).not.toContain("private_test_key");
+    const body = options.body as FormData;
+    expect(body.get("folder")).toBe("/webtatuajes/editorial");
+    expect(String(body.get("fileName"))).toMatch(/^[a-f0-9]{32}\.webp$/);
+    expect(String(body.get("fileName"))).not.toContain("portrait-client-name");
     expect(body.get("file")).toBeInstanceOf(Blob);
     expect((body.get("file") as Blob).type).toBe("image/webp");
   });
