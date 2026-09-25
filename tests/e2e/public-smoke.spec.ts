@@ -87,7 +87,7 @@ test.describe("public smoke navigation", () => {
 
     await expect(page.getByRole("heading", { name: /obras disponibles/i })).toBeVisible();
     await expect(
-      page.getByText(/No hay obras disponibles publicadas|Catálogo temporal \/ referencia/i),
+      page.getByText(/No hay obras disponibles publicadas|Catálogo temporal · referencia/i),
     ).toBeVisible();
   });
 
