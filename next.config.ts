@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
+const isProduction = process.env.NODE_ENV === "production";
 const instagramUrl =
   process.env.NEXT_PUBLIC_INSTAGRAM_URL?.trim() || "https://www.instagram.com/marioamigotattoo/";
 
@@ -39,9 +40,9 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-  ...(isDev
-    ? []
-    : [{ key: "Strict-Transport-Security", value: "max-age=31536000" }]),
+  ...(isProduction
+    ? [{ key: "Strict-Transport-Security", value: "max-age=31536000" }]
+    : []),
 ];
 
 const noIndexHeaders = [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }];
