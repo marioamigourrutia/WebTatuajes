@@ -7,7 +7,7 @@
   --panel-soft: #2c2c2c;
   --paper: #cec6c2;
   --paper-soft: #b7aaa4;
-  --paper-muted: #837f7c;
+  --paper-muted: #9a928e;
   --wine: #370803;
   --wine-deep: #230503;
   --line: rgb(206 198 194 / 0.34);
@@ -127,8 +127,8 @@ select {
   font-family: var(--font-display), Impact, sans-serif;
   font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: -0.025em;
-  line-height: 0.88;
+  letter-spacing: -0.02em;
+  line-height: 0.92;
   text-wrap: balance;
   overflow-wrap: normal;
   word-break: normal;
@@ -136,8 +136,8 @@ select {
 }
 
 .neo-mega {
-  letter-spacing: -0.035em;
-  line-height: 0.79;
+  letter-spacing: -0.025em;
+  line-height: 0.84;
 }
 
 .neo-kicker {
@@ -289,8 +289,8 @@ select {
   font-family: var(--font-display), Impact, sans-serif;
   font-size: clamp(4.5rem, 14vw, 13rem);
   font-weight: 400;
-  line-height: 0.78;
-  letter-spacing: -0.035em;
+  line-height: 0.84;
+  letter-spacing: -0.025em;
   text-transform: uppercase;
   text-wrap: balance;
 }
@@ -384,7 +384,6 @@ select {
   letter-spacing: -0.02em;
 }
 
-/* Compatibilidad visual para componentes existentes. */
 [class~="text-amber-50"],
 [class~="text-amber-100"],
 [class~="text-amber-200"],
@@ -407,7 +406,7 @@ select {
 }
 
 [class~="text-stone-600"] {
-  color: #66615e;
+  color: #77706c;
 }
 
 [class~="border-amber-100/10"],
@@ -495,8 +494,14 @@ label[class~="bg-white"]:hover,
   }
 
   .editorial-hero-title {
-    font-size: clamp(3.7rem, 21vw, 7rem);
-    line-height: 0.8;
+    font-size: clamp(3.45rem, 19vw, 6.5rem);
+    line-height: 0.88;
+    letter-spacing: -0.015em;
+  }
+
+  .neo-mega {
+    line-height: 0.88;
+    letter-spacing: -0.015em;
   }
 }
 
