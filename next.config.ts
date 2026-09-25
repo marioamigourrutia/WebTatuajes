@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
+const instagramUrl =
+  process.env.NEXT_PUBLIC_INSTAGRAM_URL?.trim() || "https://www.instagram.com/marioamigotattoo/";
 
 function readSpaceSeparatedEnv(name: string) {
   return (process.env[name] ?? "")
@@ -34,6 +36,15 @@ const contentSecurityPolicy = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  async redirects() {
+    return [
+      {
+        source: "/portfolio",
+        destination: instagramUrl,
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {
