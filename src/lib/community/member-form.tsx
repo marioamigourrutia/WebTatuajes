@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { BotProtectionFields } from "@/lib/bot-protection-fields";
+import { appConfig } from "@/lib/config/app";
 
 type FormState = {
   fullName: string;
@@ -19,6 +20,9 @@ const initialFormState: FormState = {
   email: "",
   marketingConsent: false,
 };
+
+const fieldClass =
+  "rounded-xl border border-white/12 bg-[#0b0b0d] px-4 py-3 text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-60";
 
 export function CommunityMemberForm() {
   const [form, setForm] = useState<FormState>(initialFormState);
@@ -52,9 +56,7 @@ export function CommunityMemberForm() {
       }
 
       setForm(initialFormState);
-      setMessage(
-        "Listo, te sumamos a la comunidad. Te escribiremos solo con novedades relevantes.",
-      );
+      setMessage("Listo. Te avisaremos solo cuando haya algo que realmente valga la pena compartir.");
     } catch {
       setErrors({ form: "No pudimos conectar con el servidor. Intenta nuevamente." });
     } finally {
@@ -66,17 +68,15 @@ export function CommunityMemberForm() {
     <form className="space-y-4" onSubmit={submitCommunityMember}>
       <BotProtectionFields />
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-2 text-sm font-semibold text-stone-200">
-          Nombre completo
+        <label className="grid gap-2 text-sm font-semibold text-zinc-300">
+          Nombre
           <input
             autoComplete="name"
-            className="rounded-2xl border border-stone-700 bg-stone-950 px-4 py-3 text-stone-100 outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+            className={fieldClass}
             disabled={submitting}
             maxLength={80}
             name="fullName"
-            onChange={(event) =>
-              setForm((current) => ({ ...current, fullName: event.target.value }))
-            }
+            onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))}
             placeholder="Tu nombre"
             required
             value={form.fullName}
@@ -84,11 +84,11 @@ export function CommunityMemberForm() {
           {errors.fullName ? <span className="text-xs text-red-300">{errors.fullName}</span> : null}
         </label>
 
-        <label className="grid gap-2 text-sm font-semibold text-stone-200">
+        <label className="grid gap-2 text-sm font-semibold text-zinc-300">
           Email
           <input
             autoComplete="email"
-            className="rounded-2xl border border-stone-700 bg-stone-950 px-4 py-3 text-stone-100 outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+            className={fieldClass}
             disabled={submitting}
             maxLength={160}
             name="email"
@@ -102,34 +102,29 @@ export function CommunityMemberForm() {
         </label>
       </div>
 
-      <label className="flex gap-3 rounded-2xl border border-stone-800 bg-stone-950/70 p-4 text-sm leading-6 text-stone-300">
+      <label className="flex gap-3 rounded-xl border border-white/10 bg-[#0b0b0d] p-4 text-sm leading-6 text-zinc-400">
         <input
           checked={form.marketingConsent}
-          className="mt-1 h-4 w-4 accent-amber-300"
+          className="mt-1 h-4 w-4 accent-zinc-300"
           disabled={submitting}
           name="marketingConsent"
-          onChange={(event) =>
-            setForm((current) => ({ ...current, marketingConsent: event.target.checked }))
-          }
+          onChange={(event) => setForm((current) => ({ ...current, marketingConsent: event.target.checked }))}
           required
           type="checkbox"
         />
         <span>
-          Acepto recibir novedades, contenido y comunicaciones de la comunidad de{" "}
-          <span className="font-semibold text-stone-100">WebTatuajes</span>. Puedo pedir salir de la
-          lista cuando quiera.
+          Acepto recibir novedades y contenido de <span className="font-semibold text-zinc-200">{appConfig.brandName}</span>. Puedo salir de la lista cuando quiera.
         </span>
       </label>
-      {errors.marketingConsent ? (
-        <p className="text-sm text-red-300">{errors.marketingConsent}</p>
-      ) : null}
+
+      {errors.marketingConsent ? <p className="text-sm text-red-300">{errors.marketingConsent}</p> : null}
 
       <button
-        className="rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/30 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-full border border-white/18 bg-[#151518] px-6 py-3 font-bold text-zinc-100 transition hover:border-white/35 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={submitting}
         type="submit"
       >
-        {submitting ? "Guardando…" : "Sumarme a la comunidad"}
+        {submitting ? "Guardando…" : "Quiero recibir novedades"}
       </button>
 
       {errors.form ? <p className="text-sm text-red-300">{errors.form}</p> : null}
