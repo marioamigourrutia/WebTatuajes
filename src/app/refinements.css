@@ -3,26 +3,27 @@
   width: 100%;
   min-width: 100%;
   align-items: center;
-  justify-content: space-evenly;
-  gap: clamp(1rem, 3vw, 3rem);
-  padding: 0.75rem clamp(1rem, 3vw, 2.5rem);
+  justify-content: center;
+  gap: clamp(1.15rem, 3.2vw, 3.6rem);
+  padding: 0.78rem clamp(1rem, 3vw, 2.5rem);
+  text-align: center;
 }
 
-/* Mantiene la tipografía del rediseño, pero evita que letras y líneas se monten. */
+/* Mantiene la tipografía del rediseño, pero evita que letras, acentos y líneas se monten. */
 .neo-display {
-  line-height: 0.98 !important;
-  letter-spacing: -0.01em !important;
+  line-height: 1.01 !important;
+  letter-spacing: -0.008em !important;
 }
 
 .neo-mega {
-  line-height: 0.92 !important;
-  letter-spacing: -0.012em !important;
+  line-height: 0.97 !important;
+  letter-spacing: -0.008em !important;
 }
 
 .editorial-hero-title {
-  max-width: 13ch;
-  line-height: 0.9 !important;
-  letter-spacing: -0.012em !important;
+  max-width: 12ch;
+  line-height: 0.98 !important;
+  letter-spacing: -0.008em !important;
 }
 
 /* Mejora la lectura sobre imágenes sin cambiar la paleta. */
@@ -42,6 +43,15 @@
 }
 
 @media (max-width: 900px) {
+  .editorial-marquee {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .editorial-marquee::-webkit-scrollbar {
+    display: none;
+  }
+
   .editorial-marquee-track {
     width: max-content;
     min-width: max-content;
@@ -49,14 +59,22 @@
     padding-inline: 1rem;
   }
 
-  .neo-display {
-    line-height: 1 !important;
-    letter-spacing: -0.006em !important;
-  }
-
+  .neo-display,
   .neo-mega,
   .editorial-hero-title {
-    line-height: 0.95 !important;
-    letter-spacing: -0.006em !important;
+    line-height: 1.02 !important;
+    letter-spacing: -0.003em !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .editorial-hero-title {
+    max-width: 10.5ch;
+    font-size: clamp(3.1rem, 18vw, 5.6rem) !important;
+    line-height: 1.04 !important;
+  }
+
+  .neo-mega {
+    line-height: 1 !important;
   }
 }
