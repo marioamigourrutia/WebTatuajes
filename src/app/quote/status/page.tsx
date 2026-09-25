@@ -24,7 +24,7 @@ export default async function QuoteStatusPage({
 
         <section className="mt-4 border border-[#cec6c2]/14 bg-[#202020] p-4 sm:p-6 lg:p-8">
           <div className="mb-6 border-b border-[#cec6c2]/14 pb-5">
-            <p className="neo-kicker">Status / consulta</p>
+            <p className="neo-kicker">Estado · consulta</p>
             <h2 className="neo-display mt-4 text-[clamp(2.5rem,6vw,5rem)] text-[#cec6c2]">
               Tu solicitud
             </h2>
