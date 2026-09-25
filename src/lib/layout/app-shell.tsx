@@ -5,12 +5,14 @@ import { buildWhatsAppUrl, hasWhatsAppConfig } from "@/lib/whatsapp";
 
 const navItems = [
   { href: "/", label: "Inicio" },
+  { href: "/contacto", label: "Contacto" },
   { href: "/quote", label: "Cotización" },
   { href: "/quote/status", label: "Seguimiento" },
   { href: "/opiniones", label: "Opiniones" },
   { href: "/comunidad", label: "Comunidad" },
   { href: "/colaboradores", label: "Colaboradores" },
-  { href: "/contacto", label: "Contacto" },
+  { href: "/privacidad", label: "Privacidad" },
+  { href: "/terminos-reserva", label: "Términos" },
   { href: "/admin", label: "Admin" },
 ];
 
