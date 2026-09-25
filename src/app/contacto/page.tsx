@@ -16,6 +16,19 @@ export const metadata: Metadata = {
     "Contacto, agenda y soporte para cotizaciones de tatuajes personalizados en realismo black & grey.",
 };
 
+const supportSections = [
+  {
+    eyebrow: "Antes de la cita",
+    title: "Preparación y puntualidad",
+    items: visitExpectations,
+  },
+  {
+    eyebrow: "Después de la sesión",
+    title: "Cuidados y seguimiento",
+    items: supportExpectations,
+  },
+] as const;
+
 export default function ContactPage() {
   const whatsappUrl = hasWhatsAppConfig(appConfig.whatsappPhone)
     ? buildWhatsAppUrl({ phone: appConfig.whatsappPhone, message: appConfig.whatsappMessage })
@@ -75,20 +88,17 @@ export default function ContactPage() {
         </section>
 
         <section className="mt-4 grid border border-[#cec6c2]/14 lg:grid-cols-2">
-          {[
-            ["Antes de la cita", "Preparación y puntualidad", visitExpectations],
-            ["Después de la sesión", "Cuidados y seguimiento", supportExpectations],
-          ].map(([eyebrow, title, items], columnIndex) => (
+          {supportSections.map(({ eyebrow, title, items }, columnIndex) => (
             <article
               className={`p-5 sm:p-7 ${columnIndex === 0 ? "border-b border-[#cec6c2]/14 lg:border-b-0 lg:border-r" : ""}`}
-              key={String(eyebrow)}
+              key={eyebrow}
             >
-              <p className="neo-kicker">{String(eyebrow)}</p>
+              <p className="neo-kicker">{eyebrow}</p>
               <h2 className="neo-display mt-5 text-[clamp(2.7rem,6vw,5rem)] text-[#cec6c2]">
-                {String(title)}
+                {title}
               </h2>
               <div className="mt-8 divide-y divide-[#cec6c2]/14 border-y border-[#cec6c2]/14">
-                {(items as string[]).map((item, index) => (
+                {items.map((item, index) => (
                   <div className="grid grid-cols-[auto_1fr] gap-4 py-4" key={item}>
                     <span className="neo-index">{String(index + 1).padStart(2, "0")}</span>
                     <p className="text-sm leading-6 text-[#b7aaa4]">{item}</p>
