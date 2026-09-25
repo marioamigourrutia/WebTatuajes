@@ -52,6 +52,16 @@ function getConfiguredFirestore() {
   return { ok: true as const, firestore };
 }
 
+function isMultipartFile(value: FormDataEntryValue | null): value is File {
+  return Boolean(
+    value &&
+      typeof value !== "string" &&
+      typeof value.arrayBuffer === "function" &&
+      typeof value.type === "string" &&
+      typeof value.size === "number",
+  );
+}
+
 export async function POST(request: Request) {
   const admin = await requireAdmin(request);
   if (!admin.ok) return admin.response;
@@ -64,7 +74,7 @@ export async function POST(request: Request) {
     const file = formData.get("image");
     const caption = String(formData.get("caption") ?? "").trim();
 
-    if (!(file instanceof File)) {
+    if (!isMultipartFile(file)) {
       return NextResponse.json(
         { errors: { image: "Selecciona una imagen JPG, PNG o WEBP." } },
         { status: 400 },
