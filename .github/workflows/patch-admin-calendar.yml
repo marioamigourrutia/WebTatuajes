@@ -1,0 +1,190 @@
+name: One-off admin calendar patch
+
+on:
+  push:
+    branches: [design/neonink-faithful-v2]
+    paths:
+      - .github/workflows/patch-admin-calendar.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: design/neonink-faithful-v2
+
+      - name: Apply exact calendar edits
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path("src/lib/auth/admin-status-panel.tsx")
+          text = path.read_text()
+
+          def replace_once(old: str, new: str, label: str):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              'import { useAuth } from "@/lib/auth/auth-context";\n',
+              'import { useAuth } from "@/lib/auth/auth-context";\nimport { readJsonResponse } from "@/lib/http/safe-json";\n',
+              "safe-json import",
+          )
+
+          replace_once(
+              '''function getCurrentLocalMonth() {
+            return new Date().toISOString().slice(0, 7);
+          }
+          ''',
+              '''function getCurrentLocalMonth() {
+            const parts = new Intl.DateTimeFormat("en-CA", {
+              timeZone: "America/Santiago",
+              year: "numeric",
+              month: "2-digit",
+            }).formatToParts(new Date());
+            const year = parts.find((part) => part.type === "year")?.value;
+            const month = parts.find((part) => part.type === "month")?.value;
+
+            return year && month ? `${year}-${month}` : new Date().toISOString().slice(0, 7);
+          }
+          ''',
+              "Chile-local month",
+          )
+
+          replace_once(
+              '''    const body = (await response.json()) as { quotes?: RecentQuoteRequest[]; error?: string };
+          ''',
+              '''    const body = await readJsonResponse<{ quotes?: RecentQuoteRequest[]; error?: string }>(
+              response,
+              "La API de cotizaciones no devolvió JSON válido.",
+            );
+          ''',
+              "safe quotes response",
+          )
+
+          replace_once(
+              '''      const body = (await response.json()) as AdminStatusResponse;
+          ''',
+              '''      const body = await readJsonResponse<AdminStatusResponse>(
+                response,
+                "La API de estado admin no devolvió JSON válido.",
+              );
+          ''',
+              "safe admin status response",
+          )
+
+          replace_once(
+              '''      setPurchaseRequests(purchaseRequestsBody.purchaseRequests ?? []);
+                setCommunityMembers(communityMembersBody.communityMembers ?? []);
+                setAuditLogs(auditLogsBody.auditLogs ?? []);
+          ''',
+              '''      setPurchaseRequests(purchaseRequestsBody.purchaseRequests ?? []);
+                setCommunityMembers(communityMembersBody.communityMembers ?? []);
+                setAuditLogs(auditLogsBody.auditLogs ?? []);
+                await loadAdminCalendarMonth(calendarMonth, false);
+          ''',
+              "automatic calendar load",
+          )
+
+          replace_once(
+              '''  async function loadAdminCalendarMonth(month = calendarMonth) {
+              if (!user) return;
+
+              setUpdatingCalendarDate(true);
+              setError(null);
+
+              try {
+                const idToken = await user.getIdToken();
+                const response = await fetch("/api/admin/calendar", {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${idToken}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ action: "list", month }),
+                });
+                const body = (await response.json()) as { dates?: AdminCalendarDate[]; error?: string };
+
+                if (!response.ok) {
+                  setError(body.error ?? "No se pudo cargar el calendario admin.");
+                  setCalendarDates([]);
+                  return;
+                }
+
+                setCalendarDates(body.dates ?? []);
+                setSelectedCalendarDates([]);
+                await loadRecentQuotes(idToken);
+              } catch {
+                setError("No se pudo conectar con la ruta server-side de calendario.");
+                setCalendarDates([]);
+              } finally {
+                setUpdatingCalendarDate(false);
+              }
+            }
+          ''',
+              '''  async function loadAdminCalendarMonth(month = calendarMonth, refreshQuotes = true) {
+              if (!user) return;
+
+              setUpdatingCalendarDate(true);
+              setError(null);
+
+              try {
+                const idToken = await user.getIdToken();
+                const response = await fetch("/api/admin/calendar", {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${idToken}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ action: "list", month }),
+                });
+                const body = await readJsonResponse<{ dates?: AdminCalendarDate[]; error?: string }>(
+                  response,
+                  "La API de calendario no devolvió JSON válido.",
+                );
+
+                if (!response.ok) {
+                  setError(body.error ?? "No se pudo cargar el calendario admin.");
+                  setCalendarDates([]);
+                  return;
+                }
+
+                setCalendarDates(body.dates ?? []);
+                setSelectedCalendarDates([]);
+                if (refreshQuotes) await loadRecentQuotes(idToken);
+              } catch (caughtError) {
+                setError(
+                  caughtError instanceof Error
+                    ? caughtError.message
+                    : "No se pudo conectar con la ruta server-side de calendario.",
+                );
+                setCalendarDates([]);
+              } finally {
+                setUpdatingCalendarDate(false);
+              }
+            }
+          ''',
+              "calendar loader",
+          )
+
+          path.write_text(text)
+          PY
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/auth/admin-status-panel.tsx
+          git diff --cached --check
+          git commit -m "fix: auto-load admin calendar safely"
+          git push origin HEAD:design/neonink-faithful-v2
