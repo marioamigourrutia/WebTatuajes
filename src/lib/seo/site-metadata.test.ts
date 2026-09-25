@@ -4,6 +4,7 @@ import {
   buildSitemapEntries,
   getSiteUrl,
   publicSiteRoutes,
+  siteMetadata,
 } from "./site-metadata";
 
 describe("site metadata", () => {
@@ -12,42 +13,47 @@ describe("site metadata", () => {
     expect(getSiteUrl("not-a-url").toString()).toBe("http://localhost:3000/");
   });
 
-  it("centralizes public discovery routes without private admin routes", () => {
+  it("centralizes the current public discovery routes without admin or legacy portfolio", () => {
     expect(publicSiteRoutes).toEqual([
       "/",
-      "/quote",
-      "/portfolio",
-      "/opiniones",
-      "/tienda",
-      "/servicios",
       "/contacto",
+      "/quote",
+      "/quote/status",
+      "/opiniones",
+      "/comunidad",
+      "/colaboradores",
+      "/privacidad",
+      "/terminos-reserva",
     ]);
     expect(publicSiteRoutes.some((route) => route.startsWith("/admin"))).toBe(false);
+    expect(publicSiteRoutes).not.toContain("/portfolio");
   });
 
   it("builds absolute sitemap entries from the configured site URL", () => {
-    expect(buildSitemapEntries(new URL("https://example.cl"))).toEqual([
-      expect.objectContaining({ url: "https://example.cl/", priority: 1 }),
-      expect.objectContaining({ url: "https://example.cl/quote", priority: 0.7 }),
-      expect.objectContaining({ url: "https://example.cl/portfolio", priority: 0.7 }),
-      expect.objectContaining({ url: "https://example.cl/opiniones", priority: 0.7 }),
-      expect.objectContaining({ url: "https://example.cl/tienda", priority: 0.7 }),
-      expect.objectContaining({ url: "https://example.cl/servicios", priority: 0.7 }),
+    const entries = buildSitemapEntries(new URL("https://example.cl"));
+
+    expect(entries).toHaveLength(publicSiteRoutes.length);
+    expect(entries[0]).toEqual(expect.objectContaining({ url: "https://example.cl/", priority: 1 }));
+    expect(entries).toContainEqual(
+      expect.objectContaining({ url: "https://example.cl/quote", priority: 0.9 }),
+    );
+    expect(entries).toContainEqual(
       expect.objectContaining({ url: "https://example.cl/contacto", priority: 0.7 }),
-    ]);
+    );
+    expect(entries.some((entry) => entry.url.endsWith("/portfolio"))).toBe(false);
   });
 
-  it("provides root metadata with title template and social basics", () => {
+  it("provides root metadata with current brand title and social basics", () => {
     const metadata = buildRootMetadata(new URL("https://example.cl"));
 
     expect(metadata.metadataBase?.toString()).toBe("https://example.cl/");
     expect(metadata.title).toEqual({
-      default: "HuespedTattooStudio — Estudio profesional de tatuajes",
-      template: "%s — HuespedTattooStudio",
+      default: `${siteMetadata.title} — Realismo black & grey`,
+      template: `%s — ${siteMetadata.title}`,
     });
     expect(metadata.openGraph).toEqual(
       expect.objectContaining({ locale: "es_CL", type: "website", url: "/" }),
     );
-    expect(metadata.twitter).toEqual(expect.objectContaining({ card: "summary" }));
+    expect(metadata.twitter).toEqual(expect.objectContaining({ card: "summary_large_image" }));
   });
 });
