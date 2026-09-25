@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
+import { readJsonResponse } from "@/lib/http/safe-json";
 import { formatClpPrice, productStatusLabels, productStatuses } from "./catalog";
 import type { AdminProduct } from "./product";
 
@@ -37,7 +38,10 @@ export function AdminProductsPanel({ enabled }: { enabled: boolean }) {
       const response = await fetch("/api/admin/products", {
         headers: { Authorization: `Bearer ${idToken}` },
       });
-      const body = (await response.json()) as { products?: AdminProduct[]; error?: string };
+      const body = await readJsonResponse<{ products?: AdminProduct[]; error?: string }>(
+        response,
+        "La API de obras no devolvió JSON válido.",
+      );
 
       if (!response.ok) {
         setError(body.error ?? "No se pudo listar obras.");
@@ -73,10 +77,14 @@ export function AdminProductsPanel({ enabled }: { enabled: boolean }) {
         headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
         body: JSON.stringify(productToPayload(new FormData(form))),
       });
-      const body = (await response.json()) as { id?: string; errors?: Record<string, string> };
+      const body = await readJsonResponse<{
+        id?: string;
+        errors?: Record<string, string>;
+        error?: string;
+      }>(response, "La API de obras no pudo crear el registro correctamente.");
 
       if (!response.ok || !body.id) {
-        setError(Object.values(body.errors ?? {})[0] ?? "No se pudo crear la obra.");
+        setError(body.error ?? Object.values(body.errors ?? {})[0] ?? "No se pudo crear la obra.");
         return;
       }
 
@@ -103,17 +111,27 @@ export function AdminProductsPanel({ enabled }: { enabled: boolean }) {
         headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ productId, ...productToPayload(new FormData(event.currentTarget)) }),
       });
-      const body = (await response.json()) as { id?: string; errors?: Record<string, string> };
+      const body = await readJsonResponse<{
+        id?: string;
+        errors?: Record<string, string>;
+        error?: string;
+      }>(response, "La API de obras no pudo actualizar el registro correctamente.");
 
       if (!response.ok || !body.id) {
-        setError(Object.values(body.errors ?? {})[0] ?? "No se pudo actualizar la obra.");
+        setError(
+          body.error ?? Object.values(body.errors ?? {})[0] ?? "No se pudo actualizar la obra.",
+        );
         return;
       }
 
       setNotice("Obra actualizada.");
       await loadProducts();
-    } catch {
-      setError("No se pudo conectar con la ruta server-side de obras.");
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "No se pudo conectar con la ruta server-side de obras.",
+      );
     } finally {
       setUpdatingProductId(null);
     }
@@ -131,7 +149,10 @@ export function AdminProductsPanel({ enabled }: { enabled: boolean }) {
         headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ productId }),
       });
-      const body = (await response.json()) as { id?: string; error?: string };
+      const body = await readJsonResponse<{ id?: string; error?: string }>(
+        response,
+        "La API de obras no pudo ocultar el registro correctamente.",
+      );
 
       if (!response.ok || !body.id) {
         setError(body.error ?? "No se pudo ocultar la obra.");
@@ -140,8 +161,12 @@ export function AdminProductsPanel({ enabled }: { enabled: boolean }) {
 
       setNotice("Obra oculta. No se eliminó porque puede estar asociada a solicitudes históricas.");
       await loadProducts();
-    } catch {
-      setError("No se pudo conectar con la ruta server-side de obras.");
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "No se pudo conectar con la ruta server-side de obras.",
+      );
     } finally {
       setUpdatingProductId(null);
     }

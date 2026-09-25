@@ -6,6 +6,7 @@ import { defaultSiteContent } from "@/lib/cms/site-content";
 vi.mock("@/lib/firebase/admin", () => ({ getFirebaseAdminFirestore: vi.fn(() => null) }));
 vi.mock("@/lib/portfolio/public-portfolio-backend", () => ({
   canUsePublicBackend: vi.fn(() => Promise.resolve(false)),
+  listPublicBackendPortfolioItems: vi.fn(() => Promise.resolve([])),
 }));
 vi.mock("@/lib/instagram/instagram-media", () => ({ listPublicInstagramMedia: vi.fn() }));
 vi.mock("@/lib/instagram/portfolio-adapter", () => ({
@@ -36,7 +37,7 @@ const hiddenHomeSectionCases = [
   },
   { section: "portfolio", visibleText: "Portafolio", emptyFallbackText: null },
   { section: "shop", visibleText: "Obras disponibles", emptyFallbackText: null },
-  { section: "finalCta", visibleText: "¿Tienes una idea para tatuarte?", emptyFallbackText: null },
+  { section: "finalCta", visibleText: "Tu idea. Tu pieza.", emptyFallbackText: null },
   { section: "services", visibleText: "Estilos y servicios", emptyFallbackText: null },
   { section: "process", visibleText: "Proceso", emptyFallbackText: null },
   { section: "contact", visibleText: "Contacto", emptyFallbackText: null },
@@ -53,7 +54,7 @@ describe("home page CMS content", () => {
         name: "Tatuajes con diseño, criterio y una experiencia segura.",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/HuespedTattooStudio convierte ideas/)).toBeInTheDocument();
+    expect(screen.getByText(/Mario Amigo Tattoo convierte ideas/)).toBeInTheDocument();
   });
 
   it("renders dynamic hero and process copy from CMS", async () => {
@@ -171,6 +172,6 @@ describe("home page CMS content", () => {
     expect(screen.queryByText("Proceso")).not.toBeInTheDocument();
     expect(screen.queryByText("Comunidad")).not.toBeInTheDocument();
     expect(screen.queryByText("Contacto")).not.toBeInTheDocument();
-    expect(screen.queryByText("¿Tienes una idea para tatuarte?")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tu idea. Tu pieza.")).not.toBeInTheDocument();
   });
 });

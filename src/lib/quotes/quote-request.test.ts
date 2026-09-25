@@ -10,6 +10,7 @@ import {
   decideQuoteAppointment,
   getAdminQuoteReferenceImageFile,
   getClientQuoteStatusByCode,
+  isValidQuoteCode,
   listClientQuoteStatusesByCustomerId,
   listRecentQuoteRequests,
   mapQuoteRequestToFirestore,
@@ -213,6 +214,13 @@ describe("quote request validation", () => {
         },
       },
     });
+  });
+
+  it("accepts legacy quote codes while validating the stronger new format", () => {
+    expect(isValidQuoteCode("COT-2026-ABCDE")).toBe(true);
+    expect(isValidQuoteCode(" cot-2026-abcdef1234 ")).toBe(true);
+    expect(isValidQuoteCode("COT-2026-ABCDEF")).toBe(false);
+    expect(isValidQuoteCode("COT-2026-ABCDEF123")).toBe(false);
   });
 
   it("rejects missing required fields, bad email, bad budget, and invalid contact method", () => {
@@ -680,7 +688,7 @@ describe("quote request firestore helpers", () => {
     await expect(createQuoteRequest(validInput, firestore as never)).resolves.toMatchObject({
       ok: true,
       id: "quote-123",
-      quoteCode: expect.stringMatching(/^COT-\d{4}-[A-F0-9]{5}$/),
+      quoteCode: expect.stringMatching(/^COT-\d{4}-[A-F0-9]{10}$/),
     });
     expect(collection).toHaveBeenCalledWith("quotes");
     expect(collection).toHaveBeenCalledWith("calendar_dates");
@@ -691,7 +699,7 @@ describe("quote request firestore helpers", () => {
       expect.objectContaining({
         customer_name: "Ana Cliente",
         customer_email: "ana@example.test",
-        quote_code: expect.stringMatching(/^COT-\d{4}-[A-F0-9]{5}$/),
+        quote_code: expect.stringMatching(/^COT-\d{4}-[A-F0-9]{10}$/),
         status: "pending",
         preferred_tattoo_date: "2026-07-15",
         calendar_date_id: "2026-07-15",
@@ -705,7 +713,7 @@ describe("quote request firestore helpers", () => {
         date: "2026-07-15",
         status: "PENDING_CONFIRMATION",
         quote_id: "quote-123",
-        quote_code: expect.stringMatching(/^COT-\d{4}-[A-F0-9]{5}$/),
+        quote_code: expect.stringMatching(/^COT-\d{4}-[A-F0-9]{10}$/),
       }),
     );
   });

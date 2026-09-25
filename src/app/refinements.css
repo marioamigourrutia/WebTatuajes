@@ -1,0 +1,80 @@
+.editorial-marquee-track {
+  display: flex;
+  width: 100%;
+  min-width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1.15rem, 3.2vw, 3.6rem);
+  padding: 0.78rem clamp(1rem, 3vw, 2.5rem);
+  text-align: center;
+}
+
+/* Mantiene la tipografía del rediseño, pero evita que letras, acentos y líneas se monten. */
+.neo-display {
+  line-height: 1.01 !important;
+  letter-spacing: -0.008em !important;
+}
+
+.neo-mega {
+  line-height: 0.97 !important;
+  letter-spacing: -0.008em !important;
+}
+
+.editorial-hero-title {
+  max-width: 12ch;
+  line-height: 0.98 !important;
+  letter-spacing: -0.008em !important;
+}
+
+/* Mejora la lectura sobre imágenes sin cambiar la paleta. */
+.editorial-page h1,
+.editorial-page h2,
+.editorial-page h3 {
+  text-wrap: balance;
+}
+
+.editorial-page p {
+  text-wrap: pretty;
+}
+
+/* El calendario mantiene el lenguaje visual editorial y una alineación estable. */
+[aria-labelledby="quote-calendar-title"] > div:first-child {
+  align-items: flex-start;
+}
+
+@media (max-width: 900px) {
+  .editorial-marquee {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .editorial-marquee::-webkit-scrollbar {
+    display: none;
+  }
+
+  .editorial-marquee-track {
+    width: max-content;
+    min-width: max-content;
+    justify-content: flex-start;
+    padding-inline: 1rem;
+  }
+
+  .neo-display,
+  .neo-mega,
+  .editorial-hero-title {
+    line-height: 1.02 !important;
+    letter-spacing: -0.003em !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .editorial-hero-title {
+    max-width: 10.5ch;
+    font-size: clamp(3.1rem, 18vw, 5.6rem) !important;
+    line-height: 1.04 !important;
+  }
+
+  .neo-mega {
+    line-height: 1 !important;
+  }
+}

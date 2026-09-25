@@ -3,19 +3,31 @@ import { describe, expect, it } from "vitest";
 import { AppShell } from "./app-shell";
 
 describe("AppShell", () => {
-  it("includes collaborators in the main navigation", () => {
+  it("keeps only the requested primary navigation and omits legacy catalogue routes", () => {
     render(<AppShell>Contenido</AppShell>);
 
     expect(screen.getByRole("link", { name: "Colaboradores" })).toHaveAttribute(
       "href",
       "/colaboradores",
     );
+    expect(screen.getAllByRole("link", { name: "Privacidad" })[0]).toHaveAttribute(
+      "href",
+      "/privacidad",
+    );
+    expect(screen.getAllByRole("link", { name: "Términos" })[0]).toHaveAttribute(
+      "href",
+      "/terminos-reserva",
+    );
+    expect(screen.getByRole("link", { name: "Panel admin" })).toHaveAttribute("href", "/admin");
+    expect(screen.queryByRole("link", { name: /portfolio/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Servicios$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Tienda$/i })).not.toBeInTheDocument();
   });
 
-  it("uses the visible WhatsApp phone number in the global CTA URL", () => {
+  it("uses the configured WhatsApp phone in the global CTA URL", () => {
     render(<AppShell>Contenido</AppShell>);
 
-    expect(screen.getByRole("link", { name: "WhatsApp +56 9 7761 6917" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /WhatsApp/i })).toHaveAttribute(
       "href",
       expect.stringContaining("https://wa.me/56977616917?"),
     );
@@ -37,9 +49,24 @@ describe("AppShell", () => {
       "aria-expanded",
       "true",
     );
-    expect(within(mobileMenu).getByRole("link", { name: "Portafolio" })).toHaveAttribute(
+    expect(within(mobileMenu).queryByRole("link", { name: /portfolio/i })).not.toBeInTheDocument();
+    expect(within(mobileMenu).queryByRole("link", { name: /^Servicios/ })).not.toBeInTheDocument();
+    expect(within(mobileMenu).queryByRole("link", { name: /^Tienda/ })).not.toBeInTheDocument();
+    expect(within(mobileMenu).getByRole("link", { name: /^Panel admin/ })).toHaveAttribute(
       "href",
-      "/portfolio",
+      "/admin",
+    );
+    expect(within(mobileMenu).getByRole("link", { name: /^Privacidad/ })).toHaveAttribute(
+      "href",
+      "/privacidad",
+    );
+    expect(within(mobileMenu).getByRole("link", { name: /^Términos/ })).toHaveAttribute(
+      "href",
+      "/terminos-reserva",
+    );
+    expect(within(mobileMenu).getByRole("link", { name: /WhatsApp/i })).toHaveAttribute(
+      "href",
+      expect.stringContaining("https://wa.me/56977616917?"),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Cerrar menú principal" }));
@@ -47,12 +74,11 @@ describe("AppShell", () => {
     expect(screen.queryByRole("navigation", { name: "Menú móvil" })).not.toBeInTheDocument();
   });
 
-  it("keeps an essential mobile WhatsApp CTA available without opening the menu", () => {
+  it("keeps booking, contact and legal routes in the editorial footer", () => {
     render(<AppShell>Contenido</AppShell>);
 
-    expect(screen.getByRole("link", { name: "Contactar por WhatsApp" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("https://wa.me/56977616917?"),
-    );
+    expect(screen.getByRole("link", { name: "Ir a contacto" })).toHaveAttribute("href", "/contacto");
+    expect(screen.getAllByRole("link", { name: "Privacidad" }).at(-1)).toHaveAttribute("href", "/privacidad");
+    expect(screen.getAllByRole("link", { name: "Términos" }).at(-1)).toHaveAttribute("href", "/terminos-reserva");
   });
 });

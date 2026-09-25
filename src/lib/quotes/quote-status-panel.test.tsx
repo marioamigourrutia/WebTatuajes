@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import { QuoteStatusPanel } from "./quote-status-panel";
 
 describe("QuoteStatusPanel", () => {
-  it("explains the public code and email status lookup without Firebase sign-in", () => {
+  it("supports the public code and email lookup without Firebase sign-in controls", () => {
     render(<QuoteStatusPanel initialQuoteCode="cot-2026-aaaaa" />);
 
-    expect(screen.getByRole("heading", { name: "Consulta con código y email" })).toBeInTheDocument();
-    expect(screen.getByText(/COT-2026-AAAAA/)).toBeInTheDocument();
-    expect(screen.getByText(/No necesitas iniciar sesión/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Código de cotización")).toHaveValue("COT-2026-AAAAA");
+    expect(screen.getByLabelText("Email usado al cotizar")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Consultar" })).toBeInTheDocument();
+    expect(screen.queryByText(/iniciar sesión/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Firebase|Google/i })).not.toBeInTheDocument();
   });
 });

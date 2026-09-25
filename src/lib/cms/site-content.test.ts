@@ -35,7 +35,10 @@ describe("CMS site content helpers", () => {
   it("normalizes missing or invalid CMS data back to safe defaults", () => {
     expect(
       normalizeSiteSettings({ studio_name: "  Estudio Norte  ", instagram_url: "http://bad" }),
-    ).toMatchObject({ studioName: "Estudio Norte", instagramUrl: null });
+    ).toMatchObject({
+      studioName: "Estudio Norte",
+      instagramUrl: defaultSiteContent.siteSettings.instagramUrl,
+    });
 
     expect(
       normalizeHomePageContent({
@@ -47,6 +50,38 @@ describe("CMS site content helpers", () => {
       heroTitle: "Nuevo título",
       primaryCtaHref: defaultHomePageContent.primaryCtaHref,
       processCardItems: defaultHomePageContent.processCardItems,
+    });
+  });
+
+  it("preserves editable homepage visibility flags", () => {
+    const normalized = normalizeHomePageContent({
+      sections: {
+        reviews: false,
+        sponsors: false,
+        process: false,
+        community: false,
+        contact: false,
+        finalCta: false,
+      },
+    });
+
+    expect(normalized.sections).toMatchObject({
+      reviews: false,
+      sponsors: false,
+      process: false,
+      community: false,
+      contact: false,
+      finalCta: false,
+    });
+    expect(mapHomePageContentToFirestore(normalized)).toMatchObject({
+      sections: expect.objectContaining({
+        reviews: false,
+        sponsors: false,
+        process: false,
+        community: false,
+        contact: false,
+        finalCta: false,
+      }),
     });
   });
 
@@ -107,6 +142,29 @@ describe("CMS site content helpers", () => {
     });
     expect(set).toHaveBeenCalledTimes(2);
     expect(commit).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes disabled visibility flags to the home document", async () => {
+    const set = vi.fn();
+    const commit = vi.fn();
+    const firestore = {
+      doc: vi.fn((path: string) => ({ path })),
+      batch: vi.fn(() => ({ set, commit })),
+    };
+    const hiddenReviewsContent = {
+      ...defaultSiteContent,
+      home: {
+        ...defaultSiteContent.home,
+        sections: { ...defaultSiteContent.home.sections, reviews: false, community: false },
+      },
+    };
+
+    await saveSiteContent(firestore as never, hiddenReviewsContent);
+
+    expect(set).toHaveBeenCalledTimes(2);
+    expect(set.mock.calls[1]?.[1]).toMatchObject({
+      sections: expect.objectContaining({ reviews: false, community: false }),
+    });
   });
 
   it("interpolates site settings placeholders in public copy", () => {

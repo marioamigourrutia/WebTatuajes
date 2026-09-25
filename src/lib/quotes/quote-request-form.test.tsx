@@ -82,16 +82,16 @@ describe("QuoteRequestForm public quote flow", () => {
   it("posts public quote data without an Authorization header and opens WhatsApp", async () => {
     const fetchMock = mockCalendarFetchWithQuoteResponse({
       quoteCode: "COT-2026-ABCDE",
-      whatsappMessage: "Hola, código COT-2026-ABCDE",
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const { container } = render(<QuoteRequestForm />);
     fillRequiredQuoteFields(container);
 
-    fireEvent.click(screen.getByRole("button", { name: "Enviar solicitud" }));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar y continuar" }));
 
-    expect(await screen.findByText("Solicitud recibida correctamente.")).toBeInTheDocument();
+    expect(await screen.findByText("Cotización registrada")).toBeInTheDocument();
+    expect(screen.getByText(/COT-2026-ABCDE/)).toBeInTheDocument();
     const quoteCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/quotes");
     expect(quoteCall?.[1]).toMatchObject({ method: "POST" });
     expect((quoteCall?.[1] as RequestInit).headers).toBeUndefined();
@@ -110,20 +110,19 @@ describe("QuoteRequestForm public quote flow", () => {
     await waitFor(() => expect(fetch).toHaveBeenCalled());
     expect(container.querySelector('[name="referenceUrls"]')).toBeNull();
     expect(container.querySelector('[name="referenceImages"]')).toBeNull();
-    expect(screen.getByText(/Las referencias, fotos o enlaces/)).toBeInTheDocument();
+    expect(screen.getByText(/Imágenes de referencia/)).toBeInTheDocument();
+    expect(screen.getByText(/Adjunta allí las imágenes/)).toBeInTheDocument();
   });
 
   it("renders available calendar dates, disables unavailable dates, and stores the selected date", async () => {
     const currentMonth = new Date().toISOString().slice(0, 7);
     const availableDay = dateInMonth(currentMonth, 15);
-    vi.stubGlobal(
-      "fetch",
-      mockCalendarFetchWithDates([
-        { date: availableDay, status: "AVAILABLE" },
-        { date: dateInMonth(currentMonth, 16), status: "PENDING_CONFIRMATION" },
-        { date: dateInMonth(currentMonth, 17), status: "OCCUPIED" },
-      ]),
-    );
+    const fetchMock = mockCalendarFetchWithDates([
+      { date: availableDay, status: "AVAILABLE" },
+      { date: dateInMonth(currentMonth, 16), status: "PENDING_CONFIRMATION" },
+      { date: dateInMonth(currentMonth, 17), status: "OCCUPIED" },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
 
     const { container } = render(<QuoteRequestForm />);
 
@@ -149,7 +148,7 @@ describe("QuoteRequestForm public quote flow", () => {
     expect(
       container.querySelector<HTMLInputElement>('input[name="preferredTattooDate"]')?.value,
     ).toBe(availableDay);
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("loads availability for the next month when navigating the public calendar", async () => {
@@ -163,7 +162,7 @@ describe("QuoteRequestForm public quote flow", () => {
     render(<QuoteRequestForm />);
 
     await screen.findByText("Libre");
-    fireEvent.click(screen.getByRole("button", { name: "Mes siguiente" }));
+    fireEvent.click(screen.getByRole("button", { name: "Siguiente" }));
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
