@@ -9,7 +9,7 @@ export function PublicSponsorsSection({ sponsors }: { sponsors: Sponsor[] }) {
         <div>
           <p className="neo-kicker">Colaboradores</p>
           <h2 className="neo-mega mt-5 text-[clamp(4.5rem,13vw,10rem)] text-[#cec6c2]">
-            Partners
+            Aliados
           </h2>
           <a className="neo-button-outline mt-7" href="/colaboradores">
             Ver colaboradores →
