@@ -202,6 +202,20 @@ export function AdminSiteContentPanel({ enabled }: AdminSiteContentPanelProps) {
     }
   }
 
+  function setSectionVisibility(key: keyof HomePageContent["sections"], checked: boolean) {
+    setContent((current) =>
+      current
+        ? {
+            ...current,
+            home: {
+              ...current.home,
+              sections: { ...current.home.sections, [key]: checked },
+            },
+          }
+        : current,
+    );
+  }
+
   if (!enabled) return null;
 
   return (
@@ -276,7 +290,12 @@ export function AdminSiteContentPanel({ enabled }: AdminSiteContentPanelProps) {
             <legend className="px-1 text-sm font-bold text-stone-100">Visibilidad real de Inicio</legend>
             {visibleSectionLabels.map(([key, label]) => (
               <label className="flex items-center gap-2 text-sm font-semibold text-stone-200" key={key}>
-                <input defaultChecked={content.home.sections[key]} name={key} type="checkbox" />
+                <input
+                  checked={content.home.sections[key]}
+                  name={key}
+                  onChange={(event) => setSectionVisibility(key, event.target.checked)}
+                  type="checkbox"
+                />
                 {label}
               </label>
             ))}
