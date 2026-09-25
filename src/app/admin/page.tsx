@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { AdminStatusPanel } from "@/lib/auth/admin-status-panel";
 import { isFirebaseAdminBackendConfigured } from "@/lib/config/firebase-admin";
 import { isExternalImageUploadConfigured } from "@/lib/images/upload-config";
@@ -7,15 +6,13 @@ import { EditorialPageHero } from "@/lib/layout/editorial-page-hero";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const adminSessionCookieName = "webtatuajes_admin_session";
-
 const unauthenticatedAdminStatus = {
   authenticated: false,
   admin: false,
   profile: null,
 };
 
-export async function getSafeAdminInitialStatus(sessionCookie: string | undefined) {
+export async function getSafeAdminInitialStatus() {
   if (!isFirebaseAdminBackendConfigured()) {
     return {
       ...unauthenticatedAdminStatus,
@@ -24,31 +21,16 @@ export async function getSafeAdminInitialStatus(sessionCookie: string | undefine
     };
   }
 
-  try {
-    const { getServerAuthStatusFromSessionCookie } = await import("@/lib/auth/server");
-    return await getServerAuthStatusFromSessionCookie(sessionCookie);
-  } catch {
-    return {
-      ...unauthenticatedAdminStatus,
-      configurationMessage:
-        "No pudimos validar la sesión administrativa en este entorno. Revisa la configuración de Firebase Admin en Vercel.",
-    };
-  }
+  // El contenido administrativo nunca se restaura solamente desde una cookie antigua.
+  // El usuario debe autenticarse con Firebase Auth en el navegador y el servidor vuelve
+  // a validar su rol antes de habilitar cualquier módulo o escritura administrativa.
+  return unauthenticatedAdminStatus;
 }
 
 export default async function AdminPage() {
-  let sessionCookie: string | undefined;
-
-  try {
-    const cookieStore = await cookies();
-    sessionCookie = cookieStore.get(adminSessionCookieName)?.value;
-  } catch {
-    sessionCookie = undefined;
-  }
-
   const backendConfigured = isFirebaseAdminBackendConfigured();
   const imageUploadsEnabled = isExternalImageUploadConfigured();
-  const initialStatus = await getSafeAdminInitialStatus(sessionCookie);
+  const initialStatus = await getSafeAdminInitialStatus();
 
   return (
     <main className="pb-8 pt-4 sm:pt-5">
@@ -80,7 +62,9 @@ export default async function AdminPage() {
               <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#66615e]">
                 Firebase Admin
               </p>
-              <p className={`mt-2 text-sm font-semibold ${backendConfigured ? "text-emerald-300" : "text-amber-200"}`}>
+              <p
+                className={`mt-2 text-sm font-semibold ${backendConfigured ? "text-emerald-300" : "text-amber-200"}`}
+              >
                 {backendConfigured ? "Conectado" : "Configuración pendiente en Vercel"}
               </p>
             </div>
@@ -88,8 +72,12 @@ export default async function AdminPage() {
               <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#66615e]">
                 Biblioteca de imágenes
               </p>
-              <p className={`mt-2 text-sm font-semibold ${imageUploadsEnabled ? "text-emerald-300" : "text-amber-200"}`}>
-                {imageUploadsEnabled ? "Subida directa habilitada" : "Usa URL pública o configura ImageKit"}
+              <p
+                className={`mt-2 text-sm font-semibold ${imageUploadsEnabled ? "text-emerald-300" : "text-amber-200"}`}
+              >
+                {imageUploadsEnabled
+                  ? "Subida directa habilitada"
+                  : "Usa URL pública o configura ImageKit"}
               </p>
             </div>
           </div>
