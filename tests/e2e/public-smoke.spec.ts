@@ -21,6 +21,8 @@ test.describe("public smoke navigation", () => {
       ["/comunidad", /novedades sin ruido/i],
       ["/colaboradores", /marcas y aliados del estudio/i],
       ["/contacto", /hablemos de tu próxima pieza/i],
+      ["/servicios", /información clara antes de cotizar/i],
+      ["/tienda", /obras disponibles/i],
     ] as const;
 
     for (const [route, heading] of routes) {
@@ -49,33 +51,34 @@ test.describe("public smoke navigation", () => {
   test("shop renders a deterministic empty or fallback catalog state", async ({ page }) => {
     await page.goto("/tienda");
 
-    await expect(page.getByRole("heading", { name: "Obras disponibles" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /obras disponibles/i })).toBeVisible();
     await expect(
-      page.getByText(/No hay obras disponibles publicadas|Catálogo temporal en modo referencia/i),
+      page.getByText(/No hay obras disponibles publicadas|Catálogo temporal \/ referencia/i),
     ).toBeVisible();
   });
 
   test("community unsubscribe page keeps the privacy copy visible", async ({ page }) => {
     await page.goto("/comunidad/baja");
 
-    await expect(page.getByRole("heading", { name: "Cancelar comunicaciones" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /cancelar comunicaciones/i })).toBeVisible();
     await expect(page.getByText(/no confirmaremos si el correo existe/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Solicitar baja" })).toBeVisible();
   });
 
-  test("reviews and sponsors pages render safe public empty states", async ({ page }) => {
+  test("reviews and sponsors pages render safe public shells", async ({ page }) => {
     await page.goto("/opiniones");
     await expect(
-      page.getByRole("heading", { name: "Experiencias publicadas por clientes." }),
+      page.getByRole("heading", { name: /experiencias publicadas por clientes/i }),
     ).toBeVisible();
 
     await page.goto("/colaboradores");
-    await expect(page.getByRole("heading", { name: "Marcas y aliados del estudio." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /marcas y aliados del estudio/i })).toBeVisible();
   });
 
   test("admin route renders its authentication shell without exposing protected data", async ({ page }) => {
     await page.goto("/admin");
 
-    await expect(page.getByText(/Admin|panel admin/i).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /control del estudio/i })).toBeVisible();
+    await expect(page.getByText(/dashboard|gestión operativa/i).first()).toBeVisible();
   });
 });
