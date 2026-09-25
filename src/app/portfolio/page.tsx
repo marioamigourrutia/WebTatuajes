@@ -45,25 +45,22 @@ export default async function PortfolioPage() {
   const items = await getPublicPortfolioItems();
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
-      <section className="relative overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/55 p-6 py-12 shadow-2xl shadow-black/25 sm:p-8 sm:py-14">
-        <div className="pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full bg-amber-300/10 blur-3xl" />
-        <p className="text-sm font-semibold uppercase tracking-[0.35em] text-amber-300">
-          Portafolio · HuespedTattooStudio
-        </p>
-        <h1 className="max-w-4xl text-5xl font-black leading-tight text-stone-50 sm:text-7xl">
-          Referencias de estilo para imaginar tu próxima pieza.
-        </h1>
-        <p className="max-w-3xl text-lg leading-8 text-stone-300">
-          Galería en actualización con referencias de estilo, zonas del cuerpo y etiquetas para
-          ayudarte a preparar una cotización clara.
-        </p>
-        <a
-          className="inline-flex rounded-full bg-amber-300 px-6 py-3 font-semibold text-stone-950 shadow-lg shadow-amber-950/30 transition hover:-translate-y-0.5 hover:bg-amber-200"
-          href="/quote"
-        >
-          Solicitar cotización
-        </a>
+    <main className="mx-auto w-full max-w-[1500px] px-4 py-8 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden border border-[#cfff19]/20 bg-[#070707] p-6 sm:p-8 lg:p-10">
+        <div className="pointer-events-none absolute right-4 top-[-2rem] text-[8rem] font-black leading-none text-transparent [-webkit-text-stroke:1px_rgba(207,255,25,0.12)] sm:text-[11rem]">03</div>
+        <div className="relative max-w-4xl">
+          <p className="neo-kicker">Portfolio / selección</p>
+          <h1 className="neo-display mt-5 text-[clamp(4rem,10vw,8.5rem)] leading-[0.84] text-white">
+            Piezas, referencias y lenguaje visual.
+          </h1>
+          <div className="neo-rule mt-6" />
+          <p className="mt-6 max-w-2xl text-base leading-8 text-zinc-400">
+            Explora trabajos, referencias de estilo y composiciones que pueden ayudarte a aterrizar tu próxima idea antes de cotizar.
+          </p>
+          <a className="neo-button mt-7" href="/quote">
+            Solicitar cotización ↗
+          </a>
+        </div>
       </section>
 
       <PortfolioGallery items={items} />
