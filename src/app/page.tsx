@@ -1,4 +1,4 @@
-import { getSiteContent } from "@/lib/cms/site-content";
+import { getSiteContent, interpolateSiteText } from "@/lib/cms/site-content";
 import { CommunityMemberForm } from "@/lib/community/member-form";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
 import { listPublishedReviews } from "@/lib/reviews/review";
@@ -34,87 +34,98 @@ export default async function HomePage() {
     ? buildWhatsAppUrl({ phone: siteSettings.whatsappPhone, message: siteSettings.whatsappMessage })
     : null;
 
+  const primaryHref = home.primaryCtaHref || "/quote";
+  const secondaryHref =
+    home.secondaryCtaType === "whatsapp"
+      ? whatsappUrl
+      : home.secondaryCtaType === "link"
+        ? home.secondaryCtaHref
+        : null;
+
   return (
     <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-6 sm:px-8 sm:pt-10 lg:px-10">
       <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#0a0a0c] px-5 py-10 shadow-[0_28px_90px_rgba(0,0,0,0.34)] sm:px-8 sm:py-14 lg:px-12 lg:py-16">
         <div className="pointer-events-none absolute right-[-8rem] top-[-10rem] h-80 w-80 rounded-full bg-white/[0.035] blur-3xl" />
         <div className="relative max-w-4xl">
           <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
-            Realismo black & grey · Chile
+            {interpolateSiteText(home.heroEyebrow, siteSettings)}
           </p>
+          {home.heroKicker ? (
+            <p className="mt-3 text-sm font-semibold text-zinc-400">
+              {interpolateSiteText(home.heroKicker, siteSettings)}
+            </p>
+          ) : null}
           <h1 className="mt-5 max-w-4xl text-balance text-[clamp(2.65rem,7vw,5.3rem)] font-black leading-[0.96] tracking-[-0.055em] text-white">
-            Tatuajes pensados para durar, no para llenar catálogo.
+            {interpolateSiteText(home.heroTitle, siteSettings)}
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-8 text-zinc-300 sm:text-lg">
-            Cada proyecto parte con una idea, una referencia y una conversación clara. Evalúo composición,
-            zona, escala y viabilidad antes de reservar una sesión.
+            {interpolateSiteText(home.heroDescription, siteSettings)}
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <a
               className="inline-flex items-center justify-center rounded-full border border-white/20 bg-[#151518] px-6 py-3.5 font-bold text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-white/35 hover:bg-zinc-900"
-              href="/quote"
+              href={primaryHref}
             >
-              Solicitar cotización
+              {home.primaryCtaLabel}
             </a>
-            {whatsappUrl ? (
+            {secondaryHref ? (
               <a
                 className="inline-flex items-center justify-center rounded-full border border-white/12 px-6 py-3.5 font-semibold text-zinc-300 transition hover:border-white/25 hover:text-white"
-                href={whatsappUrl}
-                rel="noreferrer"
-                target="_blank"
+                href={secondaryHref}
+                rel={secondaryHref.startsWith("http") ? "noreferrer" : undefined}
+                target={secondaryHref.startsWith("http") ? "_blank" : undefined}
               >
-                Consultar por WhatsApp
+                {home.secondaryCtaLabel}
               </a>
             ) : null}
           </div>
-
-          <div className="mt-10 grid max-w-3xl gap-4 border-t border-white/10 pt-6 sm:grid-cols-3">
-            {[
-              ["01", "Idea", "Cuéntame qué quieres tatuar y comparte referencias."],
-              ["02", "Evaluación", "Reviso zona, tamaño, composición y nivel de detalle."],
-              ["03", "Agenda", "Si el proyecto es viable, coordinamos fecha y próximos pasos."],
-            ].map(([number, title, description]) => (
-              <div className="min-w-0" key={number}>
-                <span className="text-[10px] font-black tracking-[0.2em] text-zinc-600">{number}</span>
-                <h2 className="mt-2 text-sm font-bold uppercase tracking-[0.12em] text-zinc-100">{title}</h2>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">{description}</p>
-              </div>
-            ))}
-          </div>
+          {home.heroHint ? <p className="mt-4 text-sm text-zinc-500">{home.heroHint}</p> : null}
         </div>
       </section>
+
+      {home.sections.process ? (
+        <section className="py-16">
+          <div className="border-b border-white/10 pb-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+              {home.processSectionEyebrow}
+            </p>
+            <h2 className="mt-3 max-w-3xl text-3xl font-black tracking-[-0.03em] text-white sm:text-4xl">
+              {home.processSectionTitle}
+            </h2>
+          </div>
+          <div className="mt-7 grid gap-5 md:grid-cols-3">
+            {home.processSectionSteps.map((step, index) => (
+              <article className="border-t border-white/10 pt-5" key={`${index}-${step}`}>
+                <span className="text-[10px] font-black tracking-[0.2em] text-zinc-600">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <p className="mt-3 text-sm leading-7 text-zinc-300">{step}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {home.sections.reviews ? (
         <section className="py-16">
           <div className="flex flex-col gap-4 border-b border-white/10 pb-6 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">Opiniones</p>
-              <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white sm:text-4xl">
-                Experiencias de clientes.
-              </h2>
+              <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white sm:text-4xl">Experiencias de clientes.</h2>
             </div>
-            <a className="text-sm font-semibold text-zinc-400 transition hover:text-white" href="/opiniones">
-              Ver todas las opiniones →
-            </a>
+            <a className="text-sm font-semibold text-zinc-400 transition hover:text-white" href="/opiniones">Ver todas las opiniones →</a>
           </div>
-
           <div className="mt-7 grid gap-4 md:grid-cols-3">
             {reviews.length === 0 ? (
-              <p className="rounded-2xl border border-white/10 bg-[#0b0b0d] p-6 text-zinc-400 md:col-span-3">
-                Aún no hay opiniones publicadas.
-              </p>
-            ) : (
-              reviews.map((review) => (
-                <article className="rounded-2xl border border-white/10 bg-[#0b0b0d] p-6" key={review.id}>
-                  <p className="text-sm tracking-[0.12em] text-zinc-300">
-                    {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}
-                  </p>
-                  <p className="mt-4 line-clamp-5 text-sm leading-7 text-zinc-300">{review.comment}</p>
-                  <p className="mt-5 text-sm font-bold text-zinc-100">{review.publicName}</p>
-                </article>
-              ))
-            )}
+              <p className="rounded-2xl border border-white/10 bg-[#0b0b0d] p-6 text-zinc-400 md:col-span-3">Aún no hay opiniones publicadas.</p>
+            ) : reviews.map((review) => (
+              <article className="rounded-2xl border border-white/10 bg-[#0b0b0d] p-6" key={review.id}>
+                <p className="text-sm tracking-[0.12em] text-zinc-300">{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</p>
+                <p className="mt-4 line-clamp-5 text-sm leading-7 text-zinc-300">{review.comment}</p>
+                <p className="mt-5 text-sm font-bold text-zinc-100">{review.publicName}</p>
+              </article>
+            ))}
           </div>
         </section>
       ) : null}
@@ -126,12 +137,8 @@ export default async function HomePage() {
           <div className="grid gap-10 border-y border-white/10 py-10 md:grid-cols-[0.8fr_1.2fr] md:items-start">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">Comunidad</p>
-              <h2 className="mt-3 max-w-md text-3xl font-black tracking-[-0.03em] text-white sm:text-4xl">
-                Agenda, novedades y contenido sin ruido.
-              </h2>
-              <p className="mt-4 max-w-md text-sm leading-7 text-zinc-400">
-                Puedes dejar tu correo para recibir información relevante. Esto no crea una reserva ni reemplaza la cotización.
-              </p>
+              <h2 className="mt-3 max-w-md text-3xl font-black tracking-[-0.03em] text-white sm:text-4xl">Agenda, novedades y contenido sin ruido.</h2>
+              <p className="mt-4 max-w-md text-sm leading-7 text-zinc-400">Puedes dejar tu correo para recibir información relevante. Esto no crea una reserva ni reemplaza la cotización.</p>
             </div>
             <CommunityMemberForm />
           </div>
@@ -144,16 +151,9 @@ export default async function HomePage() {
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">Tu proyecto</p>
               <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white">¿Tienes una idea para tatuarte?</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-400">
-                Envía una solicitud con idea, zona, tamaño, presupuesto y referencias. Después podrás seguir el estado con tu código de cotización.
-              </p>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-400">Envía una solicitud con idea, zona, tamaño, presupuesto y referencias. Después podrás seguir el estado con tu código de cotización.</p>
             </div>
-            <a
-              className="inline-flex items-center justify-center rounded-full border border-white/20 bg-[#151518] px-6 py-3.5 font-bold text-zinc-100 transition hover:border-white/35 hover:bg-zinc-900"
-              href="/quote"
-            >
-              Empezar cotización
-            </a>
+            <a className="inline-flex items-center justify-center rounded-full border border-white/20 bg-[#151518] px-6 py-3.5 font-bold text-zinc-100 transition hover:border-white/35 hover:bg-zinc-900" href="/quote">Empezar cotización</a>
           </div>
         </section>
       ) : null}
