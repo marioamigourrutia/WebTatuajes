@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { AdminStatusPanel } from "@/lib/auth/admin-status-panel";
 import { isFirebaseAdminBackendConfigured } from "@/lib/config/firebase-admin";
+import { isExternalImageUploadConfigured } from "@/lib/images/upload-provider";
 import { EditorialPageHero } from "@/lib/layout/editorial-page-hero";
 
 const adminSessionCookieName = "webtatuajes_admin_session";
@@ -43,6 +44,7 @@ export default async function AdminPage() {
   }
 
   const initialStatus = await getSafeAdminInitialStatus(sessionCookie);
+  const imageUploadsEnabled = isExternalImageUploadConfigured();
 
   return (
     <main className="pb-8 pt-4 sm:pt-5">
@@ -51,7 +53,7 @@ export default async function AdminPage() {
           index="A1"
           eyebrow="Administración / privado"
           title="Control del estudio."
-          description="Cotizaciones, calendario, reservas, contenido, portafolio, opiniones, tienda, comunidad y auditoría en un único panel protegido."
+          description="Cotizaciones, calendario, reservas, contenido, imágenes editoriales, opiniones, tienda, comunidad y auditoría en un único panel protegido."
           tone="black"
           meta={["Acceso restringido", "Firebase", "Server validated"]}
         />
@@ -68,7 +70,10 @@ export default async function AdminPage() {
               Cambios verificados en servidor
             </span>
           </div>
-          <AdminStatusPanel imageUploadsEnabled={false} initialStatus={initialStatus} />
+          <AdminStatusPanel
+            imageUploadsEnabled={imageUploadsEnabled}
+            initialStatus={initialStatus}
+          />
         </section>
       </div>
     </main>
