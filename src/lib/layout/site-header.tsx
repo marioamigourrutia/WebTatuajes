@@ -14,6 +14,7 @@ export function SiteHeader({ navItems, whatsappUrl }: SiteHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const mobileMenuId = useId();
   const closeMenu = () => setIsMenuOpen(false);
+  const adminItem = navItems.find((item) => item.href === "/admin");
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#cec6c2]/12 bg-[#101010]/95 backdrop-blur-md">
@@ -48,9 +49,11 @@ export function SiteHeader({ navItems, whatsappUrl }: SiteHeaderProps) {
               Instagram ↗
             </a>
           ) : null}
-          <Link className={navLinkClassName} href="/admin">
-            Admin
-          </Link>
+          {adminItem ? (
+            <Link className={navLinkClassName} href={adminItem.href}>
+              {adminItem.label}
+            </Link>
+          ) : null}
           {whatsappUrl ? (
             <a className={navLinkClassName} href={whatsappUrl} rel="noreferrer" target="_blank">
               WhatsApp ↗
