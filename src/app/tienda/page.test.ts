@@ -45,10 +45,10 @@ describe("shop page", () => {
 
     expect(content).toContain("Obras disponibles");
     expect(content).toContain("OBR-100");
-    expect(content).toContain("Solicitar compra");
+    expect(content).toContain("Solicitar →");
     expect(content).toContain("solicitar-compra");
     expect(content).toContain('"products":[{"id":"firestore-product"');
-    expect(content).not.toContain("Catálogo temporal en modo referencia");
+    expect(content).not.toContain("Catálogo temporal / referencia");
   });
 
   it("marks fallback catalog as reference-only and hides the purchase form", async () => {
@@ -61,13 +61,11 @@ describe("shop page", () => {
     const page = await ShopPage();
     const content = JSON.stringify(page);
 
-    expect(content).toContain("Catálogo temporal en modo referencia");
+    expect(content).toContain("Catálogo temporal / referencia");
     expect(content).toContain("Las piezas mostradas son referenciales");
-    expect(content).toContain("Coordinar por contacto");
-    expect(content).not.toContain("Solicitar compra");
+    expect(content).toContain("Contacto →");
     expect(content).not.toContain("solicitar-compra");
     expect(content).not.toContain('"products":[');
-    expect(content).not.toContain("Guardar y preparar WhatsApp");
   });
 
   it("shows an empty state when Firestore succeeds with no products", async () => {
@@ -81,7 +79,7 @@ describe("shop page", () => {
     const content = JSON.stringify(page);
 
     expect(content).toContain("No hay obras disponibles publicadas por el momento");
-    expect(content).not.toContain("Catálogo temporal en modo referencia");
+    expect(content).not.toContain("Catálogo temporal / referencia");
     expect(content).not.toContain("OBR-001");
     expect(content).not.toContain("solicitar-compra");
     expect(content).not.toContain('"products":[');
