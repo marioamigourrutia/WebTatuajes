@@ -76,6 +76,12 @@ test.describe("public smoke navigation", () => {
     await expect(page.getByRole("button", { name: /consultar/i })).toBeVisible();
   });
 
+  test("historical portfolio route delegates visual work to Instagram", async ({ page }) => {
+    const response = await page.goto("/portfolio");
+    expect(response).not.toBeNull();
+    await expect(page).toHaveURL(/instagram\.com|\/$/);
+  });
+
   test("shop renders a deterministic empty or fallback catalog state", async ({ page }) => {
     await page.goto("/tienda");
 
