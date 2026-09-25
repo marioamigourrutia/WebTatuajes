@@ -1,23 +1,23 @@
 export const tattooServices = [
   {
+    title: "Realismo black & grey",
+    description:
+      "Piezas construidas con volumen, contraste y detalle en negro y grises, evaluadas según zona, tamaño y lectura a distancia.",
+  },
+  {
+    title: "Retratos y composición",
+    description:
+      "Retratos, rostros y composiciones desarrolladas a partir de referencias claras, cuidando anatomía, proporción y adaptación al cuerpo.",
+  },
+  {
     title: "Diseño personalizado",
     description:
-      "Convertimos tu idea, referencias y zona del cuerpo en una propuesta viable para tatuar con criterio profesional.",
+      "Transformamos tu idea y referencias en una propuesta propia, pensada para la zona del cuerpo y el resultado visual que buscas.",
   },
   {
-    title: "Línea fina y minimalista",
+    title: "Cover-up evaluado",
     description:
-      "Piezas delicadas, lettering simple y detalles pequeños evaluados según tamaño, piel y envejecimiento esperado.",
-  },
-  {
-    title: "Blackwork y sombras",
-    description:
-      "Trabajo en negro, contraste y sombras suaves para piezas con lectura clara y buena composición.",
-  },
-  {
-    title: "Cover-up y ajustes",
-    description:
-      "Revisamos tatuajes existentes caso a caso para definir si conviene cubrir, rediseñar o derivar a otra solución.",
+      "Revisamos tatuajes existentes caso a caso para definir si es viable cubrir, rediseñar o proponer una alternativa más adecuada.",
   },
 ];
 
