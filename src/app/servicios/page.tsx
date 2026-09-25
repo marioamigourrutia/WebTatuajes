@@ -14,6 +14,19 @@ export const metadata: Metadata = {
     "Servicios de tatuaje, higiene, proceso de reserva, cuidados posteriores y preguntas frecuentes para cotizar en Chile.",
 };
 
+const sessionInfoSections = [
+  {
+    eyebrow: "Reserva",
+    title: "Qué esperamos antes de agendar",
+    items: bookingExpectations,
+  },
+  {
+    eyebrow: "Higiene",
+    title: "Seguridad durante la sesión",
+    items: hygienePractices,
+  },
+] as const;
+
 export default function ServicesPage() {
   return (
     <main className="pb-8 pt-4 sm:pt-5">
@@ -58,15 +71,12 @@ export default function ServicesPage() {
           <p className="neo-kicker">Before your session</p>
           <h2 className="neo-mega mt-5 text-[clamp(4rem,11vw,8.8rem)] text-[#cec6c2]">Client info</h2>
           <div className="mt-8 grid gap-4 lg:grid-cols-2">
-            {[
-              ["Reserva", "Qué esperamos antes de agendar", bookingExpectations],
-              ["Higiene", "Seguridad durante la sesión", hygienePractices],
-            ].map(([eyebrow, title, items]) => (
-              <article className="border border-[#cec6c2]/14 bg-[#202020] p-5 sm:p-6" key={String(eyebrow)}>
-                <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#66615e]">{String(eyebrow)}</p>
-                <h3 className="neo-display mt-4 text-[clamp(2.2rem,5vw,4rem)] text-[#cec6c2]">{String(title)}</h3>
+            {sessionInfoSections.map(({ eyebrow, title, items }) => (
+              <article className="border border-[#cec6c2]/14 bg-[#202020] p-5 sm:p-6" key={eyebrow}>
+                <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#66615e]">{eyebrow}</p>
+                <h3 className="neo-display mt-4 text-[clamp(2.2rem,5vw,4rem)] text-[#cec6c2]">{title}</h3>
                 <div className="mt-6 divide-y divide-[#cec6c2]/14 border-y border-[#cec6c2]/14">
-                  {(items as string[]).map((item, index) => (
+                  {items.map((item, index) => (
                     <div className="grid grid-cols-[auto_1fr] gap-4 py-4" key={item}>
                       <span className="neo-index">{String(index + 1).padStart(2, "0")}</span>
                       <p className="text-sm leading-6 text-[#b7aaa4]">{item}</p>
