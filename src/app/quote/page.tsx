@@ -17,8 +17,8 @@ export default function QuotePage() {
           index="02"
           eyebrow="Cotización privada"
           title="Cuéntame tu idea con contexto."
-          description="Mientras más clara sea la zona, tamaño, estilo y presupuesto estimado, mejor podremos evaluar viabilidad y próximos pasos. Al finalizar tendrás tu código de cotización y podrás continuar por WhatsApp."
-          meta={["Privado", "Sin compromiso", "Respuesta por agenda"]}
+          description="Mientras más clara sea la información sobre la zona, el tamaño, el estilo y el presupuesto estimado, mejor podremos evaluar la viabilidad del proyecto y definir los próximos pasos. Al finalizar recibirás tu código de cotización y podrás continuar por el canal que elijas."
+          meta={["Privado", "Sin compromiso", "Revisión personalizada"]}
         >
           <div className="flex flex-wrap gap-2 font-mono text-[9px] uppercase tracking-[0.14em] text-[#837f7c]">
             <span>Idea</span>
@@ -38,7 +38,7 @@ export default function QuotePage() {
               </h2>
             </div>
             <p className="max-w-sm text-sm leading-6 text-[#837f7c]">
-              Completa solo información real. Los datos se validan nuevamente en el servidor antes de guardar la solicitud.
+              Completa información real y suficiente para evaluar tu idea. Los datos se validan nuevamente en el servidor antes de guardar la solicitud.
             </p>
           </div>
           <QuoteRequestForm fileUploadsEnabled={isExternalImageUploadConfigured()} />
