@@ -274,7 +274,7 @@ export function AdminInstagramMediaPanel({ enabled }: { enabled: boolean }) {
         <div>
           <h4 className="font-bold text-stone-100">Subir imagen desde tu equipo</h4>
           <p className="mt-1 text-xs leading-5 text-stone-500">
-            Disponible cuando Cloudinary está configurado en Vercel. Si no lo está, usa el formulario por URL que aparece debajo. JPG, PNG o WEBP, máximo configurado por el servidor.
+            Disponible cuando el proveedor de imágenes (ImageKit en producción) está configurado en Vercel. Si no lo está, usa el formulario por URL que aparece debajo. JPG, PNG o WEBP, con el máximo definido por el servidor.
           </p>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
