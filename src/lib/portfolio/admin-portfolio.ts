@@ -1,6 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { validateOptionalExternalImageUrl } from "@/lib/images/external-image-url";
-import { uploadImageToExternalProvider } from "@/lib/images/upload-provider";
 import { isFirebaseAdminBackendConfigured } from "../config/firebase-admin";
 import { getFirebaseAdminFirestore } from "../firebase/admin";
 import { mapFirestorePortfolioItem, type FirestorePortfolioItem } from "./portfolio";
@@ -188,10 +187,11 @@ export async function createPortfolioItemFromFormData(
   );
 
   if (!validation.ok) return { ok: false as const, status: 400, errors: validation.errors };
-  if (!imageValidation.ok)
+  if (!imageValidation.ok) {
     return { ok: false as const, status: 400, errors: imageValidation.errors };
+  }
 
-  if (validation.ok && imageValidation.value && validation.value.externalImageUrl) {
+  if (imageValidation.value && validation.value.externalImageUrl) {
     return {
       ok: false as const,
       status: 400,
@@ -211,6 +211,9 @@ export async function createPortfolioItemFromFormData(
   let imageMetadata = {};
 
   if (imageValidation.value) {
+    // El procesador de imágenes (sharp) se carga solo cuando realmente hay un archivo.
+    // Así las operaciones de listado/URL pública no dependen de un módulo nativo.
+    const { uploadImageToExternalProvider } = await import("@/lib/images/upload-provider");
     const upload = await uploadImageToExternalProvider(imageValidation.value.file, "portfolio");
     if (!upload.ok) {
       return { ok: false as const, status: upload.status, errors: upload.errors };
