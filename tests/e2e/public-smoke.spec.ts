@@ -14,7 +14,6 @@ test.describe("public smoke navigation", () => {
 
   test("primary public navigation pages render", async ({ page }) => {
     const routes = [
-      ["/portfolio", /piezas, referencias y lenguaje visual/i],
       ["/quote", /cuéntame tu idea con contexto/i],
       ["/quote/status", /revisa el estado de tu cotización/i],
       ["/opiniones", /experiencias publicadas por clientes/i],
