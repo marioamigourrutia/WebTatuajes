@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { EditorialPageHero } from "@/lib/layout/editorial-page-hero";
 import {
   aftercareSteps,
   bookingExpectations,
@@ -15,141 +16,108 @@ export const metadata: Metadata = {
 
 export default function ServicesPage() {
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
-      <section className="relative space-y-6 overflow-hidden rounded-[2rem] border border-amber-100/10 bg-stone-950/55 p-6 py-12 shadow-2xl shadow-black/25 sm:p-8 sm:py-14">
-        <div className="pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full bg-amber-300/10 blur-3xl" />
-        <p className="text-sm font-semibold uppercase tracking-[0.35em] text-amber-300">
-          Servicios y cuidados
-        </p>
-        <h1 className="max-w-4xl text-5xl font-black leading-tight text-stone-50 sm:text-7xl">
-          Información clara antes de pedir tu cotización.
-        </h1>
-        <p className="max-w-3xl text-lg leading-8 text-stone-300">
-          Revisa estilos, expectativas de reserva, higiene y cuidados básicos para llegar con una
-          idea mejor preparada. Si tu proyecto calza, el siguiente paso es enviar una solicitud con
-          contexto.
-        </p>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <a
-            className="rounded-full bg-amber-300 px-6 py-3 text-center font-semibold text-stone-950 transition hover:bg-amber-200"
-            href="/quote"
-          >
-            Solicitar cotización
-          </a>
-          <a
-            className="rounded-full border border-amber-300/40 bg-stone-950/40 px-6 py-3 text-center font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950"
-            href="/portfolio"
-          >
-            Ver portafolio
-          </a>
-        </div>
-      </section>
-
-      <section className="grid gap-4 py-8 md:grid-cols-2" aria-labelledby="services-heading">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
-            Qué hacemos
-          </p>
-          <h2 id="services-heading" className="mt-3 text-3xl font-black text-stone-50">
-            Servicios enfocados en diseño y viabilidad.
-          </h2>
-        </div>
-        <div className="grid gap-4">
-          {tattooServices.map((service) => (
-            <article
-              className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5 shadow-xl shadow-black/15 transition hover:border-amber-300/40"
-              key={service.title}
-            >
-              <h3 className="text-xl font-black text-stone-50">{service.title}</h3>
-              <p className="mt-2 leading-7 text-stone-300">{service.description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid gap-6 py-8 lg:grid-cols-2">
-        <article className="rounded-3xl border border-stone-700 bg-stone-950/70 p-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">Reserva</p>
-          <h2 className="mt-3 text-3xl font-black text-stone-50">Qué esperamos antes de agendar</h2>
-          <ul className="mt-5 space-y-3 text-stone-300">
-            {bookingExpectations.map((item) => (
-              <li className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4" key={item}>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </article>
-
-        <article className="rounded-3xl border border-stone-700 bg-stone-950/70 p-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">Higiene</p>
-          <h2 className="mt-3 text-3xl font-black text-stone-50">Seguridad durante la sesión</h2>
-          <ul className="mt-5 space-y-3 text-stone-300">
-            {hygienePractices.map((item) => (
-              <li className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4" key={item}>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </article>
-      </section>
-
-      <section className="py-8" aria-labelledby="aftercare-heading">
-        <div className="rounded-3xl border border-stone-700 bg-stone-950/70 p-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
-            Cuidados posteriores
-          </p>
-          <h2 id="aftercare-heading" className="mt-3 text-3xl font-black text-stone-50">
-            La cicatrización también es parte del resultado.
-          </h2>
-          <ol className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {aftercareSteps.map((step, index) => (
-              <li
-                className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4 text-stone-300 transition hover:border-amber-300/30"
-                key={step}
-              >
-                <span className="text-sm font-bold text-amber-300">0{index + 1}</span>
-                <p className="mt-2 leading-7">{step}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
-
-      <section className="py-8" aria-labelledby="faq-heading">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">FAQ</p>
-        <h2 id="faq-heading" className="mt-3 text-3xl font-black text-stone-50">
-          Preguntas frecuentes antes de cotizar
-        </h2>
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {serviceFaqs.map((faq) => (
-            <article
-              className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5"
-              key={faq.question}
-            >
-              <h3 className="text-xl font-black text-stone-50">{faq.question}</h3>
-              <p className="mt-2 leading-7 text-stone-300">{faq.answer}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="py-10">
-        <div className="flex flex-col gap-4 rounded-3xl border border-amber-300/30 bg-amber-300 p-6 text-stone-950 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-3xl font-black">¿Listo para revisar tu idea?</h2>
-            <p className="mt-2 max-w-2xl text-stone-800">
-              Envía una cotización con referencias, zona y tamaño aproximado para que el estudio
-              pueda responder con criterio.
-            </p>
+    <main className="pb-8 pt-4 sm:pt-5">
+      <div className="editorial-page">
+        <EditorialPageHero
+          index="09"
+          eyebrow="Servicios / client info"
+          title="Información clara antes de cotizar."
+          description="Revisa estilos, expectativas de reserva, higiene y cuidados básicos para llegar con una idea mejor preparada."
+          meta={["Before session", "Aftercare", "FAQ"]}
+        >
+          <div className="flex flex-wrap gap-2">
+            <a className="neo-button" href="/quote">Solicitar cotización</a>
+            <a className="neo-button-outline" href="/portfolio">Ver portafolio</a>
           </div>
-          <a
-            className="rounded-full bg-stone-950 px-6 py-3 text-center font-semibold text-stone-50 transition hover:bg-stone-800"
-            href="/quote"
-          >
-            Empezar cotización
-          </a>
-        </div>
-      </section>
+        </EditorialPageHero>
+
+        <section className="editorial-strip-paper mt-4 p-5 sm:p-7 lg:p-10" aria-labelledby="services-heading">
+          <div className="grid gap-8 lg:grid-cols-[0.68fr_1.32fr] lg:items-end">
+            <div>
+              <p className="neo-kicker !text-[#370803]">Qué hacemos</p>
+              <h2 id="services-heading" className="neo-mega mt-5 text-[clamp(4.3rem,11vw,9rem)] text-[#141414]">
+                Services
+              </h2>
+            </div>
+            <div className="grid border border-[#141414]/16 md:grid-cols-2">
+              {tattooServices.map((service, index) => (
+                <article
+                  className="min-h-52 border-b border-[#141414]/16 p-5 odd:md:border-r md:[&:nth-last-child(-n+2)]:border-b-0"
+                  key={service.title}
+                >
+                  <span className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#370803]/60">0{index + 1}</span>
+                  <h3 className="mt-10 text-base font-bold text-[#141414]">{service.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-[#370803]/72">{service.description}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-4 border border-[#cec6c2]/14 bg-[#181818] p-5 sm:p-7 lg:p-10">
+          <p className="neo-kicker">Before your session</p>
+          <h2 className="neo-mega mt-5 text-[clamp(4rem,11vw,8.8rem)] text-[#cec6c2]">Client info</h2>
+          <div className="mt-8 grid gap-4 lg:grid-cols-2">
+            {[
+              ["Reserva", "Qué esperamos antes de agendar", bookingExpectations],
+              ["Higiene", "Seguridad durante la sesión", hygienePractices],
+            ].map(([eyebrow, title, items]) => (
+              <article className="border border-[#cec6c2]/14 bg-[#202020] p-5 sm:p-6" key={String(eyebrow)}>
+                <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#66615e]">{String(eyebrow)}</p>
+                <h3 className="neo-display mt-4 text-[clamp(2.2rem,5vw,4rem)] text-[#cec6c2]">{String(title)}</h3>
+                <div className="mt-6 divide-y divide-[#cec6c2]/14 border-y border-[#cec6c2]/14">
+                  {(items as string[]).map((item, index) => (
+                    <div className="grid grid-cols-[auto_1fr] gap-4 py-4" key={item}>
+                      <span className="neo-index">{String(index + 1).padStart(2, "0")}</span>
+                      <p className="text-sm leading-6 text-[#b7aaa4]">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-4 border border-[#cec6c2]/14 p-5 sm:p-7 lg:p-10" aria-labelledby="aftercare-heading">
+          <div className="grid gap-8 lg:grid-cols-[0.62fr_1.38fr] lg:items-end">
+            <div>
+              <p className="neo-kicker">Continued aftercare</p>
+              <h2 id="aftercare-heading" className="neo-display mt-5 text-[clamp(3rem,8vw,6.5rem)] text-[#cec6c2]">
+                La cicatrización también es parte del resultado.
+              </h2>
+            </div>
+            <ol className="grid border border-[#cec6c2]/14 sm:grid-cols-2 lg:grid-cols-4">
+              {aftercareSteps.map((step, index) => (
+                <li className="min-h-56 border-b border-[#cec6c2]/14 p-4 sm:border-r lg:border-b-0 lg:last:border-r-0" key={step}>
+                  <span className="neo-index">0{index + 1}</span>
+                  <div className="mt-10 text-3xl text-[#837f7c]" aria-hidden="true">✦</div>
+                  <p className="mt-5 text-sm leading-6 text-[#b7aaa4]">{step}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section className="mt-4 border border-[#cec6c2]/14 bg-[#202020] p-5 sm:p-7 lg:p-10" aria-labelledby="faq-heading">
+          <div className="grid gap-8 lg:grid-cols-[0.62fr_1.38fr]">
+            <div>
+              <p className="neo-kicker">Frequently asked</p>
+              <h2 id="faq-heading" className="neo-mega mt-5 text-[clamp(4rem,10vw,8rem)] text-[#cec6c2]">Questions</h2>
+            </div>
+            <div className="divide-y divide-[#cec6c2]/20 border-y border-[#cec6c2]/20">
+              {serviceFaqs.map((faq, index) => (
+                <details className="group py-4" key={faq.question}>
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold text-[#cec6c2]">
+                    <span className="flex items-center gap-4"><span className="neo-index">{String(index + 1).padStart(2, "0")}</span>{faq.question}</span>
+                    <span className="text-lg text-[#837f7c] transition group-open:rotate-45">+</span>
+                  </summary>
+                  <p className="ml-10 mt-3 max-w-2xl text-sm leading-7 text-[#837f7c]">{faq.answer}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
