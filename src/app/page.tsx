@@ -84,7 +84,7 @@ export default async function HomePage() {
         <section className="relative isolate min-h-[40rem] overflow-hidden border border-[#cec6c2]/14 bg-[#2c2c2c] sm:min-h-[47rem] lg:min-h-[52rem]">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-2 top-5 z-0 overflow-hidden text-center font-[var(--font-display)] text-[clamp(5.7rem,20vw,18rem)] uppercase leading-[0.74] tracking-[-0.045em] text-[#cec6c2] sm:top-7"
+            className="pointer-events-none absolute inset-x-2 top-5 z-0 overflow-hidden text-center font-[var(--font-display)] text-[clamp(5.7rem,20vw,18rem)] uppercase leading-[0.8] tracking-[-0.025em] text-[#cec6c2] sm:top-7"
           >
             Mario
           </div>
@@ -113,13 +113,13 @@ export default async function HomePage() {
               <div className="hidden text-right font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#b7aaa4] sm:block">
                 <p>Realismo black & grey</p>
                 <p className="mt-1">Diseño personalizado</p>
-                <p className="mt-1">Chile / agenda</p>
+                <p className="mt-1">Chile · atención con agenda</p>
               </div>
             </div>
 
             <div className="grid gap-8 lg:grid-cols-[minmax(0,0.72fr)_minmax(20rem,1.28fr)] lg:items-end">
               <div className="max-w-md border-t border-[#cec6c2]/42 bg-[#141414]/55 p-4 backdrop-blur-sm sm:p-5">
-                <h1 className="text-xl font-semibold leading-[1.2] text-[#e1dad6] sm:text-2xl">
+                <h1 className="text-xl font-semibold leading-[1.25] text-[#e1dad6] sm:text-2xl">
                   {interpolateSiteText(home.heroTitle, siteSettings)}
                 </h1>
                 <p className="mt-3 text-sm leading-6 text-[#c5bbb6]">
@@ -158,9 +158,10 @@ export default async function HomePage() {
 
       <div className="editorial-marquee mt-4">
         <div className="editorial-marquee-track">
-          <span>Fine line focused</span><span>•</span><span>Custom designs</span><span>•</span>
-          <span>Precise placement</span><span>•</span><span>Realismo black & grey</span><span>•</span>
-          <span>Agenda personalizada</span><span>•</span><span>Fine line focused</span>
+          <span>Diseño personalizado</span><span>•</span>
+          <span>Composición anatómica</span><span>•</span>
+          <span>Realismo black & grey</span><span>•</span>
+          <span>Agenda personalizada</span>
         </div>
       </div>
 
@@ -184,7 +185,7 @@ export default async function HomePage() {
                 <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(20,20,20,0.86)_0%,rgba(20,20,20,0.08)_58%)]" />
                 <div className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-6">
                   <p className="font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-[#cec6c2]/70">
-                    Instagram / {String(index + 1).padStart(2, "0")}
+                    Instagram · {String(index + 1).padStart(2, "0")}
                   </p>
                   <p className="mt-2 line-clamp-2 max-w-xl text-sm font-semibold leading-6 text-[#e1dad6]">
                     {item.description || item.caption}
@@ -201,16 +202,16 @@ export default async function HomePage() {
           <div className="editorial-page">
             <div className="border-b border-[#cec6c2]/14 pb-7">
               <p className="neo-kicker">{home.processCardEyebrow}</p>
-              <h2 className="neo-mega mt-6 text-[clamp(4.6rem,16vw,14rem)] text-[#cec6c2]">Client info</h2>
+              <h2 className="neo-mega mt-6 text-[clamp(4.6rem,16vw,14rem)] text-[#cec6c2]">Tu proyecto</h2>
               <div className="mt-7 grid gap-5 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
                 <div>
-                  <h3 className="neo-display text-[clamp(2.3rem,5.6vw,4.5rem)] leading-[0.94] text-[#cec6c2]">
+                  <h3 className="neo-display text-[clamp(2.3rem,5.6vw,4.5rem)] text-[#cec6c2]">
                     {home.processCardTitle}
                   </h3>
                   <p className="mt-4 max-w-lg text-sm leading-7 text-[#9a928e]">{home.processCardSubtitle}</p>
                 </div>
                 <p className="text-right font-mono text-[9px] uppercase tracking-[0.14em] text-[#66615e]">
-                  Antes de reservar / revisa cada punto
+                  Antes de reservar · revisa cada punto
                 </p>
               </div>
             </div>
@@ -228,7 +229,7 @@ export default async function HomePage() {
             <div className="mt-10 grid gap-7 border-t border-[#cec6c2]/14 pt-7 lg:grid-cols-[0.62fr_1.38fr]">
               <div>
                 <p className="neo-kicker">{home.processSectionEyebrow}</p>
-                <h3 className="neo-display mt-4 text-[clamp(2.3rem,5.6vw,4.3rem)] leading-[0.95] text-[#cec6c2]">{home.processSectionTitle}</h3>
+                <h3 className="neo-display mt-4 text-[clamp(2.3rem,5.6vw,4.3rem)] text-[#cec6c2]">{home.processSectionTitle}</h3>
               </div>
               <div className="divide-y divide-[#cec6c2]/14 border-y border-[#cec6c2]/14">
                 {home.processSectionSteps.map((step, index) => (
@@ -250,7 +251,7 @@ export default async function HomePage() {
             <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
               <div>
                 <p className="neo-kicker !text-[#370803]">Opiniones</p>
-                <h2 className="neo-mega mt-5 text-[clamp(4.3rem,12vw,9.5rem)] text-[#141414]">Experiences</h2>
+                <h2 className="neo-mega mt-5 text-[clamp(4.3rem,12vw,9.5rem)] text-[#141414]">Experiencias</h2>
                 <a className="neo-button-dark mt-7" href="/opiniones">Ver todas →</a>
               </div>
               <div className="grid border border-[#141414]/16 md:grid-cols-3">
@@ -279,7 +280,7 @@ export default async function HomePage() {
           <div className="editorial-page">
             <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
               <div>
-                <p className="neo-kicker">Comunidad / newsletter</p>
+                <p className="neo-kicker">Comunidad · novedades</p>
                 <h2 className="neo-mega mt-6 max-w-4xl text-[clamp(4rem,11vw,9rem)] text-[#cec6c2]">Novedades sin ruido.</h2>
                 <p className="mt-6 max-w-md text-sm leading-7 text-[#9a928e]">Agenda, proyectos y contenido seleccionado. Dejar tu correo no crea una reserva ni reemplaza la cotización.</p>
               </div>
@@ -295,7 +296,7 @@ export default async function HomePage() {
             <div className="grid gap-7 lg:grid-cols-[1fr_auto] lg:items-end">
               <div>
                 <p className="neo-kicker !text-[#370803]">Contacto</p>
-                <h2 className="neo-mega mt-5 max-w-5xl text-[clamp(4rem,11vw,8.5rem)] text-[#141414]">Let&apos;s talk</h2>
+                <h2 className="neo-mega mt-5 max-w-5xl text-[clamp(4rem,11vw,8.5rem)] text-[#141414]">Hablemos</h2>
                 <p className="mt-5 max-w-xl text-sm leading-7 text-[#370803]/72">Si ya tienes una cotización o necesitas aclarar un paso, usa los canales oficiales del estudio.</p>
               </div>
               <a className="neo-button-dark" href="/contacto">Ir a contacto →</a>
@@ -309,7 +310,7 @@ export default async function HomePage() {
           <div className="editorial-page">
             <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
               <div>
-                <p className="neo-kicker">Tu proyecto / siguiente paso</p>
+                <p className="neo-kicker">Tu proyecto · siguiente paso</p>
                 <h2 className="neo-mega mt-5 max-w-5xl text-[clamp(4rem,12vw,9.5rem)] text-[#cec6c2]">Tu idea. Tu pieza.</h2>
                 <p className="mt-5 max-w-2xl text-sm leading-7 text-[#b7aaa4]">Completa la cotización con zona, tamaño, presupuesto y referencias. Luego podrás seguir el estado con tu código privado.</p>
               </div>
