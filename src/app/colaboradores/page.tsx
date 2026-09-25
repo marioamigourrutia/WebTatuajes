@@ -21,10 +21,10 @@ export default async function SponsorsPage() {
       <div className="editorial-page">
         <EditorialPageHero
           index="07"
-          eyebrow="Colaboradores / aliados"
+          eyebrow="Colaboradores · aliados"
           title="Marcas y aliados del estudio."
           description="Auspiciadores, proveedores y proyectos colaboradores relacionados con el tatuaje, el cuidado y la experiencia del estudio."
-          meta={[`${sponsors.length} activos`, "Partners", "Selección pública"]}
+          meta={[`${sponsors.length} activos`, "Colaboraciones", "Selección pública"]}
         />
 
         <section className="mt-4 grid border border-[#cec6c2]/14 md:grid-cols-2 xl:grid-cols-3">
@@ -42,7 +42,7 @@ export default async function SponsorsPage() {
                 key={sponsor.id}
               >
                 <div className="flex items-start justify-between gap-4">
-                  <span className="neo-index">P/{String(index + 1).padStart(2, "0")}</span>
+                  <span className="neo-index">C/{String(index + 1).padStart(2, "0")}</span>
                   {sponsor.logoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
