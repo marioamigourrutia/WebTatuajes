@@ -3,12 +3,20 @@ import { describe, expect, it } from "vitest";
 import { AppShell } from "./app-shell";
 
 describe("AppShell", () => {
-  it("includes collaborators in the main navigation and omits the legacy portfolio route", () => {
+  it("keeps required navigation and omits the duplicate portfolio route", () => {
     render(<AppShell>Contenido</AppShell>);
 
     expect(screen.getByRole("link", { name: "Colaboradores" })).toHaveAttribute(
       "href",
       "/colaboradores",
+    );
+    expect(screen.getByRole("link", { name: "Privacidad" }).first()).toHaveAttribute(
+      "href",
+      "/privacidad",
+    );
+    expect(screen.getByRole("link", { name: "Términos" }).first()).toHaveAttribute(
+      "href",
+      "/terminos-reserva",
     );
     expect(screen.queryByRole("link", { name: /portfolio/i })).not.toBeInTheDocument();
   });
@@ -39,6 +47,14 @@ describe("AppShell", () => {
       "true",
     );
     expect(within(mobileMenu).queryByRole("link", { name: /portfolio/i })).not.toBeInTheDocument();
+    expect(within(mobileMenu).getByRole("link", { name: "Privacidad" })).toHaveAttribute(
+      "href",
+      "/privacidad",
+    );
+    expect(within(mobileMenu).getByRole("link", { name: "Términos" })).toHaveAttribute(
+      "href",
+      "/terminos-reserva",
+    );
     expect(within(mobileMenu).getByRole("link", { name: /WhatsApp/i })).toHaveAttribute(
       "href",
       expect.stringContaining("https://wa.me/56977616917?"),
@@ -53,7 +69,7 @@ describe("AppShell", () => {
     render(<AppShell>Contenido</AppShell>);
 
     expect(screen.getByRole("link", { name: "Ir a contacto" })).toHaveAttribute("href", "/contacto");
-    expect(screen.getByRole("link", { name: "Privacidad" })).toHaveAttribute("href", "/privacidad");
-    expect(screen.getByRole("link", { name: "Términos" })).toHaveAttribute("href", "/terminos-reserva");
+    expect(screen.getAllByRole("link", { name: "Privacidad" }).at(-1)).toHaveAttribute("href", "/privacidad");
+    expect(screen.getAllByRole("link", { name: "Términos" }).at(-1)).toHaveAttribute("href", "/terminos-reserva");
   });
 });
