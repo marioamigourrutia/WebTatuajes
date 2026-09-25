@@ -1,0 +1,70 @@
+.editorial-marquee-track {
+  display: flex;
+  width: 100%;
+  min-width: 100%;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: clamp(1rem, 3vw, 3rem);
+  padding: 0.75rem clamp(1rem, 3vw, 2.5rem);
+}
+
+/* Retira la referencia "Fine line focused" y sus separadores adyacentes. */
+.editorial-marquee-track > span:nth-child(1),
+.editorial-marquee-track > span:nth-child(2),
+.editorial-marquee-track > span:nth-child(10),
+.editorial-marquee-track > span:nth-child(11) {
+  display: none;
+}
+
+/* Mantiene la tipografía del rediseño, pero evita que letras y líneas se monten. */
+.neo-display {
+  line-height: 0.98 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.neo-mega {
+  line-height: 0.92 !important;
+  letter-spacing: -0.012em !important;
+}
+
+.editorial-hero-title {
+  max-width: 13ch;
+  line-height: 0.9 !important;
+  letter-spacing: -0.012em !important;
+}
+
+/* Mejora la lectura sobre imágenes sin cambiar la paleta. */
+.editorial-page h1,
+.editorial-page h2,
+.editorial-page h3 {
+  text-wrap: balance;
+}
+
+.editorial-page p {
+  text-wrap: pretty;
+}
+
+/* El calendario mantiene el lenguaje visual editorial y una alineación estable. */
+[aria-labelledby="quote-calendar-title"] > div:first-child {
+  align-items: flex-start;
+}
+
+@media (max-width: 900px) {
+  .editorial-marquee-track {
+    width: max-content;
+    min-width: max-content;
+    justify-content: flex-start;
+    padding-inline: 1rem;
+  }
+
+  .neo-display {
+    line-height: 1 !important;
+    letter-spacing: -0.006em !important;
+  }
+
+  .neo-mega,
+  .editorial-hero-title {
+    line-height: 0.95 !important;
+    letter-spacing: -0.006em !important;
+  }
+}
