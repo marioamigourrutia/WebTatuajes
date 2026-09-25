@@ -47,11 +47,11 @@ describe("AppShell", () => {
       "true",
     );
     expect(within(mobileMenu).queryByRole("link", { name: /portfolio/i })).not.toBeInTheDocument();
-    expect(within(mobileMenu).getByRole("link", { name: "Privacidad" })).toHaveAttribute(
+    expect(within(mobileMenu).getByRole("link", { name: /^Privacidad/ })).toHaveAttribute(
       "href",
       "/privacidad",
     );
-    expect(within(mobileMenu).getByRole("link", { name: "Términos" })).toHaveAttribute(
+    expect(within(mobileMenu).getByRole("link", { name: /^Términos/ })).toHaveAttribute(
       "href",
       "/terminos-reserva",
     );
