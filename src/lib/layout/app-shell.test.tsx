@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { AppShell } from "./app-shell";
 
 describe("AppShell", () => {
-  it("keeps required navigation and omits the duplicate portfolio route", () => {
+  it("keeps only the requested primary navigation and omits legacy catalogue routes", () => {
     render(<AppShell>Contenido</AppShell>);
 
     expect(screen.getByRole("link", { name: "Colaboradores" })).toHaveAttribute(
@@ -18,7 +18,10 @@ describe("AppShell", () => {
       "href",
       "/terminos-reserva",
     );
+    expect(screen.getByRole("link", { name: "Panel admin" })).toHaveAttribute("href", "/admin");
     expect(screen.queryByRole("link", { name: /portfolio/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Servicios$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Tienda$/i })).not.toBeInTheDocument();
   });
 
   it("uses the configured WhatsApp phone in the global CTA URL", () => {
@@ -47,6 +50,12 @@ describe("AppShell", () => {
       "true",
     );
     expect(within(mobileMenu).queryByRole("link", { name: /portfolio/i })).not.toBeInTheDocument();
+    expect(within(mobileMenu).queryByRole("link", { name: /^Servicios/ })).not.toBeInTheDocument();
+    expect(within(mobileMenu).queryByRole("link", { name: /^Tienda/ })).not.toBeInTheDocument();
+    expect(within(mobileMenu).getByRole("link", { name: /^Panel admin/ })).toHaveAttribute(
+      "href",
+      "/admin",
+    );
     expect(within(mobileMenu).getByRole("link", { name: /^Privacidad/ })).toHaveAttribute(
       "href",
       "/privacidad",
