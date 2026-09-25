@@ -32,7 +32,7 @@ export default function QuotePage() {
         <section className="mt-4 border border-[#cec6c2]/14 bg-[#181818] p-4 sm:p-6 lg:p-8">
           <div className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-[#cec6c2]/14 pb-5">
             <div>
-              <p className="neo-kicker">Brief / proyecto</p>
+              <p className="neo-kicker">Tu proyecto</p>
               <h2 className="neo-display mt-4 text-[clamp(2.6rem,7vw,5.5rem)] text-[#cec6c2]">
                 Datos para cotizar
               </h2>
