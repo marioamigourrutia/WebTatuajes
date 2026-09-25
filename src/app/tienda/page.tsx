@@ -20,17 +20,17 @@ export default async function ShopPage() {
       <div className="editorial-page">
         <EditorialPageHero
           index="10"
-          eyebrow="Tienda / obras originales"
+          eyebrow="Tienda · obras originales"
           title="Obras disponibles."
           description="Piezas y flashes disponibles para solicitar. La compra se coordina por contacto directo: no hay pagos automáticos ni reservas sin confirmación del estudio."
           tone="paper"
-          meta={[`${products.length} piezas`, "Sin pago online", "Coordinación directa"]}
+          meta={[`${products.length} piezas`, "Sin pago en línea", "Coordinación directa"]}
         />
 
         {isFallbackCatalog ? (
           <section className="mt-4 border border-[#cec6c2]/20 bg-[#370803] p-5 text-sm leading-7 text-[#b7aaa4] sm:p-6">
             <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#cec6c2]">
-              Catálogo temporal / referencia
+              Catálogo temporal · referencia
             </p>
             <p className="mt-3 max-w-4xl">
               En este momento no pudimos confirmar disponibilidad desde el sistema de obras. Las piezas mostradas son referenciales y no se pueden solicitar desde el formulario. Consulta disponibilidad real por contacto.
@@ -60,7 +60,7 @@ export default async function ShopPage() {
                   />
                 ) : (
                   <div className="grid h-full place-items-center bg-[radial-gradient(circle_at_center,rgba(183,170,164,0.14),transparent_34%),linear-gradient(135deg,#2c2c2c,#141414)]">
-                    <span className="neo-display text-5xl text-[#cec6c2]/25">No image</span>
+                    <span className="neo-display text-5xl text-[#cec6c2]/25">Sin imagen</span>
                   </div>
                 )}
                 <span className="absolute left-4 top-4 bg-[#141414] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-[#cec6c2]">
@@ -99,7 +99,7 @@ export default async function ShopPage() {
         {hasFirestoreProducts ? (
           <section className="mt-4 border border-[#cec6c2]/14 bg-[#202020] p-5 sm:p-7 lg:p-9" id="solicitar-compra">
             <div className="mb-7 border-b border-[#cec6c2]/14 pb-5">
-              <p className="neo-kicker">Purchase request</p>
+              <p className="neo-kicker">Solicitud de compra</p>
               <h2 className="neo-display mt-4 text-[clamp(2.7rem,7vw,5.5rem)] text-[#cec6c2]">Solicitar una obra</h2>
             </div>
             <PurchaseRequestForm products={products} />
