@@ -23,8 +23,18 @@ const rateLimitEnvKeys: Record<string, { limit: string; windowMs: string }> = {
     limit: "RATE_LIMIT_PURCHASE_REQUESTS_LIMIT",
     windowMs: "RATE_LIMIT_PURCHASE_REQUESTS_WINDOW_MS",
   },
-  quotes: { limit: "RATE_LIMIT_QUOTES_LIMIT", windowMs: "RATE_LIMIT_QUOTES_WINDOW_MS" },
-  reviews: { limit: "RATE_LIMIT_REVIEWS_LIMIT", windowMs: "RATE_LIMIT_REVIEWS_WINDOW_MS" },
+  quotes: {
+    limit: "RATE_LIMIT_QUOTES_LIMIT",
+    windowMs: "RATE_LIMIT_QUOTES_WINDOW_MS",
+  },
+  "quotes-status": {
+    limit: "RATE_LIMIT_QUOTES_STATUS_LIMIT",
+    windowMs: "RATE_LIMIT_QUOTES_STATUS_WINDOW_MS",
+  },
+  reviews: {
+    limit: "RATE_LIMIT_REVIEWS_LIMIT",
+    windowMs: "RATE_LIMIT_REVIEWS_WINDOW_MS",
+  },
 };
 
 function readPositiveIntegerEnv(name: string | undefined) {

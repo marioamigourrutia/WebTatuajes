@@ -1,17 +1,18 @@
-import type { Metadata } from "next";
-import type { MetadataRoute } from "next";
+import type { Metadata, MetadataRoute } from "next";
 import { appConfig } from "@/lib/config/app";
 
 const LOCAL_SITE_URL = "http://localhost:3000";
 
 export const publicSiteRoutes = [
   "/",
-  "/quote",
-  "/portfolio",
-  "/opiniones",
-  "/tienda",
-  "/servicios",
   "/contacto",
+  "/quote",
+  "/quote/status",
+  "/opiniones",
+  "/comunidad",
+  "/colaboradores",
+  "/privacidad",
+  "/terminos-reserva",
 ] as const;
 
 export function getSiteUrl(value = process.env.NEXT_PUBLIC_SITE_URL): URL {
@@ -24,21 +25,19 @@ export function getSiteUrl(value = process.env.NEXT_PUBLIC_SITE_URL): URL {
 
 export const siteMetadata = {
   title: appConfig.studioName,
-  description: `${appConfig.studioName}, estudio de tatuajes de ${appConfig.artistName} en Chile: portafolio, servicios, cuidados y cotizaciones privadas para proyectos personalizados.`,
+  description: `${appConfig.studioName}, estudio de tatuajes de ${appConfig.artistName} en Chile especializado en realismo black & grey, proyectos personalizados, cotizaciones privadas y atención por agenda.`,
   locale: "es_CL",
 } as const;
 
 export function buildRootMetadata(siteUrl = getSiteUrl()): Metadata {
   return {
     title: {
-      default: `${siteMetadata.title} — Estudio profesional de tatuajes`,
+      default: `${siteMetadata.title} — Realismo black & grey`,
       template: `%s — ${siteMetadata.title}`,
     },
     description: siteMetadata.description,
     metadataBase: siteUrl,
-    alternates: {
-      canonical: "/",
-    },
+    alternates: { canonical: "/" },
     openGraph: {
       title: siteMetadata.title,
       description: siteMetadata.description,
@@ -48,7 +47,7 @@ export function buildRootMetadata(siteUrl = getSiteUrl()): Metadata {
       type: "website",
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: siteMetadata.title,
       description: siteMetadata.description,
     },
@@ -59,6 +58,6 @@ export function buildSitemapEntries(siteUrl = getSiteUrl()): MetadataRoute.Sitem
   return publicSiteRoutes.map((route) => ({
     url: new URL(route, siteUrl).toString(),
     changeFrequency: route === "/" ? "weekly" : "monthly",
-    priority: route === "/" ? 1 : 0.7,
+    priority: route === "/" ? 1 : route === "/quote" ? 0.9 : 0.7,
   }));
 }

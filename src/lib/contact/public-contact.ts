@@ -35,13 +35,13 @@ export const contactLinks = [
     description: "Envía idea, zona, tamaño, presupuesto y referencias para revisar viabilidad.",
   },
   {
-    href: "/servicios",
-    label: "Ver servicios y cuidados",
-    description: "Revisa estilos, higiene, reserva y cuidados antes de enviar tu solicitud.",
+    href: "/quote/status",
+    label: "Seguimiento de cotización",
+    description: "Consulta en privado el estado de tu solicitud usando tu código y el email registrado.",
   },
   {
-    href: "/portfolio",
-    label: "Explorar portafolio",
-    description: "Usa referencias de estilo para preparar mejor tu cotización.",
+    href: "/opiniones",
+    label: "Ver opiniones",
+    description: "Revisa experiencias publicadas antes de coordinar tu proyecto y tu próxima cita.",
   },
 ] as const;
