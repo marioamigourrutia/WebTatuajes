@@ -1,6 +1,8 @@
 import { getSiteContent, interpolateSiteText } from "@/lib/cms/site-content";
 import { CommunityMemberForm } from "@/lib/community/member-form";
+import { appConfig } from "@/lib/config/app";
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
+import { canUsePublicBackend, listPublicBackendPortfolioItems } from "@/lib/portfolio/public-portfolio-backend";
 import { listPublishedReviews } from "@/lib/reviews/review";
 import { listPublicSponsors } from "@/lib/sponsors/admin-sponsors";
 import { PublicSponsorsSection } from "@/lib/sponsors/public-sponsors-section";
@@ -26,10 +28,23 @@ async function getHomeSponsors() {
   }
 }
 
+async function getHomePortfolioImage() {
+  try {
+    if (!(await canUsePublicBackend())) return null;
+    const items = await listPublicBackendPortfolioItems();
+    return items.find((item) => item.imageUrl)?.imageUrl ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function HomePage() {
   const { siteSettings, home } = await getSiteContent();
-  const reviews = await getHomeReviews();
-  const sponsors = await getHomeSponsors();
+  const [reviews, sponsors, heroImageUrl] = await Promise.all([
+    getHomeReviews(),
+    getHomeSponsors(),
+    getHomePortfolioImage(),
+  ]);
   const whatsappUrl = hasWhatsAppConfig(siteSettings.whatsappPhone)
     ? buildWhatsAppUrl({ phone: siteSettings.whatsappPhone, message: siteSettings.whatsappMessage })
     : null;
@@ -43,80 +58,125 @@ export default async function HomePage() {
         : null;
 
   return (
-    <main className="mx-auto w-full max-w-[1500px] px-4 pb-20 pt-5 sm:px-6 lg:px-8">
-      <section className="relative overflow-hidden border border-[#cec6c2]/20 bg-[#1b1b1b] px-5 py-8 sm:px-8 sm:py-12 lg:px-10 lg:py-14">
-        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[46%] border-l border-[#cec6c2]/12 bg-[linear-gradient(135deg,rgba(183,170,164,0.08),transparent_35%),radial-gradient(circle_at_center,rgba(55,8,3,0.24),transparent_58%)] lg:block" />
-        <div className="pointer-events-none absolute right-[8%] top-[9%] hidden text-[11rem] font-black leading-none text-transparent [-webkit-text-stroke:1px_rgba(206,198,194,0.12)] lg:block">01</div>
+    <main className="pb-0 pt-4 sm:pt-5">
+      <div className="editorial-page">
+        <section className="relative isolate min-h-[42rem] overflow-hidden border border-[#cec6c2]/14 bg-[#2c2c2c] sm:min-h-[48rem] lg:min-h-[52rem]">
+          <div
+            className="pointer-events-none absolute inset-x-3 top-5 z-0 text-center font-[var(--font-display)] text-[clamp(7.5rem,21vw,19rem)] uppercase leading-[0.72] tracking-[-0.045em] text-[#cec6c2] sm:top-7"
+            aria-hidden="true"
+          >
+            Mario
+          </div>
 
-        <div className="relative grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
-          <div>
-            <p className="neo-kicker">{interpolateSiteText(home.heroEyebrow, siteSettings)}</p>
-            {home.heroKicker ? (
-              <p className="mt-5 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-[#837f7c]">
-                {interpolateSiteText(home.heroKicker, siteSettings)}
-              </p>
-            ) : null}
-            <h1 className="neo-display mt-5 max-w-5xl text-[clamp(4rem,10vw,9.5rem)] leading-[0.82] text-[#cec6c2]">
-              {interpolateSiteText(home.heroTitle, siteSettings)}
-            </h1>
-            <div className="neo-rule mt-7 max-w-3xl" />
-            <p className="mt-6 max-w-2xl text-base leading-8 text-[#b7aaa4] sm:text-lg">
-              {interpolateSiteText(home.heroDescription, siteSettings)}
-            </p>
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[29%] z-0 bg-[linear-gradient(to_bottom,transparent_0%,rgba(20,20,20,0.08)_40%,rgba(20,20,20,0.34)_100%)]" />
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <a className="neo-button" href={primaryHref}>
-                {home.primaryCtaLabel} ↗
-              </a>
-              {secondaryHref ? (
-                <a
-                  className="neo-button-outline"
-                  href={secondaryHref}
-                  rel={secondaryHref.startsWith("http") ? "noreferrer" : undefined}
-                  target={secondaryHref.startsWith("http") ? "_blank" : undefined}
-                >
-                  {home.secondaryCtaLabel}
-                </a>
-              ) : null}
+          {heroImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              alt=""
+              aria-hidden="true"
+              className="absolute bottom-0 left-1/2 z-[1] h-[72%] w-[min(70vw,640px)] -translate-x-1/2 object-cover object-center grayscale-[0.15] contrast-[1.03] sm:h-[78%] lg:w-[min(48vw,680px)]"
+              src={heroImageUrl}
+            />
+          ) : (
+            <div
+              aria-hidden="true"
+              className="absolute bottom-0 left-1/2 z-[1] h-[68%] w-[min(64vw,560px)] -translate-x-1/2 border-x border-[#cec6c2]/12 bg-[radial-gradient(circle_at_50%_30%,rgba(206,198,194,0.16),transparent_35%),linear-gradient(180deg,rgba(55,8,3,0.52),rgba(16,16,16,0.94))]"
+            />
+          )}
+
+          <div className="relative z-[3] flex min-h-[42rem] flex-col justify-between p-4 sm:min-h-[48rem] sm:p-6 lg:min-h-[52rem] lg:p-8">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <p className="neo-kicker">{interpolateSiteText(home.heroEyebrow, siteSettings)}</p>
+              <div className="hidden text-right font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#b7aaa4] sm:block">
+                <p>Realismo black & grey</p>
+                <p className="mt-1">Diseño personalizado</p>
+                <p className="mt-1">Chile / agenda</p>
+              </div>
             </div>
-            {home.heroHint ? (
-              <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.16em] text-[#66615e]">{home.heroHint}</p>
-            ) : null}
-          </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            {[
-              ["01", "Idea", "Cuéntame qué quieres tatuar y comparte referencias."],
-              ["02", "Evaluación", "Reviso zona, tamaño, composición y nivel de detalle."],
-              ["03", "Agenda", "Si el proyecto es viable, coordinamos fecha y próximos pasos."],
-            ].map(([number, title, description]) => (
-              <article className="neo-panel-acid grid grid-cols-[auto_1fr] gap-4 p-4" key={number}>
-                <span className="neo-index pt-1">{number}</span>
-                <div>
-                  <h2 className="neo-display text-2xl text-[#cec6c2]">{title}</h2>
-                  <p className="mt-2 text-sm leading-6 text-[#837f7c]">{description}</p>
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,0.72fr)_minmax(20rem,1.28fr)] lg:items-end">
+              <div className="max-w-sm border-t border-[#cec6c2]/36 pt-4 backdrop-blur-[2px]">
+                <h1 className="text-xl font-semibold leading-tight text-[#cec6c2] sm:text-2xl">
+                  {interpolateSiteText(home.heroTitle, siteSettings)}
+                </h1>
+                <p className="mt-3 text-sm leading-6 text-[#b7aaa4]">
+                  {interpolateSiteText(home.heroDescription, siteSettings)}
+                </p>
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <a className="neo-button" href={primaryHref}>
+                    {home.primaryCtaLabel}
+                  </a>
+                  {secondaryHref ? (
+                    <a
+                      className="neo-button-outline"
+                      href={secondaryHref}
+                      rel={secondaryHref.startsWith("http") ? "noreferrer" : undefined}
+                      target={secondaryHref.startsWith("http") ? "_blank" : undefined}
+                    >
+                      {home.secondaryCtaLabel}
+                    </a>
+                  ) : null}
                 </div>
-              </article>
-            ))}
+              </div>
+
+              <div className="flex justify-end">
+                <div className="w-full max-w-xs border-t border-[#cec6c2]/36 pt-4 text-right font-mono text-[9px] uppercase tracking-[0.13em] text-[#b7aaa4]">
+                  <p>{appConfig.brandHandle}</p>
+                  {home.heroKicker ? (
+                    <p className="mt-2">{interpolateSiteText(home.heroKicker, siteSettings)}</p>
+                  ) : null}
+                  {home.heroHint ? <p className="mt-2 text-[#837f7c]">{home.heroHint}</p> : null}
+                </div>
+              </div>
+            </div>
           </div>
+        </section>
+      </div>
+
+      <div className="editorial-marquee mt-4">
+        <div className="editorial-marquee-track">
+          <span>Fine line focused</span>
+          <span>•</span>
+          <span>Custom designs</span>
+          <span>•</span>
+          <span>Precise placement</span>
+          <span>•</span>
+          <span>Realismo black & grey</span>
+          <span>•</span>
+          <span>Agenda personalizada</span>
+          <span>•</span>
+          <span>Fine line focused</span>
         </div>
-      </section>
+      </div>
 
       {home.sections.process ? (
-        <section className="py-16 sm:py-20">
-          <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
-            <div>
+        <section className="editorial-strip mt-0 py-14 sm:py-20">
+          <div className="editorial-page">
+            <div className="border-b border-[#cec6c2]/14 pb-7">
               <p className="neo-kicker">{home.processSectionEyebrow}</p>
-              <h2 className="neo-display mt-5 max-w-2xl text-[clamp(3rem,7vw,6.8rem)] leading-[0.88] text-[#cec6c2]">
-                {home.processSectionTitle}
+              <h2 className="neo-mega mt-6 text-[clamp(5.5rem,18vw,15rem)] text-[#cec6c2]">
+                Client info
               </h2>
+              <div className="mt-6 grid gap-4 md:grid-cols-[0.8fr_1.2fr] md:items-end">
+                <p className="max-w-md text-sm leading-7 text-[#837f7c]">{home.processSectionTitle}</p>
+                <p className="text-right font-mono text-[9px] uppercase tracking-[0.14em] text-[#66615e]">
+                  Antes de reservar / revisa cada paso
+                </p>
+              </div>
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
+
+            <div className="grid border-x border-b border-[#cec6c2]/14 md:grid-cols-3">
               {home.processSectionSteps.map((step, index) => (
-                <article className="neo-panel min-h-48 p-5" key={`${index}-${step}`}>
-                  <span className="neo-index">{String(index + 1).padStart(2, "0")}</span>
-                  <div className="mt-6 h-px bg-[#cec6c2]/25" />
-                  <p className="mt-5 text-sm leading-7 text-[#b7aaa4]">{step}</p>
+                <article
+                  className="min-h-52 border-b border-[#cec6c2]/14 p-5 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0"
+                  key={`${index}-${step}`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="neo-index">0{index + 1}</span>
+                    <span className="text-xl text-[#66615e]">↘</span>
+                  </div>
+                  <p className="mt-16 max-w-xs text-sm leading-7 text-[#b7aaa4]">{step}</p>
                 </article>
               ))}
             </div>
@@ -125,69 +185,87 @@ export default async function HomePage() {
       ) : null}
 
       {home.sections.reviews ? (
-        <section className="border-y border-[#cec6c2]/15 py-16 sm:py-20">
-          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="neo-kicker">Opiniones</p>
-              <h2 className="neo-display mt-4 text-[clamp(3rem,7vw,6rem)] leading-[0.88] text-[#cec6c2]">Experiencias reales.</h2>
-            </div>
-            <a className="neo-button-outline" href="/opiniones">Ver opiniones →</a>
-          </div>
+        <section className="editorial-strip-paper py-14 sm:py-20">
+          <div className="editorial-page">
+            <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
+              <div>
+                <p className="neo-kicker !text-[#370803]">Opiniones</p>
+                <h2 className="neo-mega mt-5 text-[clamp(4.5rem,13vw,10rem)] text-[#141414]">
+                  Experiences
+                </h2>
+                <a className="neo-button-dark mt-7" href="/opiniones">
+                  Ver todas →
+                </a>
+              </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {reviews.length === 0 ? (
-              <p className="neo-panel p-6 text-[#837f7c] md:col-span-3">Aún no hay opiniones publicadas.</p>
-            ) : (
-              reviews.map((review, index) => (
-                <article className="neo-panel p-6" key={review.id}>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="neo-index">REV/{String(index + 1).padStart(2, "0")}</span>
-                    <span className="text-sm tracking-[0.12em] text-[#cec6c2]">{"★".repeat(review.rating)}</span>
-                  </div>
-                  <p className="mt-7 line-clamp-5 text-sm leading-7 text-[#b7aaa4]">{review.comment}</p>
-                  <p className="neo-display mt-6 text-xl text-[#cec6c2]">{review.publicName}</p>
-                </article>
-              ))
-            )}
+              <div className="grid border border-[#141414]/16 md:grid-cols-3">
+                {reviews.length === 0 ? (
+                  <p className="p-6 text-sm text-[#370803]/70 md:col-span-3">Aún no hay opiniones publicadas.</p>
+                ) : (
+                  reviews.map((review, index) => (
+                    <article
+                      className="min-h-64 border-b border-[#141414]/16 p-5 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0"
+                      key={review.id}
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#370803]/60">
+                          REV/{String(index + 1).padStart(2, "0")}
+                        </span>
+                        <span className="text-xs tracking-[0.08em] text-[#370803]">{"★".repeat(review.rating)}</span>
+                      </div>
+                      <p className="mt-12 line-clamp-5 text-sm leading-7 text-[#370803]/78">{review.comment}</p>
+                      <p className="mt-5 text-xs font-bold uppercase tracking-[0.1em] text-[#141414]">{review.publicName}</p>
+                    </article>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </section>
       ) : null}
 
-      {home.sections.sponsors ? <PublicSponsorsSection sponsors={sponsors} /> : null}
+      {home.sections.sponsors ? (
+        <div className="editorial-page">
+          <PublicSponsorsSection sponsors={sponsors} />
+        </div>
+      ) : null}
 
       {home.sections.community ? (
-        <section className="py-16 sm:py-20" id="comunidad">
-          <div className="grid gap-8 border border-[#cec6c2]/20 bg-[#1b1b1b] p-5 sm:p-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
-            <div>
-              <p className="neo-kicker">Comunidad</p>
-              <h2 className="neo-display mt-5 max-w-lg text-[clamp(3rem,7vw,5.5rem)] leading-[0.88] text-[#cec6c2]">
-                Agenda, novedades y contenido sin ruido.
-              </h2>
-              <p className="mt-5 max-w-md text-sm leading-7 text-[#837f7c]">
-                Puedes dejar tu correo para recibir información relevante. Esto no crea una reserva ni reemplaza la cotización.
-              </p>
+        <section className="editorial-strip py-14 sm:py-20" id="comunidad">
+          <div className="editorial-page">
+            <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
+              <div>
+                <p className="neo-kicker">Comunidad / newsletter</p>
+                <h2 className="neo-mega mt-6 max-w-4xl text-[clamp(4.2rem,12vw,9.5rem)] text-[#cec6c2]">
+                  Novedades sin ruido.
+                </h2>
+                <p className="mt-6 max-w-md text-sm leading-7 text-[#837f7c]">
+                  Agenda, proyectos y contenido seleccionado. Dejar tu correo no crea una reserva ni reemplaza la cotización.
+                </p>
+              </div>
+              <div className="border border-[#cec6c2]/16 bg-[#202020] p-5 sm:p-7">
+                <CommunityMemberForm />
+              </div>
             </div>
-            <CommunityMemberForm />
           </div>
         </section>
       ) : null}
 
       {home.sections.finalCta ? (
-        <section className="pb-4 pt-6">
-          <div className="relative overflow-hidden border border-[#b7aaa4]/45 bg-[#370803] p-6 text-[#cec6c2] sm:p-8 lg:p-10">
-            <div className="pointer-events-none absolute right-4 top-[-2.5rem] text-[9rem] font-black leading-none text-[#cec6c2]/[0.055] sm:text-[13rem]">GO</div>
-            <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
+        <section className="editorial-strip-wine py-12 sm:py-16">
+          <div className="editorial-page">
+            <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
               <div>
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[#b7aaa4]">Tu proyecto / siguiente paso</p>
-                <h2 className="neo-display mt-4 max-w-4xl text-[clamp(3.2rem,8vw,7rem)] leading-[0.85] text-[#cec6c2]">
-                  ¿Tienes una idea para tatuarte?
+                <p className="neo-kicker">Tu proyecto / siguiente paso</p>
+                <h2 className="neo-mega mt-5 max-w-5xl text-[clamp(4rem,13vw,10rem)] text-[#cec6c2]">
+                  Tu idea. Tu pieza.
                 </h2>
-                <p className="mt-5 max-w-2xl text-sm font-medium leading-7 text-[#b7aaa4]">
-                  Envía una solicitud con idea, zona, tamaño, presupuesto y referencias. Después podrás seguir el estado con tu código de cotización.
+                <p className="mt-5 max-w-2xl text-sm leading-7 text-[#b7aaa4]">
+                  Completa la cotización con zona, tamaño, presupuesto y referencias. Luego podrás seguir el estado con tu código privado.
                 </p>
               </div>
-              <a className="inline-flex min-h-12 items-center justify-center border border-[#cec6c2] bg-[#cec6c2] px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#141414] transition hover:-translate-y-0.5 hover:bg-[#ded7d3]" href="/quote">
-                Empezar cotización ↗
+              <a className="neo-button" href="/quote">
+                Empezar cotización →
               </a>
             </div>
           </div>
