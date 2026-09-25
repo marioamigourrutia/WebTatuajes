@@ -29,10 +29,10 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       <footer className="mt-auto pt-12 sm:pt-20">
         <section className="relative overflow-hidden border-y border-[#cec6c2]/20 bg-[#370803] px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
           <div
-            className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 whitespace-nowrap text-center font-[var(--font-display)] text-[clamp(7rem,20vw,21rem)] uppercase leading-[0.76] tracking-[-0.035em] text-[#cec6c2]/90"
+            className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 whitespace-nowrap text-center font-[var(--font-display)] text-[clamp(7rem,20vw,21rem)] uppercase leading-[0.82] tracking-[-0.02em] text-[#cec6c2]/90"
             aria-hidden="true"
           >
-            Booking
+            Agenda
           </div>
 
           <div className="relative mx-auto flex min-h-[21rem] w-full max-w-5xl items-center justify-center">
@@ -41,8 +41,8 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 ¿Tienes una idea? Hablemos.
               </p>
               <div className="mt-5 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                <span className="neo-display text-[clamp(3.3rem,9vw,7.4rem)] leading-[0.86] text-[#cec6c2]">
-                  Contact
+                <span className="neo-display text-[clamp(3.3rem,9vw,7.4rem)] text-[#cec6c2]">
+                  Contacto
                 </span>
                 <Link
                   aria-label="Ir a contacto"
