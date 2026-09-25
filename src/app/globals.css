@@ -1,17 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #050505;
-  --surface: #0a0a0a;
-  --surface-raised: #111111;
-  --foreground: #f6f7f2;
-  --muted: #c7c9bf;
-  --subtle: #7b7f73;
-  --acid: #cfff19;
-  --acid-soft: #b8e914;
-  --acid-ink: #111500;
-  --line: rgb(207 255 25 / 0.24);
-  --line-soft: rgb(255 255 255 / 0.12);
+  --background: #141414;
+  --surface: #1b1b1b;
+  --surface-raised: #242424;
+  --foreground: #cec6c2;
+  --muted: #b7aaa4;
+  --subtle: #837f7c;
+  --accent: #cec6c2;
+  --accent-soft: #b7aaa4;
+  --accent-ink: #141414;
+  --wine: #370803;
+  --graphite: #2c2c2c;
+  --line: rgb(206 198 194 / 0.28);
+  --line-soft: rgb(206 198 194 / 0.14);
 }
 
 * {
@@ -28,12 +30,12 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at 82% 8%, rgb(207 255 25 / 0.07) 0, transparent 25rem),
-    radial-gradient(circle at 10% 70%, rgb(207 255 25 / 0.035) 0, transparent 34rem),
-    #050505;
+    radial-gradient(circle at 86% 6%, rgb(55 8 3 / 0.28) 0, transparent 31rem),
+    radial-gradient(circle at 10% 72%, rgb(206 198 194 / 0.025) 0, transparent 34rem),
+    #141414;
   color: var(--foreground);
-  font-family: "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
-  font-weight: 500;
+  font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 400;
   line-height: 1.55;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -45,12 +47,12 @@ body::before {
   inset: 0;
   z-index: -2;
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.42;
   background-image:
-    linear-gradient(rgb(207 255 25 / 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(207 255 25 / 0.035) 1px, transparent 1px);
+    linear-gradient(rgb(206 198 194 / 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(206 198 194 / 0.026) 1px, transparent 1px);
   background-size: 56px 56px;
-  mask-image: linear-gradient(to bottom, black 0%, rgb(0 0 0 / 0.75) 50%, transparent 92%);
+  mask-image: linear-gradient(to bottom, black 0%, rgb(0 0 0 / 0.72) 54%, transparent 94%);
 }
 
 body::after {
@@ -59,7 +61,7 @@ body::after {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.08;
+  opacity: 0.045;
   background-image: repeating-linear-gradient(
     0deg,
     rgb(255 255 255 / 0.035) 0,
@@ -90,16 +92,16 @@ select {
 input:not([type="checkbox"]):not([type="radio"]),
 textarea,
 select {
-  border-radius: 0.35rem !important;
+  border-radius: 0.25rem !important;
 }
 
 ::selection {
-  background: var(--acid);
-  color: var(--acid-ink);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 :focus-visible {
-  outline: 2px solid var(--acid);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
@@ -107,19 +109,18 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  color: var(--acid);
+  color: var(--muted);
   font-size: 0.7rem;
-  font-weight: 900;
-  letter-spacing: 0.24em;
+  font-weight: 700;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 
 .neo-kicker::before {
   content: "";
   width: 1.8rem;
-  height: 2px;
-  background: var(--acid);
-  box-shadow: 0 0 18px rgb(207 255 25 / 0.35);
+  height: 1px;
+  background: var(--accent);
 }
 
 .neo-display {
@@ -131,26 +132,24 @@ select {
 
 .neo-outline-text {
   color: transparent;
-  -webkit-text-stroke: 1px rgb(207 255 25 / 0.55);
-  text-stroke: 1px rgb(207 255 25 / 0.55);
+  -webkit-text-stroke: 1px rgb(206 198 194 / 0.48);
+  text-stroke: 1px rgb(206 198 194 / 0.48);
 }
 
 .neo-panel {
   border: 1px solid var(--line-soft);
   background:
-    linear-gradient(140deg, rgb(255 255 255 / 0.025), transparent 35%),
-    rgb(8 8 8 / 0.92);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
+    linear-gradient(140deg, rgb(206 198 194 / 0.024), transparent 35%),
+    rgb(28 28 28 / 0.94);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.025);
 }
 
 .neo-panel-acid {
-  border: 1px solid rgb(207 255 25 / 0.45);
+  border: 1px solid rgb(206 198 194 / 0.28);
   background:
-    linear-gradient(135deg, rgb(207 255 25 / 0.075), transparent 45%),
-    #080808;
-  box-shadow:
-    inset 0 1px 0 rgb(207 255 25 / 0.08),
-    0 0 36px rgb(207 255 25 / 0.025);
+    linear-gradient(135deg, rgb(183 170 164 / 0.07), transparent 44%),
+    #1b1b1b;
+  box-shadow: inset 0 1px 0 rgb(206 198 194 / 0.035);
 }
 
 .neo-button {
@@ -158,22 +157,22 @@ select {
   align-items: center;
   justify-content: center;
   min-height: 3rem;
-  border: 1px solid var(--acid);
-  border-radius: 0.25rem;
-  background: var(--acid);
+  border: 1px solid var(--accent);
+  border-radius: 0.2rem;
+  background: var(--accent);
   padding: 0.75rem 1.25rem;
-  color: var(--acid-ink);
+  color: var(--accent-ink);
   font-size: 0.75rem;
-  font-weight: 950;
-  letter-spacing: 0.12em;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
 }
 
 .neo-button:hover {
   transform: translateY(-2px);
-  background: #ddff57;
-  box-shadow: 0 8px 28px rgb(207 255 25 / 0.15);
+  border-color: #ded7d3;
+  background: #ded7d3;
 }
 
 .neo-button-outline {
@@ -181,60 +180,60 @@ select {
   align-items: center;
   justify-content: center;
   min-height: 3rem;
-  border: 1px solid rgb(207 255 25 / 0.42);
-  border-radius: 0.25rem;
-  background: rgb(207 255 25 / 0.025);
+  border: 1px solid rgb(206 198 194 / 0.42);
+  border-radius: 0.2rem;
+  background: rgb(206 198 194 / 0.025);
   padding: 0.75rem 1.25rem;
-  color: #f4f5ee;
+  color: #cec6c2;
   font-size: 0.75rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   transition: border-color 180ms ease, color 180ms ease, background 180ms ease;
 }
 
 .neo-button-outline:hover {
-  border-color: var(--acid);
-  background: rgb(207 255 25 / 0.08);
-  color: var(--acid);
+  border-color: var(--accent);
+  background: rgb(206 198 194 / 0.08);
+  color: #e1dad6;
 }
 
 .neo-index {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: var(--acid);
+  color: var(--muted);
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.16em;
 }
 
 .neo-rule {
   height: 1px;
-  background: linear-gradient(90deg, var(--acid), rgb(207 255 25 / 0.08) 42%, transparent);
+  background: linear-gradient(90deg, var(--accent), rgb(206 198 194 / 0.10) 42%, transparent);
 }
 
 /* Compatibilidad visual para componentes existentes del proyecto. */
 [class~="text-amber-100"],
 [class~="text-amber-200"],
 [class~="text-amber-300"] {
-  color: var(--acid);
+  color: var(--accent);
 }
 
 [class~="text-stone-100"],
 [class~="text-stone-200"],
 [class~="text-stone-300"] {
-  color: #e9eae4;
+  color: #cec6c2;
 }
 
 [class~="text-stone-400"] {
-  color: #b5b8ae;
+  color: #b7aaa4;
 }
 
 [class~="text-stone-500"] {
-  color: #83877d;
+  color: #837f7c;
 }
 
 [class~="text-stone-600"] {
-  color: #65695f;
+  color: #66615e;
 }
 
 [class~="border-amber-100/10"],
@@ -245,39 +244,39 @@ select {
 [class~="border-amber-300/30"],
 [class~="border-amber-300/40"],
 [class~="border-amber-300/50"] {
-  border-color: rgb(207 255 25 / 0.35);
+  border-color: rgb(206 198 194 / 0.30);
 }
 
 [class~="border-stone-800"],
 [class~="border-stone-700"] {
-  border-color: rgb(255 255 255 / 0.13);
+  border-color: rgb(206 198 194 / 0.14);
 }
 
 [class~="bg-amber-300/10"] {
-  background-color: rgb(207 255 25 / 0.07);
+  background-color: rgb(206 198 194 / 0.07);
 }
 
 [class~="bg-amber-300"] {
-  border: 1px solid var(--acid);
-  background: var(--acid);
-  color: var(--acid-ink);
-  box-shadow: 0 8px 26px rgb(207 255 25 / 0.11);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: none;
 }
 
 a[class~="bg-white"],
 button[class~="bg-white"],
 label[class~="bg-white"] {
-  border-color: var(--acid);
-  background: var(--acid);
-  color: var(--acid-ink);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 a[class~="bg-white"]:hover,
 button[class~="bg-white"]:hover,
 label[class~="bg-white"]:hover {
-  border-color: #ddff57;
-  background: #ddff57;
-  color: #101400;
+  border-color: #ded7d3;
+  background: #ded7d3;
+  color: #141414;
 }
 
 [class~="bg-stone-950/45"],
@@ -286,25 +285,25 @@ label[class~="bg-white"]:hover {
 [class~="bg-stone-950/70"],
 [class~="bg-stone-950/75"],
 [class~="bg-stone-950/80"] {
-  background-color: rgb(6 6 6 / 0.94);
+  background-color: rgb(20 20 20 / 0.95);
 }
 
 [class~="bg-stone-900/50"],
 [class~="bg-stone-900/60"],
 [class~="bg-stone-900/70"],
 [class~="bg-stone-900/90"] {
-  background-color: rgb(13 13 13 / 0.94);
+  background-color: rgb(36 36 36 / 0.92);
 }
 
 [class~="shadow-amber-950/30"] {
-  --tw-shadow-color: rgb(207 255 25 / 0.08);
+  --tw-shadow-color: rgb(55 8 3 / 0.18);
 }
 
 [class~="hover:bg-amber-300"]:hover,
 [class~="hover:bg-amber-200"]:hover {
-  border-color: #ddff57;
-  background: #ddff57;
-  color: #111500;
+  border-color: #ded7d3;
+  background: #ded7d3;
+  color: #141414;
 }
 
 [class~="hover:border-amber-300/40"]:hover,
@@ -313,7 +312,7 @@ label[class~="bg-white"]:hover {
 [class~="hover:border-amber-300/70"]:hover,
 [class~="hover:border-amber-200"]:hover,
 [class~="hover:border-amber-200/30"]:hover {
-  border-color: var(--acid);
+  border-color: var(--accent);
 }
 
 @media (max-width: 640px) {
