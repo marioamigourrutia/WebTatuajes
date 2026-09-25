@@ -75,7 +75,18 @@ describe("admin editorial image upload route", () => {
       id: "media-hero",
       mediaUrl: "https://cdn.example.test/editorial/hero.webp",
     });
-    expect(uploadMock).toHaveBeenCalledWith(expect.any(File), "editorial");
+
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    const [uploadedFile, purpose] = uploadMock.mock.calls[0] ?? [];
+    expect(purpose).toBe("editorial");
+    expect(uploadedFile).toEqual(
+      expect.objectContaining({
+        type: "image/jpeg",
+        size: expect.any(Number),
+      }),
+    );
+    expect(uploadedFile?.size).toBeGreaterThan(0);
+
     expect(createMediaMock).toHaveBeenCalledWith(
       expect.objectContaining({
         mediaType: "IMAGE",
