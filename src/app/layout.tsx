@@ -4,6 +4,7 @@ import { AppShell } from "@/lib/layout/app-shell";
 import { buildRootMetadata } from "@/lib/seo/site-metadata";
 import { Providers } from "./providers";
 import "./globals.css";
+import "./refinements.css";
 
 const bodyFont = IBM_Plex_Sans({
   subsets: ["latin"],
