@@ -46,15 +46,17 @@ export default async function PortfolioPage() {
 
   return (
     <main className="mx-auto w-full max-w-[1500px] px-4 py-8 sm:px-6 lg:px-8">
-      <section className="relative overflow-hidden border border-[#cfff19]/20 bg-[#070707] p-6 sm:p-8 lg:p-10">
-        <div className="pointer-events-none absolute right-4 top-[-2rem] text-[8rem] font-black leading-none text-transparent [-webkit-text-stroke:1px_rgba(207,255,25,0.12)] sm:text-[11rem]">03</div>
+      <section className="relative overflow-hidden border border-[#cec6c2]/20 bg-[#1b1b1b] p-6 sm:p-8 lg:p-10">
+        <div className="pointer-events-none absolute right-4 top-[-1.5rem] text-[7rem] font-black leading-none text-transparent [-webkit-text-stroke:1px_rgba(206,198,194,0.10)] sm:text-[9rem]">
+          03
+        </div>
         <div className="relative max-w-4xl">
           <p className="neo-kicker">Portfolio / selección</p>
-          <h1 className="neo-display mt-5 text-[clamp(4rem,10vw,8.5rem)] leading-[0.84] text-white">
+          <h1 className="neo-display mt-5 max-w-[15ch] text-[clamp(3.2rem,8vw,6.5rem)] leading-[0.92] text-[#cec6c2]">
             Piezas, referencias y lenguaje visual.
           </h1>
           <div className="neo-rule mt-6" />
-          <p className="mt-6 max-w-2xl text-base leading-8 text-zinc-400">
+          <p className="mt-6 max-w-2xl text-base leading-8 text-[#b7aaa4]">
             Explora trabajos, referencias de estilo y composiciones que pueden ayudarte a aterrizar tu próxima idea antes de cotizar.
           </p>
           <a className="neo-button mt-7" href="/quote">
