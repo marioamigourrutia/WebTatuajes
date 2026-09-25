@@ -37,8 +37,8 @@ export function EditorialPageHero({
           <p className={isPaper ? "neo-kicker !text-[#370803]" : "neo-kicker"}>{eyebrow}</p>
           {meta.length > 0 ? (
             <div
-              className={`flex flex-wrap gap-x-5 gap-y-2 font-mono text-[9px] font-bold uppercase tracking-[0.16em] ${
-                isPaper ? "text-[#370803]/70" : "text-[#837f7c]"
+              className={`flex flex-wrap gap-x-5 gap-y-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] ${
+                isPaper ? "text-[#370803]/72" : "text-[#9a928e]"
               }`}
             >
               {meta.map((item) => (
@@ -50,7 +50,9 @@ export function EditorialPageHero({
 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.55fr)] lg:items-end">
           <h1
-            className={`editorial-hero-title ${isPaper ? "text-[#141414]" : "text-[#cec6c2]"}`}
+            className={`editorial-hero-title break-words !leading-[0.86] ${
+              isPaper ? "text-[#141414]" : "text-[#cec6c2]"
+            }`}
           >
             {title}
           </h1>
@@ -59,7 +61,7 @@ export function EditorialPageHero({
             {description ? (
               <p
                 className={`max-w-xl text-sm leading-7 sm:text-base ${
-                  isPaper ? "text-[#370803]/78" : "text-[#b7aaa4]"
+                  isPaper ? "text-[#370803]/82" : "text-[#c5bbb6]"
                 }`}
               >
                 {description}
