@@ -3,13 +3,14 @@ import { describe, expect, it } from "vitest";
 import { AppShell } from "./app-shell";
 
 describe("AppShell", () => {
-  it("includes collaborators in the main navigation", () => {
+  it("includes collaborators in the main navigation and omits the legacy portfolio route", () => {
     render(<AppShell>Contenido</AppShell>);
 
     expect(screen.getByRole("link", { name: "Colaboradores" })).toHaveAttribute(
       "href",
       "/colaboradores",
     );
+    expect(screen.queryByRole("link", { name: /portfolio/i })).not.toBeInTheDocument();
   });
 
   it("uses the configured WhatsApp phone in the global CTA URL", () => {
@@ -37,10 +38,7 @@ describe("AppShell", () => {
       "aria-expanded",
       "true",
     );
-    expect(within(mobileMenu).getByRole("link", { name: "Portfolio" })).toHaveAttribute(
-      "href",
-      "/portfolio",
-    );
+    expect(within(mobileMenu).queryByRole("link", { name: /portfolio/i })).not.toBeInTheDocument();
     expect(within(mobileMenu).getByRole("link", { name: /WhatsApp/i })).toHaveAttribute(
       "href",
       expect.stringContaining("https://wa.me/56977616917?"),
