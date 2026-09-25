@@ -34,10 +34,10 @@ export default function ServicesPage() {
       <div className="editorial-page">
         <EditorialPageHero
           index="09"
-          eyebrow="Servicios / client info"
+          eyebrow="Servicios · información previa"
           title="Información clara antes de cotizar."
           description="Revisa estilos, expectativas de reserva, higiene y cuidados básicos para llegar con una idea mejor preparada."
-          meta={["Before session", "Aftercare", "FAQ"]}
+          meta={["Antes de la sesión", "Cuidados", "Preguntas frecuentes"]}
         >
           <div className="flex flex-wrap gap-2">
             <a className="neo-button" href="/quote">Solicitar cotización</a>
@@ -49,7 +49,7 @@ export default function ServicesPage() {
           <div className="grid gap-8 lg:grid-cols-[0.68fr_1.32fr] lg:items-end">
             <div>
               <p className="neo-kicker !text-[#370803]">Qué hacemos</p>
-              <h2 id="services-heading" className="neo-mega mt-5 text-[clamp(4.3rem,11vw,9rem)] text-[#141414]">Services</h2>
+              <h2 id="services-heading" className="neo-mega mt-5 text-[clamp(4.3rem,11vw,9rem)] text-[#141414]">Servicios</h2>
             </div>
             <div className="grid border border-[#141414]/16 md:grid-cols-2">
               {tattooServices.map((service, index) => (
@@ -64,8 +64,8 @@ export default function ServicesPage() {
         </section>
 
         <section className="mt-4 border border-[#cec6c2]/14 bg-[#181818] p-5 sm:p-7 lg:p-10">
-          <p className="neo-kicker">Before your session</p>
-          <h2 className="neo-mega mt-5 text-[clamp(4rem,11vw,8.8rem)] text-[#cec6c2]">Client info</h2>
+          <p className="neo-kicker">Antes de tu sesión</p>
+          <h2 className="neo-mega mt-5 text-[clamp(4rem,11vw,8.8rem)] text-[#cec6c2]">Información útil</h2>
           <div className="mt-8 grid gap-4 lg:grid-cols-2">
             {sessionInfoSections.map(({ eyebrow, title, items }) => (
               <article className="border border-[#cec6c2]/14 bg-[#202020] p-5 sm:p-6" key={eyebrow}>
@@ -87,7 +87,7 @@ export default function ServicesPage() {
         <section className="mt-4 border border-[#cec6c2]/14 p-5 sm:p-7 lg:p-10" aria-labelledby="aftercare-heading">
           <div className="grid gap-8 lg:grid-cols-[0.62fr_1.38fr] lg:items-end">
             <div>
-              <p className="neo-kicker">Continued aftercare</p>
+              <p className="neo-kicker">Cuidados posteriores</p>
               <h2 id="aftercare-heading" className="neo-display mt-5 text-[clamp(3rem,8vw,6.5rem)] leading-[0.96] text-[#cec6c2]">La cicatrización también es parte del resultado.</h2>
             </div>
             <ol className="grid border border-[#cec6c2]/14 sm:grid-cols-2 lg:grid-cols-4">
@@ -105,8 +105,8 @@ export default function ServicesPage() {
         <section className="mt-4 border border-[#cec6c2]/14 bg-[#202020] p-5 sm:p-7 lg:p-10" aria-labelledby="faq-heading">
           <div className="grid gap-8 lg:grid-cols-[0.62fr_1.38fr]">
             <div>
-              <p className="neo-kicker">Frequently asked</p>
-              <h2 id="faq-heading" className="neo-mega mt-5 text-[clamp(4rem,10vw,8rem)] text-[#cec6c2]">Questions</h2>
+              <p className="neo-kicker">Dudas habituales</p>
+              <h2 id="faq-heading" className="neo-mega mt-5 text-[clamp(4rem,10vw,8rem)] text-[#cec6c2]">Preguntas frecuentes</h2>
             </div>
             <div className="divide-y divide-[#cec6c2]/20 border-y border-[#cec6c2]/20">
               {serviceFaqs.map((faq, index) => (
