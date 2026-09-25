@@ -8,14 +8,6 @@
   padding: 0.75rem clamp(1rem, 3vw, 2.5rem);
 }
 
-/* Retira la referencia "Fine line focused" y sus separadores adyacentes. */
-.editorial-marquee-track > span:nth-child(1),
-.editorial-marquee-track > span:nth-child(2),
-.editorial-marquee-track > span:nth-child(10),
-.editorial-marquee-track > span:nth-child(11) {
-  display: none;
-}
-
 /* Mantiene la tipografía del rediseño, pero evita que letras y líneas se monten. */
 .neo-display {
   line-height: 0.98 !important;
