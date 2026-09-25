@@ -151,34 +151,55 @@ export default async function HomePage() {
       </div>
 
       {home.sections.process ? (
-        <section className="editorial-strip mt-0 py-14 sm:py-20">
+        <section className="editorial-strip py-14 sm:py-20">
           <div className="editorial-page">
             <div className="border-b border-[#cec6c2]/14 pb-7">
-              <p className="neo-kicker">{home.processSectionEyebrow}</p>
+              <p className="neo-kicker">{home.processCardEyebrow}</p>
               <h2 className="neo-mega mt-6 text-[clamp(5.5rem,18vw,15rem)] text-[#cec6c2]">
                 Client info
               </h2>
-              <div className="mt-6 grid gap-4 md:grid-cols-[0.8fr_1.2fr] md:items-end">
-                <p className="max-w-md text-sm leading-7 text-[#837f7c]">{home.processSectionTitle}</p>
+              <div className="mt-7 grid gap-5 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
+                <div>
+                  <h3 className="neo-display text-[clamp(2.4rem,6vw,4.8rem)] text-[#cec6c2]">
+                    {home.processCardTitle}
+                  </h3>
+                  <p className="mt-4 max-w-lg text-sm leading-7 text-[#837f7c]">{home.processCardSubtitle}</p>
+                </div>
                 <p className="text-right font-mono text-[9px] uppercase tracking-[0.14em] text-[#66615e]">
-                  Antes de reservar / revisa cada paso
+                  Antes de reservar / revisa cada punto
                 </p>
               </div>
             </div>
 
-            <div className="grid border-x border-b border-[#cec6c2]/14 md:grid-cols-3">
-              {home.processSectionSteps.map((step, index) => (
+            <div className={`grid border-x border-b border-[#cec6c2]/14 ${home.processCardItems.length >= 4 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3"}`}>
+              {home.processCardItems.map((item, index) => (
                 <article
-                  className="min-h-52 border-b border-[#cec6c2]/14 p-5 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0"
-                  key={`${index}-${step}`}
+                  className="min-h-56 border-b border-[#cec6c2]/14 p-5 last:border-b-0 md:border-r md:last:border-r-0"
+                  key={`${item.term}-${index}`}
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="neo-index">0{index + 1}</span>
-                    <span className="text-xl text-[#66615e]">↘</span>
-                  </div>
-                  <p className="mt-16 max-w-xs text-sm leading-7 text-[#b7aaa4]">{step}</p>
+                  <span className="neo-index">0{index + 1}</span>
+                  <h3 className="mt-12 text-sm font-bold uppercase tracking-[0.1em] text-[#cec6c2]">{item.term}</h3>
+                  <p className="mt-3 text-sm leading-7 text-[#837f7c]">{item.description}</p>
                 </article>
               ))}
+            </div>
+
+            <div className="mt-10 grid gap-7 border-t border-[#cec6c2]/14 pt-7 lg:grid-cols-[0.62fr_1.38fr]">
+              <div>
+                <p className="neo-kicker">{home.processSectionEyebrow}</p>
+                <h3 className="neo-display mt-4 text-[clamp(2.4rem,6vw,4.5rem)] text-[#cec6c2]">
+                  {home.processSectionTitle}
+                </h3>
+              </div>
+              <div className="divide-y divide-[#cec6c2]/14 border-y border-[#cec6c2]/14">
+                {home.processSectionSteps.map((step, index) => (
+                  <div className="grid grid-cols-[auto_1fr_auto] gap-4 py-4" key={`${index}-${step}`}>
+                    <span className="neo-index">{String(index + 1).padStart(2, "0")}</span>
+                    <p className="text-sm leading-6 text-[#b7aaa4]">{step}</p>
+                    <span className="text-[#66615e]">→</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -246,6 +267,25 @@ export default async function HomePage() {
               <div className="border border-[#cec6c2]/16 bg-[#202020] p-5 sm:p-7">
                 <CommunityMemberForm />
               </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {home.sections.contact ? (
+        <section className="editorial-strip-paper py-12 sm:py-16">
+          <div className="editorial-page">
+            <div className="grid gap-7 lg:grid-cols-[1fr_auto] lg:items-end">
+              <div>
+                <p className="neo-kicker !text-[#370803]">Contacto</p>
+                <h2 className="neo-mega mt-5 max-w-5xl text-[clamp(4rem,12vw,9rem)] text-[#141414]">
+                  Let&apos;s talk
+                </h2>
+                <p className="mt-5 max-w-xl text-sm leading-7 text-[#370803]/72">
+                  Si ya tienes una cotización o necesitas aclarar un paso, usa los canales oficiales del estudio.
+                </p>
+              </div>
+              <a className="neo-button-dark" href="/contacto">Ir a contacto →</a>
             </div>
           </div>
         </section>
