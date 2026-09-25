@@ -10,11 +10,11 @@ describe("AppShell", () => {
       "href",
       "/colaboradores",
     );
-    expect(screen.getByRole("link", { name: "Privacidad" }).first()).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: "Privacidad" })[0]).toHaveAttribute(
       "href",
       "/privacidad",
     );
-    expect(screen.getByRole("link", { name: "Términos" }).first()).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: "Términos" })[0]).toHaveAttribute(
       "href",
       "/terminos-reserva",
     );
