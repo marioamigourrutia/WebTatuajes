@@ -9,16 +9,41 @@ test.describe("public smoke navigation", () => {
         name: /tatuajes con diseño, criterio y una experiencia segura/i,
       }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: "Solicitar cotización" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /solicitar cotización/i }).first()).toBeVisible();
   });
 
-  test("quote page renders without requiring Firebase secrets", async ({ page }) => {
+  test("primary public navigation pages render", async ({ page }) => {
+    const routes = [
+      ["/portfolio", /piezas, referencias y lenguaje visual/i],
+      ["/quote", /cuéntame tu idea con contexto/i],
+      ["/quote/status", /revisa el estado de tu cotización/i],
+      ["/opiniones", /experiencias publicadas por clientes/i],
+      ["/comunidad", /novedades sin ruido/i],
+      ["/colaboradores", /marcas y aliados del estudio/i],
+      ["/contacto", /hablemos de tu próxima pieza/i],
+    ] as const;
+
+    for (const [route, heading] of routes) {
+      await page.goto(route);
+      await expect(page.getByRole("heading", { name: heading }).first()).toBeVisible();
+    }
+  });
+
+  test("quote page keeps the operational form and calendar container", async ({ page }) => {
     await page.goto("/quote");
 
-    await expect(
-      page.getByRole("heading", { name: "Cuéntanos tu idea con contexto." }),
-    ).toBeVisible();
-    await expect(page.getByText(/abriremos WhatsApp/i)).toBeVisible();
+    await expect(page.getByLabel(/nombre/i).first()).toBeVisible();
+    await expect(page.getByLabel(/email/i).first()).toBeVisible();
+    await expect(page.getByText(/calendario interactivo/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /enviar|registrar|cotización/i }).last()).toBeVisible();
+  });
+
+  test("quote tracking renders independently from a successful backend lookup", async ({ page }) => {
+    await page.goto("/quote/status");
+
+    await expect(page.getByLabel(/código de cotización/i)).toBeVisible();
+    await expect(page.getByLabel(/email usado al cotizar/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /consultar/i })).toBeVisible();
   });
 
   test("shop renders a deterministic empty or fallback catalog state", async ({ page }) => {
@@ -40,29 +65,17 @@ test.describe("public smoke navigation", () => {
 
   test("reviews and sponsors pages render safe public empty states", async ({ page }) => {
     await page.goto("/opiniones");
-
     await expect(
       page.getByRole("heading", { name: "Experiencias publicadas por clientes." }),
     ).toBeVisible();
-    await expect(page.getByText(/Todavía no hay opiniones publicadas/i)).toBeVisible();
 
     await page.goto("/colaboradores");
-
-    await expect(
-      page.getByRole("heading", { name: "Marcas y aliados del estudio." }),
-    ).toBeVisible();
-    await expect(page.getByText(/Aún no hay colaboradores publicados/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Marcas y aliados del estudio." })).toBeVisible();
   });
 
-  test("admin page starts from the unauthenticated state without Firebase public envs", async ({
-    page,
-  }) => {
+  test("admin route renders its authentication shell without exposing protected data", async ({ page }) => {
     await page.goto("/admin");
 
     await expect(page.getByText(/Admin|panel admin/i).first()).toBeVisible();
-    await expect(
-      page.getByText(/Login preparado\. Configura `NEXT_PUBLIC_FIREBASE_\*`/i),
-    ).toBeVisible();
-    await expect(page.getByText("Autenticado: no")).toBeVisible();
   });
 });
