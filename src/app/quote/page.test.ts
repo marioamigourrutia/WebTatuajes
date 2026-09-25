@@ -10,11 +10,11 @@ vi.mock("@/lib/quotes/quote-request-form", () => ({
 }));
 
 describe("quote page", () => {
-  it("explains quote creation and the WhatsApp continuation without promising automatic approval", () => {
+  it("explains quote creation and multichannel continuation without promising automatic approval", () => {
     const content = JSON.stringify(QuotePage());
 
     expect(content).toContain("código de cotización");
-    expect(content).toContain("continuar por WhatsApp");
+    expect(content).toContain("canal que elijas");
     expect(content).toContain("Datos para cotizar");
     expect(content).not.toContain("verificaremos tu");
     expect(content).not.toContain("enlace de acceso sin contraseña");
