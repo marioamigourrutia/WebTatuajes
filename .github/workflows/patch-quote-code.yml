@@ -1,0 +1,94 @@
+name: One-off quote code hardening
+
+on:
+  push:
+    branches: [design/neonink-faithful-v2]
+    paths:
+      - .github/workflows/patch-quote-code.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: design/neonink-faithful-v2
+
+      - name: Apply exact quote-code edits
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          source_path = Path("src/lib/quotes/quote-request.ts")
+          source = source_path.read_text()
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
+              return text.replace(old, new, 1)
+
+          source = replace_once(
+              source,
+              '  return /^COT-\\d{4}-[A-F0-9]{5}$/.test(value.trim().toUpperCase());',
+              '  return /^COT-\\d{4}-(?:[A-F0-9]{5}|[A-F0-9]{10})$/.test(value.trim().toUpperCase());',
+              "backward-compatible validator",
+          )
+          source = replace_once(
+              source,
+              '  const token = randomBytes(4).toString("hex").slice(0, 5).toUpperCase();',
+              '  const token = randomBytes(5).toString("hex").toUpperCase();',
+              "stronger quote code generation",
+          )
+          source_path.write_text(source)
+
+          test_path = Path("src/lib/quotes/quote-request.test.ts")
+          tests = test_path.read_text()
+          tests = replace_once(
+              tests,
+              '  getClientQuoteStatusByCode,\n',
+              '  getClientQuoteStatusByCode,\n  isValidQuoteCode,\n',
+              "validator test import",
+          )
+
+          anchor = '  it("rejects missing required fields, bad email, bad budget, and invalid contact method", () => {'
+          compatibility_test = '''  it("accepts legacy quote codes while validating the stronger new format", () => {
+            expect(isValidQuoteCode("COT-2026-ABCDE")).toBe(true);
+            expect(isValidQuoteCode(" cot-2026-abcdef1234 ")).toBe(true);
+            expect(isValidQuoteCode("COT-2026-ABCDEF")).toBe(false);
+            expect(isValidQuoteCode("COT-2026-ABCDEF123")).toBe(false);
+          });
+
+          '''
+          tests = replace_once(
+              tests,
+              anchor,
+              compatibility_test + anchor,
+              "quote code compatibility test",
+          )
+
+          regex_old = r'^COT-\\d{4}-[A-F0-9]{5}$'
+          regex_new = r'^COT-\\d{4}-[A-F0-9]{10}$'
+          regex_count = tests.count(regex_old)
+          if regex_count < 1:
+              raise SystemExit("generated-code expectations: no legacy regex expectations found")
+          tests = tests.replace(regex_old, regex_new)
+          test_path.write_text(tests)
+          print(f"Updated {regex_count} generated-code regex expectation(s).")
+          PY
+
+      - name: Check formatting and commit
+        run: |
+          npx prettier --write src/lib/quotes/quote-request.ts src/lib/quotes/quote-request.test.ts
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/quotes/quote-request.ts src/lib/quotes/quote-request.test.ts
+          git commit -m "security: strengthen new quote tracking codes"
+          git push origin HEAD:design/neonink-faithful-v2
