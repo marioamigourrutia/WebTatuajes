@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { appConfig } from "@/lib/config/app";
 import { EditorialPageHero } from "@/lib/layout/editorial-page-hero";
 import {
   aftercareSteps,
@@ -40,7 +41,7 @@ export default function ServicesPage() {
         >
           <div className="flex flex-wrap gap-2">
             <a className="neo-button" href="/quote">Solicitar cotización</a>
-            <a className="neo-button-outline" href="/portfolio">Ver portafolio</a>
+            <a className="neo-button-outline" href={appConfig.instagramUrl} rel="noreferrer" target="_blank">Ver Instagram ↗</a>
           </div>
         </EditorialPageHero>
 
@@ -48,16 +49,11 @@ export default function ServicesPage() {
           <div className="grid gap-8 lg:grid-cols-[0.68fr_1.32fr] lg:items-end">
             <div>
               <p className="neo-kicker !text-[#370803]">Qué hacemos</p>
-              <h2 id="services-heading" className="neo-mega mt-5 text-[clamp(4.3rem,11vw,9rem)] text-[#141414]">
-                Services
-              </h2>
+              <h2 id="services-heading" className="neo-mega mt-5 text-[clamp(4.3rem,11vw,9rem)] text-[#141414]">Services</h2>
             </div>
             <div className="grid border border-[#141414]/16 md:grid-cols-2">
               {tattooServices.map((service, index) => (
-                <article
-                  className="min-h-52 border-b border-[#141414]/16 p-5 odd:md:border-r md:[&:nth-last-child(-n+2)]:border-b-0"
-                  key={service.title}
-                >
+                <article className="min-h-52 border-b border-[#141414]/16 p-5 odd:md:border-r md:[&:nth-last-child(-n+2)]:border-b-0" key={service.title}>
                   <span className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#370803]/60">0{index + 1}</span>
                   <h3 className="mt-10 text-base font-bold text-[#141414]">{service.title}</h3>
                   <p className="mt-3 text-sm leading-7 text-[#370803]/72">{service.description}</p>
@@ -74,7 +70,7 @@ export default function ServicesPage() {
             {sessionInfoSections.map(({ eyebrow, title, items }) => (
               <article className="border border-[#cec6c2]/14 bg-[#202020] p-5 sm:p-6" key={eyebrow}>
                 <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#66615e]">{eyebrow}</p>
-                <h3 className="neo-display mt-4 text-[clamp(2.2rem,5vw,4rem)] text-[#cec6c2]">{title}</h3>
+                <h3 className="neo-display mt-4 text-[clamp(2.2rem,5vw,4rem)] leading-[0.95] text-[#cec6c2]">{title}</h3>
                 <div className="mt-6 divide-y divide-[#cec6c2]/14 border-y border-[#cec6c2]/14">
                   {items.map((item, index) => (
                     <div className="grid grid-cols-[auto_1fr] gap-4 py-4" key={item}>
@@ -92,9 +88,7 @@ export default function ServicesPage() {
           <div className="grid gap-8 lg:grid-cols-[0.62fr_1.38fr] lg:items-end">
             <div>
               <p className="neo-kicker">Continued aftercare</p>
-              <h2 id="aftercare-heading" className="neo-display mt-5 text-[clamp(3rem,8vw,6.5rem)] text-[#cec6c2]">
-                La cicatrización también es parte del resultado.
-              </h2>
+              <h2 id="aftercare-heading" className="neo-display mt-5 text-[clamp(3rem,8vw,6.5rem)] leading-[0.96] text-[#cec6c2]">La cicatrización también es parte del resultado.</h2>
             </div>
             <ol className="grid border border-[#cec6c2]/14 sm:grid-cols-2 lg:grid-cols-4">
               {aftercareSteps.map((step, index) => (
