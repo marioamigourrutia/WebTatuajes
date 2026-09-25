@@ -1,4 +1,5 @@
 import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
+import { EditorialPageHero } from "@/lib/layout/editorial-page-hero";
 import { listPublicSponsors } from "@/lib/sponsors/admin-sponsors";
 
 export const dynamic = "force-dynamic";
@@ -16,60 +17,61 @@ export default async function SponsorsPage() {
   const sponsors = await getSponsors();
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
-      <section className="rounded-[2rem] border border-amber-100/10 bg-stone-950/55 p-6 shadow-2xl shadow-black/30 sm:p-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">
-          Colaboradores
-        </p>
-        <h1 className="mt-3 text-4xl font-black text-stone-50 sm:text-5xl">
-          Marcas y aliados del estudio.
-        </h1>
-        <p className="mt-4 max-w-3xl leading-7 text-stone-300">
-          Espacio para auspiciadores, proveedores y proyectos colaboradores relacionados con el
-          mundo del tatuaje, el cuidado y la experiencia del estudio.
-        </p>
-      </section>
+    <main className="pb-8 pt-4 sm:pt-5">
+      <div className="editorial-page">
+        <EditorialPageHero
+          index="07"
+          eyebrow="Colaboradores / aliados"
+          title="Marcas y aliados del estudio."
+          description="Auspiciadores, proveedores y proyectos colaboradores relacionados con el tatuaje, el cuidado y la experiencia del estudio."
+          meta={[`${sponsors.length} activos`, "Partners", "Selección pública"]}
+        />
 
-      <section className="py-10">
-        {sponsors.length === 0 ? (
-          <p className="rounded-3xl border border-stone-800 bg-stone-950/70 p-6 text-stone-300">
-            Aún no hay colaboradores publicados.
-          </p>
-        ) : (
-          <div className="grid gap-5 md:grid-cols-3">
-            {sponsors.map((sponsor) => (
+        <section className="mt-4 grid border border-[#cec6c2]/14 md:grid-cols-2 xl:grid-cols-3">
+          {sponsors.length === 0 ? (
+            <div className="col-span-full min-h-64 p-6 sm:p-8">
+              <p className="neo-kicker">Sin colaboradores</p>
+              <p className="mt-14 max-w-xl text-lg leading-8 text-[#837f7c]">
+                Aún no hay colaboradores publicados.
+              </p>
+            </div>
+          ) : (
+            sponsors.map((sponsor, index) => (
               <article
-                className="rounded-3xl border border-stone-800 bg-stone-950/70 p-5 shadow-xl shadow-black/20"
+                className="min-h-80 border-b border-[#cec6c2]/14 p-5 md:border-r xl:[&:nth-child(3n)]:border-r-0"
                 key={sponsor.id}
               >
-                {sponsor.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    alt={sponsor.name}
-                    className="mb-5 h-20 w-20 rounded-2xl object-cover"
-                    src={sponsor.logoUrl}
-                  />
-                ) : null}
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-300">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="neo-index">P/{String(index + 1).padStart(2, "0")}</span>
+                  {sponsor.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      alt={sponsor.name}
+                      className="h-20 w-20 object-cover grayscale"
+                      src={sponsor.logoUrl}
+                    />
+                  ) : null}
+                </div>
+                <p className="mt-12 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#66615e]">
                   {sponsor.category}
                 </p>
-                <h2 className="mt-2 text-2xl font-black text-stone-50">{sponsor.name}</h2>
-                <p className="mt-4 text-sm leading-6 text-stone-300">{sponsor.description}</p>
+                <h2 className="neo-display mt-2 text-3xl text-[#cec6c2]">{sponsor.name}</h2>
+                <p className="mt-4 text-sm leading-7 text-[#837f7c]">{sponsor.description}</p>
                 {sponsor.websiteUrl ? (
                   <a
-                    className="mt-5 inline-flex rounded-full border border-amber-300/50 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-300 hover:text-stone-950"
+                    className="mt-6 inline-flex text-[10px] font-bold uppercase tracking-[0.12em] text-[#b7aaa4] transition hover:text-[#cec6c2]"
                     href={sponsor.websiteUrl}
                     rel="noreferrer"
                     target="_blank"
                   >
-                    Visitar sitio
+                    Visitar sitio ↗
                   </a>
                 ) : null}
               </article>
-            ))}
-          </div>
-        )}
-      </section>
+            ))
+          )}
+        </section>
+      </div>
     </main>
   );
 }
