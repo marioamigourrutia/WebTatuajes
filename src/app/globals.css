@@ -124,10 +124,14 @@ select {
 }
 
 .neo-display {
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Arial Black", "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
   font-weight: 900;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.032em;
+  line-height: 0.94;
   text-transform: uppercase;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .neo-outline-text {
