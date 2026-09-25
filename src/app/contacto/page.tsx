@@ -39,7 +39,7 @@ export default function ContactPage() {
       <div className="editorial-page">
         <EditorialPageHero
           index="08"
-          eyebrow="Contacto / atención por agenda"
+          eyebrow="Contacto · atención por agenda"
           title="Hablemos de tu próxima pieza."
           description="Cada proyecto se revisa antes de confirmar una sesión. Para una respuesta más precisa, comienza por la cotización y continúa por el canal adecuado."
           tone="wine"
@@ -65,7 +65,7 @@ export default function ContactPage() {
             <div className="border-b border-[#cec6c2]/14 p-5 sm:p-7 lg:border-b-0 lg:border-r">
               <p className="neo-kicker">Cómo trabajamos</p>
               <h2 className="neo-mega mt-6 text-[clamp(4.2rem,11vw,8.5rem)] text-[#cec6c2]">
-                Client care
+                Atención clara
               </h2>
               <p className="mt-6 max-w-md text-sm leading-7 text-[#837f7c]">
                 Una comunicación clara desde la primera idea hasta el cuidado posterior.
@@ -114,7 +114,7 @@ export default function ContactPage() {
             <div>
               <p className="neo-kicker !text-[#370803]">Rutas útiles</p>
               <h2 className="neo-mega mt-5 text-[clamp(4rem,10vw,8rem)] text-[#141414]">
-                Next step
+                Siguiente paso
               </h2>
             </div>
             <div className="grid border border-[#141414]/16 md:grid-cols-3">
