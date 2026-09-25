@@ -2,12 +2,16 @@
 
 :root {
   --background: #050505;
-  --surface: #0b0b0d;
-  --surface-raised: #121214;
-  --foreground: #fafafa;
-  --muted: #d4d4d8;
-  --subtle: #a1a1aa;
-  --accent: #d4d4d8;
+  --surface: #0a0a0a;
+  --surface-raised: #111111;
+  --foreground: #f6f7f2;
+  --muted: #c7c9bf;
+  --subtle: #7b7f73;
+  --acid: #cfff19;
+  --acid-soft: #b8e914;
+  --acid-ink: #111500;
+  --line: rgb(207 255 25 / 0.24);
+  --line-soft: rgb(255 255 255 / 0.12);
 }
 
 * {
@@ -22,13 +26,14 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
   background:
-    radial-gradient(circle at 16% -10%, rgb(255 255 255 / 0.05) 0, transparent 28rem),
-    radial-gradient(circle at 88% 4%, rgb(161 161 170 / 0.03) 0, transparent 26rem),
+    radial-gradient(circle at 82% 8%, rgb(207 255 25 / 0.07) 0, transparent 25rem),
+    radial-gradient(circle at 10% 70%, rgb(207 255 25 / 0.035) 0, transparent 34rem),
     #050505;
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-weight: 400;
+  font-family: "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 500;
   line-height: 1.55;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -38,14 +43,30 @@ body::before {
   content: "";
   position: fixed;
   inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0.6;
+  background-image:
+    linear-gradient(rgb(207 255 25 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(207 255 25 / 0.035) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, black 0%, rgb(0 0 0 / 0.75) 50%, transparent 92%);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.025;
-  background-image:
-    linear-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px);
-  background-size: 64px 64px;
-  mask-image: linear-gradient(to bottom, black 0%, transparent 68%);
+  opacity: 0.08;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgb(255 255 255 / 0.035) 0,
+    rgb(255 255 255 / 0.035) 1px,
+    transparent 1px,
+    transparent 4px
+  );
 }
 
 a {
@@ -66,39 +87,154 @@ select {
   color-scheme: dark;
 }
 
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  border-radius: 0.35rem !important;
+}
+
 ::selection {
-  background: #d4d4d8;
-  color: #09090b;
+  background: var(--acid);
+  color: var(--acid-ink);
 }
 
 :focus-visible {
-  outline: 2px solid #d4d4d8;
+  outline: 2px solid var(--acid);
   outline-offset: 3px;
 }
 
-/* Compatibilidad visual para componentes heredados. */
+.neo-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--acid);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.neo-kicker::before {
+  content: "";
+  width: 1.8rem;
+  height: 2px;
+  background: var(--acid);
+  box-shadow: 0 0 18px rgb(207 255 25 / 0.35);
+}
+
+.neo-display {
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  text-transform: uppercase;
+}
+
+.neo-outline-text {
+  color: transparent;
+  -webkit-text-stroke: 1px rgb(207 255 25 / 0.55);
+  text-stroke: 1px rgb(207 255 25 / 0.55);
+}
+
+.neo-panel {
+  border: 1px solid var(--line-soft);
+  background:
+    linear-gradient(140deg, rgb(255 255 255 / 0.025), transparent 35%),
+    rgb(8 8 8 / 0.92);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
+}
+
+.neo-panel-acid {
+  border: 1px solid rgb(207 255 25 / 0.45);
+  background:
+    linear-gradient(135deg, rgb(207 255 25 / 0.075), transparent 45%),
+    #080808;
+  box-shadow:
+    inset 0 1px 0 rgb(207 255 25 / 0.08),
+    0 0 36px rgb(207 255 25 / 0.025);
+}
+
+.neo-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  border: 1px solid var(--acid);
+  border-radius: 0.25rem;
+  background: var(--acid);
+  padding: 0.75rem 1.25rem;
+  color: var(--acid-ink);
+  font-size: 0.75rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.neo-button:hover {
+  transform: translateY(-2px);
+  background: #ddff57;
+  box-shadow: 0 8px 28px rgb(207 255 25 / 0.15);
+}
+
+.neo-button-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  border: 1px solid rgb(207 255 25 / 0.42);
+  border-radius: 0.25rem;
+  background: rgb(207 255 25 / 0.025);
+  padding: 0.75rem 1.25rem;
+  color: #f4f5ee;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: border-color 180ms ease, color 180ms ease, background 180ms ease;
+}
+
+.neo-button-outline:hover {
+  border-color: var(--acid);
+  background: rgb(207 255 25 / 0.08);
+  color: var(--acid);
+}
+
+.neo-index {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--acid);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.neo-rule {
+  height: 1px;
+  background: linear-gradient(90deg, var(--acid), rgb(207 255 25 / 0.08) 42%, transparent);
+}
+
+/* Compatibilidad visual para componentes existentes del proyecto. */
 [class~="text-amber-100"],
 [class~="text-amber-200"],
 [class~="text-amber-300"] {
-  color: #e4e4e7;
+  color: var(--acid);
 }
 
 [class~="text-stone-100"],
 [class~="text-stone-200"],
 [class~="text-stone-300"] {
-  color: #e4e4e7;
+  color: #e9eae4;
 }
 
 [class~="text-stone-400"] {
-  color: #d4d4d8;
+  color: #b5b8ae;
 }
 
 [class~="text-stone-500"] {
-  color: #a1a1aa;
+  color: #83877d;
 }
 
 [class~="text-stone-600"] {
-  color: #71717a;
+  color: #65695f;
 }
 
 [class~="border-amber-100/10"],
@@ -108,44 +244,40 @@ select {
 [class~="border-amber-200/35"],
 [class~="border-amber-300/30"],
 [class~="border-amber-300/40"],
-[class~="border-amber-300/50"],
+[class~="border-amber-300/50"] {
+  border-color: rgb(207 255 25 / 0.35);
+}
+
 [class~="border-stone-800"],
 [class~="border-stone-700"] {
-  border-color: rgb(255 255 255 / 0.15);
+  border-color: rgb(255 255 255 / 0.13);
 }
 
 [class~="bg-amber-300/10"] {
-  background-color: rgb(255 255 255 / 0.055);
+  background-color: rgb(207 255 25 / 0.07);
 }
 
-/* Los antiguos botones dorados pasan a un acabado grafito metálico. */
 [class~="bg-amber-300"] {
-  border: 1px solid rgb(255 255 255 / 0.24);
-  background: linear-gradient(135deg, #27272a 0%, #111113 58%, #18181b 100%);
-  color: #f4f4f5;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.08),
-    0 10px 28px rgb(0 0 0 / 0.28);
+  border: 1px solid var(--acid);
+  background: var(--acid);
+  color: var(--acid-ink);
+  box-shadow: 0 8px 26px rgb(207 255 25 / 0.11);
 }
 
-/* Evita CTAs blancos duros sin afectar paneles o fondos de contenido. */
 a[class~="bg-white"],
 button[class~="bg-white"],
 label[class~="bg-white"] {
-  border-color: rgb(255 255 255 / 0.28);
-  background: linear-gradient(135deg, #2b2b2f 0%, #111113 60%, #1c1c1f 100%);
-  color: #f4f4f5;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.09),
-    0 10px 28px rgb(0 0 0 / 0.3);
+  border-color: var(--acid);
+  background: var(--acid);
+  color: var(--acid-ink);
 }
 
 a[class~="bg-white"]:hover,
 button[class~="bg-white"]:hover,
 label[class~="bg-white"]:hover {
-  border-color: rgb(255 255 255 / 0.46);
-  background: linear-gradient(135deg, #3f3f46 0%, #18181b 62%, #27272a 100%);
-  color: #ffffff;
+  border-color: #ddff57;
+  background: #ddff57;
+  color: #101400;
 }
 
 [class~="bg-stone-950/45"],
@@ -154,25 +286,25 @@ label[class~="bg-white"]:hover {
 [class~="bg-stone-950/70"],
 [class~="bg-stone-950/75"],
 [class~="bg-stone-950/80"] {
-  background-color: rgb(9 9 11 / 0.92);
+  background-color: rgb(6 6 6 / 0.94);
 }
 
 [class~="bg-stone-900/50"],
 [class~="bg-stone-900/60"],
 [class~="bg-stone-900/70"],
 [class~="bg-stone-900/90"] {
-  background-color: rgb(24 24 27 / 0.9);
+  background-color: rgb(13 13 13 / 0.94);
 }
 
 [class~="shadow-amber-950/30"] {
-  --tw-shadow-color: rgb(0 0 0 / 0.55);
+  --tw-shadow-color: rgb(207 255 25 / 0.08);
 }
 
 [class~="hover:bg-amber-300"]:hover,
 [class~="hover:bg-amber-200"]:hover {
-  border-color: rgb(255 255 255 / 0.42);
-  background: linear-gradient(135deg, #3f3f46 0%, #18181b 62%, #27272a 100%);
-  color: #ffffff;
+  border-color: #ddff57;
+  background: #ddff57;
+  color: #111500;
 }
 
 [class~="hover:border-amber-300/40"]:hover,
@@ -181,7 +313,13 @@ label[class~="bg-white"]:hover {
 [class~="hover:border-amber-300/70"]:hover,
 [class~="hover:border-amber-200"]:hover,
 [class~="hover:border-amber-200/30"]:hover {
-  border-color: rgb(255 255 255 / 0.42);
+  border-color: var(--acid);
+}
+
+@media (max-width: 640px) {
+  body::before {
+    background-size: 40px 40px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
