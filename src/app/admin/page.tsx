@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { AdminStatusPanel } from "@/lib/auth/admin-status-panel";
 import { isFirebaseAdminBackendConfigured } from "@/lib/config/firebase-admin";
-import { isExternalImageUploadConfigured } from "@/lib/images/upload-provider";
+import { isExternalImageUploadConfigured } from "@/lib/images/upload-config";
 import { EditorialPageHero } from "@/lib/layout/editorial-page-hero";
 
 const adminSessionCookieName = "webtatuajes_admin_session";
