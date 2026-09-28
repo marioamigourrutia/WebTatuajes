@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const currentAuth = auth;
     let cancelled = false;
     let unsubscribe: (() => void) | null = null;
 
@@ -37,18 +38,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Mantiene la autenticación únicamente durante la sesión de esta pestaña.
         // Evita que una sesión administrativa quede compartida mediante localStorage
         // con otras pestañas/ventanas usadas por visitantes del sitio.
-        await setPersistence(auth, browserSessionPersistence);
+        await setPersistence(currentAuth, browserSessionPersistence);
 
         if (cancelled) return;
 
-        unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        unsubscribe = onAuthStateChanged(currentAuth, (currentUser) => {
           setUser(currentUser);
           setLoading(false);
         });
       } catch {
         // Si el navegador no permite sessionStorage, no conservamos una sesión
         // potencialmente compartida. Cerramos Firebase Auth por seguridad.
-        await signOut(auth).catch(() => undefined);
+        await signOut(currentAuth).catch(() => undefined);
 
         if (!cancelled) {
           setUser(null);
