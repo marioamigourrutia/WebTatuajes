@@ -27,7 +27,7 @@ describe("admin session route", () => {
     });
   });
 
-  it("sets an httpOnly admin session cookie after server-side admin validation", async () => {
+  it("sets an httpOnly admin session cookie scoped only to admin APIs", async () => {
     const response = await POST(
       new Request("http://localhost/api/admin/session", { method: "POST" }),
     );
@@ -40,6 +40,7 @@ describe("admin session route", () => {
     );
     expect(response.headers.get("set-cookie")).toContain("HttpOnly");
     expect(response.headers.get("set-cookie")).toContain("SameSite=lax");
+    expect(response.headers.get("set-cookie")).toContain("Path=/api/admin");
   });
 
   it("rejects non-admin users without setting a session cookie", async () => {
@@ -64,7 +65,7 @@ describe("admin session route", () => {
     expect(response.headers.get("set-cookie")).toBeNull();
   });
 
-  it("clears the admin session cookie", async () => {
+  it("clears the admin session cookie from the same admin-only path", async () => {
     const response = await DELETE();
 
     await expect(response.json()).resolves.toEqual({
@@ -74,5 +75,6 @@ describe("admin session route", () => {
     });
     expect(response.headers.get("set-cookie")).toContain("webtatuajes_admin_session=");
     expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(response.headers.get("set-cookie")).toContain("Path=/api/admin");
   });
 });
