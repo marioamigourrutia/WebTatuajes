@@ -13,7 +13,6 @@ const navItems = [
   { href: "/colaboradores", label: "Colaboradores" },
   { href: "/privacidad", label: "Privacidad" },
   { href: "/terminos-reserva", label: "Términos" },
-  { href: "/admin", label: "Panel admin" },
 ];
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
