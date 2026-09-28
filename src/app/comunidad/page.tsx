@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CommunityMemberForm } from "@/lib/community/member-form";
 import { appConfig } from "@/lib/config/app";
+import { EditorialPageHero } from "@/lib/layout/editorial-page-hero";
 
 export const metadata = {
   title: "Comunidad | Mario Amigo Tattoo",
@@ -10,62 +11,68 @@ export const metadata = {
 
 export default function CommunityPage() {
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-8 sm:py-16">
-      <section className="grid gap-10 border-b border-white/10 pb-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-        <div className="max-w-xl">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-500">Comunidad</p>
-          <h1 className="mt-4 text-balance text-4xl font-black leading-[0.98] tracking-[-0.045em] text-zinc-50 sm:text-6xl">
-            Novedades sin ruido.
-          </h1>
-          <p className="mt-5 text-base leading-8 text-zinc-400">
-            Un espacio para recibir novedades de agenda, proyectos, contenido y actividades relacionadas
-            con el trabajo de {appConfig.brandName}. No reemplaza una cotización ni confirma una cita.
-          </p>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              className="rounded-full border border-white/15 bg-[#111113] px-5 py-3 text-sm font-bold text-zinc-100 transition hover:border-white/30 hover:bg-zinc-900"
-              href="/quote"
-            >
+    <main className="pb-8 pt-4 sm:pt-5">
+      <div className="editorial-page">
+        <EditorialPageHero
+          index="06"
+          eyebrow="Comunidad · novedades"
+          title="Novedades sin ruido."
+          description={`Un espacio para recibir novedades de agenda, proyectos, contenido y actividades relacionadas con el trabajo de ${appConfig.brandName}. No reemplaza una cotización ni confirma una cita.`}
+          tone="wine"
+          meta={["Agenda", "Proyectos", "Contenido"]}
+        >
+          <div className="flex flex-wrap gap-2">
+            <Link className="neo-button" href="/quote">
               Solicitar cotización
             </Link>
             <a
-              className="rounded-full border border-white/10 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:border-white/25 hover:text-white"
+              className="neo-button-outline"
               href={appConfig.instagramUrl}
               rel="noreferrer"
               target="_blank"
             >
-              Ver Instagram
+              Instagram ↗
             </a>
           </div>
-        </div>
+        </EditorialPageHero>
 
-        <div className="rounded-[1.75rem] border border-white/10 bg-[#09090b] p-5 sm:p-7">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">Mantente al día</p>
-          <h2 className="mt-3 text-2xl font-black tracking-[-0.03em] text-zinc-100">
-            Súmate a la lista de novedades
-          </h2>
-          <p className="mt-3 text-sm leading-7 text-zinc-400">
-            Deja tu nombre y email. Puedes darte de baja cuando quieras.
-          </p>
-          <div className="mt-6">
-            <CommunityMemberForm />
+        <section className="mt-4 grid border border-[#cec6c2]/14 lg:grid-cols-[0.72fr_1.28fr]">
+          <div className="border-b border-[#cec6c2]/14 p-5 sm:p-7 lg:border-b-0 lg:border-r">
+            <p className="neo-kicker">Qué recibirás</p>
+            <h2 className="neo-mega mt-7 text-[clamp(4rem,10vw,8rem)] text-[#cec6c2]">
+              Mantente al día
+            </h2>
+            <div className="mt-10 divide-y divide-[#cec6c2]/14 border-y border-[#cec6c2]/14">
+              {[
+                ["01", "Agenda", "Avisos relevantes sobre disponibilidad y apertura de agenda."],
+                ["02", "Proyectos", "Selección de trabajos, procesos y piezas de interés."],
+                ["03", "Contenido", "Novedades puntuales sin convertir tu correo en una campaña constante."],
+              ].map(([index, title, description]) => (
+                <article className="grid grid-cols-[auto_1fr] gap-5 py-4" key={index}>
+                  <span className="neo-index pt-1">{index}</span>
+                  <div>
+                    <h3 className="text-sm font-bold uppercase tracking-[0.1em] text-[#cec6c2]">{title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-[#837f7c]">{description}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
 
-      <section className="grid gap-4 py-10 sm:grid-cols-3">
-        {[
-          ["Agenda", "Avisos relevantes sobre disponibilidad y apertura de agenda."],
-          ["Proyectos", "Selección de trabajos, procesos y piezas de interés."],
-          ["Contenido", "Novedades puntuales sin convertir tu correo en una campaña constante."],
-        ].map(([title, description]) => (
-          <article className="border-t border-white/10 pt-5" key={title}>
-            <h2 className="text-sm font-bold uppercase tracking-[0.15em] text-zinc-200">{title}</h2>
-            <p className="mt-3 text-sm leading-7 text-zinc-500">{description}</p>
-          </article>
-        ))}
-      </section>
+          <div className="bg-[#202020] p-5 sm:p-7 lg:p-10">
+            <p className="neo-kicker">Comunidad</p>
+            <h2 className="neo-display mt-5 max-w-xl text-[clamp(2.8rem,7vw,5.5rem)] text-[#cec6c2]">
+              Súmate a la lista
+            </h2>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-[#837f7c]">
+              Deja tu nombre y email. Puedes darte de baja cuando quieras.
+            </p>
+            <div className="mt-8">
+              <CommunityMemberForm />
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

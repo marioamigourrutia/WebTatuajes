@@ -6,12 +6,28 @@ describe("admin login error messages", () => {
     vi.unstubAllEnvs();
   });
 
-  it("keeps production-style credential failures generic", () => {
+  it("explains production credential rejection without exposing secrets", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_ENABLED", "true");
 
     expect(getLoginFailureMessage({ code: "auth/invalid-credential" })).toBe(
-      "No se pudo iniciar sesión. Revisa el email y la contraseña.",
+      "Firebase rechazó estas credenciales. Confirma que esta cuenta exista en Authentication > Users del mismo proyecto Firebase y que tenga contraseña configurada.",
+    );
+  });
+
+  it("identifies a disabled Email/Password provider", () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    expect(getLoginFailureMessage({ code: "auth/operation-not-allowed" })).toContain(
+      "Email/Password no está habilitado",
+    );
+  });
+
+  it("identifies an invalid public Firebase API key", () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    expect(getLoginFailureMessage({ code: "auth/invalid-api-key" })).toContain(
+      "NEXT_PUBLIC_FIREBASE_API_KEY",
     );
   });
 

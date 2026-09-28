@@ -1,7 +1,13 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import {
+  browserSessionPersistence,
+  onAuthStateChanged,
+  setPersistence,
+  signOut,
+  type User,
+} from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 
 type AuthState = {
@@ -23,10 +29,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    return onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
+    const currentAuth = auth;
+    let cancelled = false;
+    let unsubscribe: (() => void) | null = null;
+
+    async function prepareAuthSession() {
+      try {
+        // Mantiene la autenticación únicamente durante la sesión de esta pestaña.
+        // Evita que una sesión administrativa quede compartida mediante localStorage
+        // con otras pestañas/ventanas usadas por visitantes del sitio.
+        await setPersistence(currentAuth, browserSessionPersistence);
+
+        if (cancelled) return;
+
+        unsubscribe = onAuthStateChanged(currentAuth, (currentUser) => {
+          setUser(currentUser);
+          setLoading(false);
+        });
+      } catch {
+        // Si el navegador no permite sessionStorage, no conservamos una sesión
+        // potencialmente compartida. Cerramos Firebase Auth por seguridad.
+        await signOut(currentAuth).catch(() => undefined);
+
+        if (!cancelled) {
+          setUser(null);
+          setLoading(false);
+        }
+      }
+    }
+
+    void prepareAuthSession();
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [auth]);
 
   const value = useMemo(

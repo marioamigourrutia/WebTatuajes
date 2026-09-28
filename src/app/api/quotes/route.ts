@@ -17,16 +17,22 @@ function readHandoffChannel(value: FormDataEntryValue | null) {
 async function persistHandoffChannel(quoteId: string, channel: string | null) {
   if (!channel) return;
 
-  const firestore = getFirebaseAdminFirestore();
-  if (!firestore) return;
+  try {
+    const firestore = getFirebaseAdminFirestore();
+    if (!firestore) return;
 
-  await firestore.collection("quotes").doc(quoteId).set(
-    {
-      preferred_contact_method: channel,
-      handoff_channel: channel,
-    },
-    { merge: true },
-  );
+    await firestore.collection("quotes").doc(quoteId).set(
+      {
+        preferred_contact_method: channel,
+        handoff_channel: channel,
+      },
+      { merge: true },
+    );
+  } catch (error) {
+    // La cotización ya fue creada. Este dato complementario no debe convertir
+    // una solicitud exitosa en un error que provoque reintentos o duplicados.
+    console.error("Quote handoff metadata persistence failed", error);
+  }
 }
 
 export async function POST(request: Request) {

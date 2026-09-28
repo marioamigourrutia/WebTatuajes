@@ -32,9 +32,12 @@ export function LoginPanel({ onSessionCleared, onSessionEstablished }: LoginPane
       return;
     }
 
+    const normalizedEmail = email.trim();
+    const projectId = auth.app.options.projectId;
+
     setSubmitting(true);
     try {
-      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const credential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
       const idToken = await credential.user.getIdToken();
       const response = await fetch("/api/admin/session", {
         method: "POST",
@@ -53,10 +56,12 @@ export function LoginPanel({ onSessionCleared, onSessionEstablished }: LoginPane
         return;
       }
 
+      setEmail(normalizedEmail);
       onSessionEstablished?.(body);
       setPassword("");
     } catch (loginError) {
-      setError(getLoginFailureMessage(loginError));
+      const message = getLoginFailureMessage(loginError);
+      setError(projectId ? `${message} Proyecto Firebase activo: ${projectId}.` : message);
     } finally {
       setSubmitting(false);
     }
@@ -82,8 +87,8 @@ export function LoginPanel({ onSessionCleared, onSessionEstablished }: LoginPane
   if (!firebaseConfigured) {
     return (
       <p className="text-sm text-stone-400">
-        Login preparado. Configura `NEXT_PUBLIC_FIREBASE_*` en `.env.local` para habilitar Firebase
-        Auth localmente.
+        Login preparado. Configura las variables públicas `NEXT_PUBLIC_FIREBASE_*` para habilitar
+        Firebase Auth en este entorno.
       </p>
     );
   }
@@ -113,6 +118,7 @@ export function LoginPanel({ onSessionCleared, onSessionEstablished }: LoginPane
           Email
         </label>
         <input
+          autoComplete="username"
           className="mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-3 py-2 text-stone-100"
           id="email"
           onChange={(event) => setEmail(event.target.value)}
@@ -129,6 +135,7 @@ export function LoginPanel({ onSessionCleared, onSessionEstablished }: LoginPane
           Contraseña
         </label>
         <input
+          autoComplete="current-password"
           className="mt-1 w-full rounded-xl border border-stone-700 bg-stone-900 px-3 py-2 text-stone-100"
           id="password"
           onChange={(event) => setPassword(event.target.value)}

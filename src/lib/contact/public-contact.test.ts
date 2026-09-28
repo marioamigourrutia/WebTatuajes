@@ -11,6 +11,10 @@ describe("public contact content", () => {
     expect(contactHighlights.map((item) => item.title).join(" ")).toContain("Ubicación");
     expect(visitExpectations.join(" ")).toContain("piel");
     expect(supportExpectations.join(" ")).toContain("cuidados posteriores");
-    expect(contactLinks.map((link) => link.href)).toEqual(["/quote", "/servicios", "/portfolio"]);
+    expect(contactLinks.map((link) => link.href)).toEqual([
+      "/quote",
+      "/quote/status",
+      "/opiniones",
+    ]);
   });
 });

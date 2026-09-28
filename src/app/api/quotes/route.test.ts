@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getFirebaseAdminFirestore } from "@/lib/firebase/admin";
 import { resetRateLimitForTests } from "@/lib/rate-limit";
 import { createQuoteRequestFromFormData } from "@/lib/quotes/quote-request";
 import { POST } from "./route";
@@ -8,13 +9,19 @@ vi.mock("@/lib/quotes/quote-request", () => ({
   createQuoteRequest: vi.fn(),
 }));
 
-const createQuoteRequestFromFormDataMock = vi.mocked(createQuoteRequestFromFormData);
+vi.mock("@/lib/firebase/admin", () => ({
+  getFirebaseAdminFirestore: vi.fn(),
+}));
 
-function multipartRequest() {
+const createQuoteRequestFromFormDataMock = vi.mocked(createQuoteRequestFromFormData);
+const getFirebaseAdminFirestoreMock = vi.mocked(getFirebaseAdminFirestore);
+
+function multipartRequest(handoffChannel?: string) {
   const formData = new FormData();
   formData.set("email", "ana@example.test");
   formData.set("companyWebsite", "");
   formData.set("submittedAt", String(Date.now() - 3000));
+  if (handoffChannel) formData.set("handoffChannel", handoffChannel);
 
   return new Request("http://localhost/api/quotes", {
     method: "POST",
@@ -38,6 +45,7 @@ describe("quote creation route", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetRateLimitForTests();
+    getFirebaseAdminFirestoreMock.mockReturnValue(null);
     createQuoteRequestFromFormDataMock.mockResolvedValue({
       ok: true,
       id: "quote-123",
@@ -59,6 +67,24 @@ describe("quote creation route", () => {
     expect(submittedFormData.get("email")).toBe("ana@example.test");
     expect(submittedFormData.has("companyWebsite")).toBe(false);
     expect(submittedFormData.has("submittedAt")).toBe(false);
+  });
+
+  it("keeps a created quote successful when handoff metadata persistence fails", async () => {
+    const set = vi.fn().mockRejectedValue(new Error("Firestore temporarily unavailable"));
+    getFirebaseAdminFirestoreMock.mockReturnValue({
+      collection: vi.fn(() => ({ doc: vi.fn(() => ({ set })) })),
+    } as never);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await POST(multipartRequest("whatsapp"));
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({ quoteCode: "COT-2026-ABCDE" });
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({ handoff_channel: "whatsapp" }),
+      { merge: true },
+    );
+    expect(consoleError).toHaveBeenCalled();
   });
 
   it("rejects bot-like quote submissions before writing", async () => {

@@ -16,7 +16,9 @@ const listPublicCalendarAvailabilityMock = vi.mocked(listPublicCalendarAvailabil
 
 describe("public calendar availability route", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.restoreAllMocks();
+    getFirebaseAdminFirestoreMock.mockReset();
+    listPublicCalendarAvailabilityMock.mockReset();
     getFirebaseAdminFirestoreMock.mockReturnValue({ collection: vi.fn() } as never);
     listPublicCalendarAvailabilityMock.mockResolvedValue({
       ok: true,
@@ -60,5 +62,48 @@ describe("public calendar availability route", () => {
 
     await expect(response.json()).resolves.toEqual({ error: "Rango de fechas inválido." });
     expect(response.status).toBe(400);
+  });
+
+  it("reads production availability when a preview has no Firebase Admin backend", async () => {
+    getFirebaseAdminFirestoreMock.mockReturnValue(null);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({ dates: [{ date: "2026-09-18", status: "OCCUPIED" }] }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    const response = await GET(
+      new Request(
+        "https://webtatuajes-git-design-neoni.example.vercel.app/api/calendar/availability?month=2026-09",
+      ),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      dates: [{ date: "2026-09-18", status: "OCCUPIED" }],
+      source: "production-readonly",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [target, options] = fetchMock.mock.calls[0] ?? [];
+    expect(String(target)).toBe(
+      "https://webtatuajes.vercel.app/api/calendar/availability?month=2026-09",
+    );
+    expect(options).toEqual(expect.objectContaining({ method: "GET", cache: "no-store" }));
+  });
+
+  it("never proxies the production calendar route back into itself", async () => {
+    getFirebaseAdminFirestoreMock.mockReturnValue(null);
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    const response = await GET(
+      new Request("https://webtatuajes.vercel.app/api/calendar/availability?month=2026-09"),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body.error).toMatch(/backend/i);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

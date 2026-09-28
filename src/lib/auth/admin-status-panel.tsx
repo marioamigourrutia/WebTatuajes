@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { LoginPanel } from "@/lib/auth/login-panel";
 import { useAuth } from "@/lib/auth/auth-context";
+import { readJsonResponse } from "@/lib/http/safe-json";
 import { AdminSiteContentPanel } from "@/lib/cms/admin-site-content-panel";
 import { AdminInstagramMediaPanel } from "@/lib/instagram/admin-instagram-media-panel";
 import { AdminPortfolioPanel } from "@/lib/portfolio/admin-portfolio-panel";
@@ -174,7 +175,15 @@ const adminCalendarStatusClasses: Record<AdminCalendarDateStatus, string> = {
 };
 
 function getCurrentLocalMonth() {
-  return new Date().toISOString().slice(0, 7);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Santiago",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+
+  return year && month ? `${year}-${month}` : new Date().toISOString().slice(0, 7);
 }
 
 function formatCalendarDay(date: string) {
@@ -320,7 +329,10 @@ export function AdminStatusPanel({
       method: "POST",
       headers: { Authorization: `Bearer ${idToken}` },
     });
-    const body = (await response.json()) as { quotes?: RecentQuoteRequest[]; error?: string };
+    const body = await readJsonResponse<{ quotes?: RecentQuoteRequest[]; error?: string }>(
+    response,
+    "La API de cotizaciones no devolvió JSON válido.",
+  );
 
     if (!response.ok) {
       setError(body.error ?? "El servidor no pudo listar solicitudes de cotización.");
@@ -360,7 +372,10 @@ export function AdminStatusPanel({
         method: "POST",
         headers: { Authorization: `Bearer ${idToken}` },
       });
-      const body = (await response.json()) as AdminStatusResponse;
+      const body = await readJsonResponse<AdminStatusResponse>(
+      response,
+      "La API de estado admin no devolvió JSON válido.",
+    );
 
       setStatus(body);
       if (!response.ok) {
@@ -455,6 +470,7 @@ export function AdminStatusPanel({
       setPurchaseRequests(purchaseRequestsBody.purchaseRequests ?? []);
       setCommunityMembers(communityMembersBody.communityMembers ?? []);
       setAuditLogs(auditLogsBody.auditLogs ?? []);
+      await loadAdminCalendarMonth(calendarMonth, false);
     } catch {
       setError("No se pudo consultar el estado de admin en el servidor.");
       setQuotes([]);
@@ -787,7 +803,7 @@ export function AdminStatusPanel({
     }
   }
 
-  async function loadAdminCalendarMonth(month = calendarMonth) {
+  async function loadAdminCalendarMonth(month = calendarMonth, refreshQuotes = true) {
     if (!user) return;
 
     setUpdatingCalendarDate(true);
@@ -803,7 +819,10 @@ export function AdminStatusPanel({
         },
         body: JSON.stringify({ action: "list", month }),
       });
-      const body = (await response.json()) as { dates?: AdminCalendarDate[]; error?: string };
+      const body = await readJsonResponse<{ dates?: AdminCalendarDate[]; error?: string }>(
+        response,
+        "La API de calendario no devolvió JSON válido.",
+      );
 
       if (!response.ok) {
         setError(body.error ?? "No se pudo cargar el calendario admin.");
@@ -813,9 +832,13 @@ export function AdminStatusPanel({
 
       setCalendarDates(body.dates ?? []);
       setSelectedCalendarDates([]);
-      await loadRecentQuotes(idToken);
-    } catch {
-      setError("No se pudo conectar con la ruta server-side de calendario.");
+      if (refreshQuotes) await loadRecentQuotes(idToken);
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "No se pudo conectar con la ruta server-side de calendario.",
+      );
       setCalendarDates([]);
     } finally {
       setUpdatingCalendarDate(false);

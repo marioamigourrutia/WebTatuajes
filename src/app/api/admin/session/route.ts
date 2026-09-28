@@ -6,6 +6,8 @@ import {
   createAdminSessionCookieFromIdToken,
 } from "@/lib/auth/server";
 
+const adminSessionCookiePath = "/api/admin";
+
 function applyAdminSessionCookie(response: NextResponse, sessionCookie: string) {
   response.cookies.set({
     name: adminSessionCookieName,
@@ -13,7 +15,7 @@ function applyAdminSessionCookie(response: NextResponse, sessionCookie: string) 
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/",
+    path: adminSessionCookiePath,
     maxAge: adminSessionCookieMaxAgeSeconds,
   });
 }
@@ -25,7 +27,7 @@ function clearAdminSessionCookie(response: NextResponse) {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/",
+    path: adminSessionCookiePath,
     maxAge: 0,
   });
 }

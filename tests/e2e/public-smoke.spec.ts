@@ -1,5 +1,26 @@
 import { expect, test } from "@playwright/test";
 
+const publicRoutes = [
+  ["/", /tatuajes con diseño, criterio y una experiencia segura/i],
+  ["/quote", /cuéntame tu idea con contexto/i],
+  ["/quote/status", /revisa el estado de tu cotización/i],
+  ["/opiniones", /experiencias publicadas por clientes/i],
+  ["/comunidad", /novedades sin ruido/i],
+  ["/colaboradores", /marcas y aliados del estudio/i],
+  ["/contacto", /hablemos de tu próxima pieza/i],
+  ["/servicios", /información clara antes de cotizar/i],
+  ["/tienda", /obras disponibles/i],
+] as const;
+
+async function expectNoHorizontalOverflow(page: import("@playwright/test").Page) {
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.viewport + 2);
+}
+
 test.describe("public smoke navigation", () => {
   test("home exposes the primary quote path", async ({ page }) => {
     await page.goto("/");
@@ -10,22 +31,31 @@ test.describe("public smoke navigation", () => {
       }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: /solicitar cotización/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /instagram/i }).first()).toBeVisible();
   });
 
   test("primary public navigation pages render", async ({ page }) => {
-    const routes = [
-      ["/portfolio", /piezas, referencias y lenguaje visual/i],
-      ["/quote", /cuéntame tu idea con contexto/i],
-      ["/quote/status", /revisa el estado de tu cotización/i],
-      ["/opiniones", /experiencias publicadas por clientes/i],
-      ["/comunidad", /novedades sin ruido/i],
-      ["/colaboradores", /marcas y aliados del estudio/i],
-      ["/contacto", /hablemos de tu próxima pieza/i],
-    ] as const;
-
-    for (const [route, heading] of routes) {
+    for (const [route, heading] of publicRoutes.slice(1)) {
       await page.goto(route);
       await expect(page.getByRole("heading", { name: heading }).first()).toBeVisible();
+    }
+  });
+
+  test("public routes do not create horizontal overflow on desktop", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    for (const [route] of publicRoutes) {
+      await page.goto(route);
+      await expectNoHorizontalOverflow(page);
+    }
+  });
+
+  test("public routes do not create horizontal overflow on mobile", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    for (const [route] of publicRoutes) {
+      await page.goto(route);
+      await expectNoHorizontalOverflow(page);
     }
   });
 
@@ -46,36 +76,55 @@ test.describe("public smoke navigation", () => {
     await expect(page.getByRole("button", { name: /consultar/i })).toBeVisible();
   });
 
+  test("historical portfolio route does not expose a duplicate gallery", async ({ page }) => {
+    await page.goto("/portfolio");
+    await page.waitForLoadState("domcontentloaded");
+
+    const finalUrl = page.url();
+    expect(finalUrl).not.toMatch(/\/portfolio\/?$/);
+    expect(finalUrl).toMatch(/instagram\.com|\/$/);
+  });
+
+  test("legacy pages remain compatible but are explicitly excluded from indexing", async ({ request }) => {
+    for (const route of ["/servicios", "/tienda", "/manejo-imagenes"]) {
+      const response = await request.get(route);
+      expect(response.ok()).toBe(true);
+      expect(response.headers()["x-robots-tag"]).toBe("noindex, nofollow, noarchive");
+    }
+  });
+
   test("shop renders a deterministic empty or fallback catalog state", async ({ page }) => {
     await page.goto("/tienda");
 
-    await expect(page.getByRole("heading", { name: "Obras disponibles" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /obras disponibles/i })).toBeVisible();
     await expect(
-      page.getByText(/No hay obras disponibles publicadas|Catálogo temporal en modo referencia/i),
+      page.getByText(/No hay obras disponibles publicadas|Catálogo temporal · referencia/i),
     ).toBeVisible();
   });
 
   test("community unsubscribe page keeps the privacy copy visible", async ({ page }) => {
     await page.goto("/comunidad/baja");
 
-    await expect(page.getByRole("heading", { name: "Cancelar comunicaciones" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /cancelar comunicaciones/i })).toBeVisible();
     await expect(page.getByText(/no confirmaremos si el correo existe/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Solicitar baja" })).toBeVisible();
   });
 
-  test("reviews and sponsors pages render safe public empty states", async ({ page }) => {
+  test("reviews and sponsors pages render safe public shells", async ({ page }) => {
     await page.goto("/opiniones");
     await expect(
-      page.getByRole("heading", { name: "Experiencias publicadas por clientes." }),
+      page.getByRole("heading", { name: /experiencias publicadas por clientes/i }),
     ).toBeVisible();
 
     await page.goto("/colaboradores");
-    await expect(page.getByRole("heading", { name: "Marcas y aliados del estudio." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /marcas y aliados del estudio/i })).toBeVisible();
   });
 
   test("admin route renders its authentication shell without exposing protected data", async ({ page }) => {
-    await page.goto("/admin");
+    const response = await page.goto("/admin");
 
-    await expect(page.getByText(/Admin|panel admin/i).first()).toBeVisible();
+    expect(response?.headers()["x-robots-tag"]).toBe("noindex, nofollow, noarchive");
+    await expect(page.getByRole("heading", { name: /control del estudio/i })).toBeVisible();
+    await expect(page.getByText(/panel|gestión operativa/i).first()).toBeVisible();
   });
 });

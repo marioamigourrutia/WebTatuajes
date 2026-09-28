@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [design/neonink-faithful-v2]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test -- --run --reporter=json --outputFile=test-results.json
+
+      - name: Production build
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Public browser smoke tests
+        run: npm run test:e2e
+
+      - name: Upload visual audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-audit
+          path: test-results/**/*.png
+          if-no-files-found: ignore
+          retention-days: 2
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-results
+          path: test-results.json
+          if-no-files-found: ignore
+          retention-days: 2

@@ -74,8 +74,7 @@ export type CreatedQuoteRequest = {
 };
 
 export type QuoteRequestValidationResult =
-  | { ok: true; value: QuoteRequestInput }
-  | { ok: false; errors: Record<string, string> };
+  { ok: true; value: QuoteRequestInput } | { ok: false; errors: Record<string, string> };
 
 export type RecentQuoteRequest = {
   id: string;
@@ -218,7 +217,7 @@ function isValidQuoteImageId(value: string): boolean {
 }
 
 export function isValidQuoteCode(value: string): boolean {
-  return /^COT-\d{4}-[A-F0-9]{5}$/.test(value.trim().toUpperCase());
+  return /^COT-\d{4}-(?:[A-F0-9]{5}|[A-F0-9]{10})$/.test(value.trim().toUpperCase());
 }
 
 export function validateQuoteInternalNoteInput(quoteId: unknown, internalNote: unknown) {
@@ -562,7 +561,10 @@ function getStoredCustomerEmail(input: QuoteRequestInput, customer: QuoteCustome
   return customer?.email ?? input.email;
 }
 
-function validateAuthenticatedCustomerEmail(input: QuoteRequestInput, customer: QuoteCustomerIdentity) {
+function validateAuthenticatedCustomerEmail(
+  input: QuoteRequestInput,
+  customer: QuoteCustomerIdentity,
+) {
   if (!customer) return null;
 
   if (input.email !== customer.email) {
@@ -609,7 +611,7 @@ export function mapQuoteRequestToFirestore(
 
 function generateQuoteCodeCandidate(now = new Date()) {
   const year = now.getFullYear();
-  const token = randomBytes(4).toString("hex").slice(0, 5).toUpperCase();
+  const token = randomBytes(5).toString("hex").toUpperCase();
 
   return `COT-${year}-${token}`;
 }
@@ -641,7 +643,10 @@ export async function createQuoteRequest(
     return { ok: false as const, status: 400, errors: validation.errors };
   }
 
-  const customerEmailError = validateAuthenticatedCustomerEmail(validation.value, resolved.customer);
+  const customerEmailError = validateAuthenticatedCustomerEmail(
+    validation.value,
+    resolved.customer,
+  );
   if (customerEmailError) return customerEmailError;
 
   if (!resolved.firestore) {
@@ -743,7 +748,10 @@ export async function createQuoteRequestWithReferenceImages(
     return { ok: false as const, status: 400, errors: validation.errors };
   }
 
-  const customerEmailError = validateAuthenticatedCustomerEmail(validation.value, resolved.customer);
+  const customerEmailError = validateAuthenticatedCustomerEmail(
+    validation.value,
+    resolved.customer,
+  );
   if (customerEmailError) return customerEmailError;
 
   if (!resolved.firestore) {
@@ -1049,7 +1057,10 @@ async function listPendingCalendarDateDocuments(firestore: FirestoreLike) {
 
   await Promise.all(
     ["PENDING_CONFIRMATION", "pending"].map(async (status) => {
-      const snapshot = await firestore.collection("calendar_dates").where("status", "==", status).get();
+      const snapshot = await firestore
+        .collection("calendar_dates")
+        .where("status", "==", status)
+        .get();
 
       snapshot.docs.forEach((document) => {
         documentsById.set(document.id, document);
@@ -1139,54 +1150,56 @@ export async function listRecentQuoteRequests(firestore: FirestoreLike, limit = 
     Array.from(documentsById.keys()),
   );
 
-  return Array.from(documentsById.values()).map((document): RecentQuoteRequest => {
-    const data = document.data();
+  return Array.from(documentsById.values())
+    .map((document): RecentQuoteRequest => {
+      const data = document.data();
 
-    return {
-      id: document.id,
-      quoteCode: cleanString(data.quote_code) || document.id,
-      createdAt: serializeCreatedAt(data.created_at),
-      customerName: cleanString(data.customer_name) || "Sin nombre",
-      email: cleanString(data.customer_email),
-      phone: cleanString(data.customer_phone) || null,
-      status: cleanString(data.status) || "pending",
-      preferredContactMethod: cleanString(data.preferred_contact_method) || "email",
-      bodyPlacement: cleanString(data.body_area),
-      approximateSize: cleanString(data.size_description),
-      description: cleanLongText(data.description),
-      descriptionPreview: preview(data.description),
-      budgetClp: typeof data.budget_clp === "number" ? data.budget_clp : null,
-      preferredTattooDate: cleanString(data.preferred_tattoo_date) || null,
-      calendarDateStatus: (cleanString(data.calendar_date_status) as CalendarDateStatus) || null,
-      consents: {
-        dataProcessing: Boolean(
-          (data.consents as Record<string, unknown> | undefined)?.data_processing,
-        ),
-        imageHandling: Boolean(
-          (data.consents as Record<string, unknown> | undefined)?.image_handling,
-        ),
-        privacyTerms: Boolean(
-          (data.consents as Record<string, unknown> | undefined)?.privacy_terms,
-        ),
-        marketingOptIn: Boolean(
-          (data.consents as Record<string, unknown> | undefined)?.marketing_opt_in,
-        ),
-      },
-      internalNote: cleanLongText(data.admin_note),
-      deposit: serializeQuoteDeposit(data.deposit),
-      referenceImages: referenceImagesByQuoteId.get(document.id) ?? [],
-      referenceUrls: serializeQuoteReferenceUrls(data.reference_urls),
-    };
-  }).sort((a, b) => {
-    if (a.createdAt && b.createdAt) {
-      return b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id);
-    }
+      return {
+        id: document.id,
+        quoteCode: cleanString(data.quote_code) || document.id,
+        createdAt: serializeCreatedAt(data.created_at),
+        customerName: cleanString(data.customer_name) || "Sin nombre",
+        email: cleanString(data.customer_email),
+        phone: cleanString(data.customer_phone) || null,
+        status: cleanString(data.status) || "pending",
+        preferredContactMethod: cleanString(data.preferred_contact_method) || "email",
+        bodyPlacement: cleanString(data.body_area),
+        approximateSize: cleanString(data.size_description),
+        description: cleanLongText(data.description),
+        descriptionPreview: preview(data.description),
+        budgetClp: typeof data.budget_clp === "number" ? data.budget_clp : null,
+        preferredTattooDate: cleanString(data.preferred_tattoo_date) || null,
+        calendarDateStatus: (cleanString(data.calendar_date_status) as CalendarDateStatus) || null,
+        consents: {
+          dataProcessing: Boolean(
+            (data.consents as Record<string, unknown> | undefined)?.data_processing,
+          ),
+          imageHandling: Boolean(
+            (data.consents as Record<string, unknown> | undefined)?.image_handling,
+          ),
+          privacyTerms: Boolean(
+            (data.consents as Record<string, unknown> | undefined)?.privacy_terms,
+          ),
+          marketingOptIn: Boolean(
+            (data.consents as Record<string, unknown> | undefined)?.marketing_opt_in,
+          ),
+        },
+        internalNote: cleanLongText(data.admin_note),
+        deposit: serializeQuoteDeposit(data.deposit),
+        referenceImages: referenceImagesByQuoteId.get(document.id) ?? [],
+        referenceUrls: serializeQuoteReferenceUrls(data.reference_urls),
+      };
+    })
+    .sort((a, b) => {
+      if (a.createdAt && b.createdAt) {
+        return b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id);
+      }
 
-    if (a.createdAt) return -1;
-    if (b.createdAt) return 1;
+      if (a.createdAt) return -1;
+      if (b.createdAt) return 1;
 
-    return a.id.localeCompare(b.id);
-  });
+      return a.id.localeCompare(b.id);
+    });
 }
 
 export function serializeClientQuoteStatus(
