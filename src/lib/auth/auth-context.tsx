@@ -26,7 +26,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!auth) {
-      setLoading(false);
       return;
     }
 
